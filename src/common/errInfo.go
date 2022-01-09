@@ -486,6 +486,7 @@ const (
 	CCErrorTopoForbiddenDeleteUnarchivedBiz = 1101112
 
 	CCErrorTopoGetAuthorizedBusinessSetListFailed = 1101114
+	CCErrorTopoBizSetNameDuplicated               = 1101115
 
 	// object controller 1102XXX
 

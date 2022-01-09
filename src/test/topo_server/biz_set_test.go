@@ -14,10 +14,10 @@ package topo_server_test
 
 import (
 	"context"
+	"encoding/json"
 	"strconv"
 
 	"configcenter/src/common"
-	"configcenter/src/common/json"
 	"configcenter/src/common/metadata"
 	params "configcenter/src/common/paraparse"
 	"configcenter/src/common/querybuilder"
@@ -34,6 +34,7 @@ var _ = Describe("business set test", func() {
 	ctx := context.Background()
 
 	var sampleBizSetID, bizID3 int64
+
 	It("prepare environment, create a biz set and biz in it with topo for searching biz and topo in biz set", func() {
 		biz := map[string]interface{}{
 			common.BKMaintainersField: "biz_set",
@@ -136,6 +137,451 @@ var _ = Describe("business set test", func() {
 		sampleBizSetID, err = instClient.CreateBizSet(ctx, header, createBizSetOpt)
 		util.RegisterResponseWithRid(nil, header)
 		Expect(err).NotTo(HaveOccurred())
+	})
+
+	It("create business test", func() {
+		By("create business set bk_biz_set_name: sample_biz_set again")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: true,
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrorTopoBizSetNameDuplicated))
+		}()
+
+		By("create business condition is OR")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set1",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionOr,
+							Rules: []querybuilder.Rule{
+								querybuilder.AtomRule{
+									Field:    common.BKAppNameField,
+									Operator: querybuilder.OperatorIn,
+									Value:    "test",
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business set, filter must be set when match is false")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set3",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business bk_scope.filter must not be set when match is true")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set3",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: true,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionAnd,
+							Rules: []querybuilder.Rule{
+								querybuilder.AtomRule{
+									Field:    common.BKAppNameField,
+									Operator: querybuilder.OperatorIn,
+									Value:    "test",
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business bk_scope.filter.rules.operator is not_equal")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set3",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionAnd,
+							Rules: []querybuilder.Rule{
+								querybuilder.AtomRule{
+									Field:    common.BKAppNameField,
+									Operator: querybuilder.OperatorNotEqual,
+									Value:    "test",
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business bk_scope.filter.rules.operator is not_in")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set3",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionAnd,
+							Rules: []querybuilder.Rule{
+								querybuilder.AtomRule{
+									Field:    common.BKAppNameField,
+									Operator: querybuilder.OperatorNotIn,
+									Value:    []string{"test"},
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business set less bk_biz_set_name")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKMaintainersField: "admin",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: true,
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business set bk_scope.filter more than two level")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField: "sample_biz_set1",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionAnd,
+							Rules: []querybuilder.Rule{
+								querybuilder.CombinedRule{
+									Condition: querybuilder.ConditionAnd,
+									Rules: []querybuilder.Rule{
+										querybuilder.AtomRule{
+											Field:    common.BKAppNameField,
+											Operator: querybuilder.OperatorEqual,
+											Value:    "test",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("create business set bk_biz_set_name: sample_biz_set_test1")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField:  "sample_biz_set_test1",
+					common.BKMaintainersField: "admin",
+					common.BKBizSetDescField:  "for test1",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: false,
+					Filter: &querybuilder.QueryFilter{
+						Rule: querybuilder.CombinedRule{
+							Condition: querybuilder.ConditionAnd,
+							Rules: []querybuilder.Rule{
+								querybuilder.AtomRule{
+									Field:    common.BKAppIDField,
+									Operator: querybuilder.OperatorEqual,
+									Value:    bizID3,
+								},
+							},
+						},
+					},
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("create business set bk_biz_set_name: sample_biz_set_test2")
+		func() {
+			createBizSetOpt := metadata.CreateBizSetRequest{
+				BizSetAttr: map[string]interface{}{
+					common.BKBizSetNameField:  "sample_biz_set_test2",
+					common.BKMaintainersField: "test",
+					common.BKBizSetDescField:  "for test2",
+				},
+				BizSetScope: &metadata.BizSetScope{
+					MatchAll: true,
+				},
+			}
+			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+	})
+
+	It("search business set test", func() {
+		By("search business set by biz set id")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKBizSetIDField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    sampleBizSetID,
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       10,
+					Sort:        "bk_biz_set_id",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("search business set by maintainer")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKMaintainersField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    "test",
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       10,
+					Sort:        "bk_biz_set_id",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("search business set by biz set desc")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKBizSetDescField,
+								Operator: querybuilder.OperatorIn,
+								Value:    []string{"test"},
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       10,
+					Sort:        "bk_biz_set_id",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("search business set by illegal params page.limit")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKBizSetNameField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    "sample_biz_set_test3",
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       common.BKMaxPageSize + 1,
+					Sort:        "",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+	})
+
+	It("count business set test", func() {
+
+		By("count business set by illegal page.limit")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				Page: metadata.BasePage{
+					EnableCount: true,
+					Start:       0,
+					Limit:       10,
+					Sort:        "",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("count business by illegal page.sort")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				Page: metadata.BasePage{
+					EnableCount: true,
+					Sort:        "bk_biz_set_id",
+				},
+			}
+			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
+		}()
+
+		By("count business success")
+		func() {
+			cond := &metadata.QueryBusinessSetRequest{
+				Page: metadata.BasePage{
+					EnableCount: true,
+				},
+			}
+			rsp, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(rsp.Count).To(Equal(3))
+		}()
+	})
+
+	It("preview business set test", func() {
+		By("preview business set without filter")
+		func() {
+			cond := &metadata.PreviewBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKAppNameField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    "biz_for_biz_set",
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       100,
+					Sort:        "",
+				},
+			}
+			_, err := instClient.PreviewBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
+		By("preview business set")
+		func() {
+			cond := &metadata.PreviewBusinessSetRequest{
+				BizSetPropertyFilter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKAppNameField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    "biz_for_biz_set",
+							},
+						},
+					},
+				},
+				Filter: &querybuilder.QueryFilter{
+					Rule: querybuilder.CombinedRule{
+						Condition: querybuilder.ConditionAnd,
+						Rules: []querybuilder.Rule{
+							querybuilder.AtomRule{
+								Field:    common.BKAppNameField,
+								Operator: querybuilder.OperatorEqual,
+								Value:    "biz_for_biz_set",
+							},
+						},
+					},
+				},
+				Page: metadata.BasePage{
+					EnableCount: false,
+					Start:       0,
+					Limit:       100,
+					Sort:        "",
+				},
+			}
+			_, err := instClient.PreviewBusinessSet(ctx, header, cond)
+			Expect(err).NotTo(HaveOccurred())
+		}()
+
 	})
 
 	It("update business set test", func() {

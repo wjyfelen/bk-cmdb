@@ -162,3 +162,27 @@ func (t *instanceClient) SearchBusinessSet(ctx context.Context, h http.Header, o
 
 	return &resp.Data, nil
 }
+func (t *instanceClient) PreviewBusinessSet(ctx context.Context, h http.Header, opt *metadata.PreviewBusinessSetRequest) (
+	*metadata.InstResult, errors.CCErrorCoder) {
+
+	resp := new(metadata.QueryInstResult)
+	subPath := "/find/biz_set/preview"
+
+	err := t.client.Post().
+		WithContext(ctx).
+		Body(opt).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(resp)
+
+	if err != nil {
+		return nil, errors.CCHttpError
+	}
+
+	if err := resp.CCError(); err != nil {
+		return nil, err
+	}
+
+	return &resp.Data, nil
+}

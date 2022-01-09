@@ -94,6 +94,10 @@ type InstanceInterface interface {
 	// SearchBusinessSet search business set
 	SearchBusinessSet(ctx context.Context, h http.Header, opt *metadata.QueryBusinessSetRequest) (
 		*metadata.InstResult, errors.CCErrorCoder)
+
+	// SearchBusinessSet search business set
+	PreviewBusinessSet(ctx context.Context, h http.Header, opt *metadata.PreviewBusinessSetRequest) (
+		*metadata.InstResult, errors.CCErrorCoder)
 }
 
 type instanceClient struct {

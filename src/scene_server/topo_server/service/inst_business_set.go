@@ -53,15 +53,14 @@ func (s *Service) validateScopeFields(kit *rest.Kit, fields []string) error {
 	// 数量上必须与查询一致
 	if res.Count != int64(len(validFields)) {
 		blog.Errorf("read model attribute failed, error: %v, cond: %+v, rid: %s", err, cond, kit.Rid)
-		return kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, "wrong number of model attributes")
-		return nil
+		return kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, "wrong number of model attributes")
 	}
 
 	// 严格校验每个字段类型是否是enum或 organization
 	for _, info := range res.Info {
 		if info.PropertyType != common.FieldTypeEnum && info.PropertyType != common.FieldTypeOrganization {
 			blog.Errorf("model attribute type must be enum or organization, cond: %+v, rid: %s", cond, kit.Rid)
-			return kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, "model attribute must enum or organization")
+			return kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, "model attribute must enum or organization")
 		}
 	}
 	return nil
@@ -248,11 +247,12 @@ func (s *Service) PreviewBusinessSet(ctx *rest.Contexts) {
 			blog.Errorf("BizPropertyFilter ToMgo failed: %s, err: %v, rid: %s", searchCond.BizSetPropertyFilter,
 				err, ctx.Kit.Rid)
 			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid,
-				fmt.Sprintf(", biz_property_filter.%s", key)))
+				fmt.Sprintf("biz_property_filter.%s", key)))
 			return
 		}
 		mgoFilter = filter
 	}
+
 	if searchCond.Filter != nil {
 		filter, key, err := searchCond.Filter.ToMgo()
 		if err != nil {
@@ -279,6 +279,7 @@ func (s *Service) PreviewBusinessSet(ctx *rest.Contexts) {
 		ctx.RespEntity(bizSetResult)
 		return
 	}
+
 	query = &metadata.QueryCondition{
 		Condition: mgoFilter,
 		Fields:    []string{common.BKAppIDField, common.BKAppNameField},
