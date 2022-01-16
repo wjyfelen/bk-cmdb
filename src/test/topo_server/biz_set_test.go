@@ -151,6 +151,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrorTopoBizSetNameDuplicated))
 		}()
 
@@ -177,6 +178,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -191,6 +193,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -217,6 +220,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -243,6 +247,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -269,6 +274,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -283,6 +289,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -314,6 +321,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -341,8 +349,8 @@ var _ = Describe("business set test", func() {
 					},
 				},
 			}
-			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
-			util.RegisterResponseWithRid(nil, header)
+			bizSetID, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(bizSetID, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
@@ -358,8 +366,8 @@ var _ = Describe("business set test", func() {
 					MatchAll: true,
 				},
 			}
-			_, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
-			util.RegisterResponseWithRid(nil, header)
+			bizSeID, err := instClient.CreateBizSet(ctx, header, createBizSetOpt)
+			util.RegisterResponseWithRid(bizSeID, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 	})
@@ -387,8 +395,8 @@ var _ = Describe("business set test", func() {
 					Sort:        "bk_biz_set_id",
 				},
 			}
-			_, err := instClient.SearchBusinessSet(ctx, header, cond)
-			util.RegisterResponseWithRid(nil, header)
+			rsp, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
@@ -414,8 +422,8 @@ var _ = Describe("business set test", func() {
 					Sort:        "bk_biz_set_id",
 				},
 			}
-			_, err := instClient.SearchBusinessSet(ctx, header, cond)
-			util.RegisterResponseWithRid(nil, header)
+			rsp, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
@@ -442,8 +450,8 @@ var _ = Describe("business set test", func() {
 					Sort:        "bk_biz_set_id",
 				},
 			}
-			_, err := instClient.SearchBusinessSet(ctx, header, cond)
-			util.RegisterResponseWithRid(nil, header)
+			rsp, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
@@ -470,6 +478,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 	})
@@ -487,6 +496,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -499,6 +509,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			_, err := instClient.SearchBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(nil, header)
 			Expect(err.GetCode()).Should(Equal(common.CCErrCommParamsInvalid))
 		}()
 
@@ -510,7 +521,7 @@ var _ = Describe("business set test", func() {
 				},
 			}
 			rsp, err := instClient.SearchBusinessSet(ctx, header, cond)
-			util.RegisterResponseWithRid(nil, header)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(rsp.Count).To(Equal(3))
 		}()
@@ -539,8 +550,8 @@ var _ = Describe("business set test", func() {
 					Sort:        "",
 				},
 			}
-			_, err := instClient.PreviewBusinessSet(ctx, header, cond)
-			util.RegisterResponseWithRid(nil, header)
+			rsp, err := instClient.PreviewBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
@@ -578,7 +589,8 @@ var _ = Describe("business set test", func() {
 					Sort:        "",
 				},
 			}
-			_, err := instClient.PreviewBusinessSet(ctx, header, cond)
+			rsp, err := instClient.PreviewBusinessSet(ctx, header, cond)
+			util.RegisterResponseWithRid(rsp, header)
 			Expect(err).NotTo(HaveOccurred())
 		}()
 
