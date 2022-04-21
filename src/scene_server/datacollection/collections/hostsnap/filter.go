@@ -21,7 +21,7 @@ import (
 
 func newFilter() *filter {
 	f := &filter{
-		pool: make(map[string]int64),
+		ipPool: make(map[string]int64),
 		// 30 minutes, with range minutes [30, 90]
 		ttlSeconds:      60 * 60,
 		ttlRangeSeconds: [2]int{-30 * 60, 30 * 60},
@@ -37,7 +37,7 @@ type filter struct {
 	lock sync.Mutex
 	// key: ip:cloud_id
 	// v: unix time for key expire ttl seconds.
-	pool       map[string]int64
+	ipPool     map[string]int64 //todo: 这里需要增加agentid需要看下是否需要增加一个pool 涉及到set delete exist操作
 	ttlSeconds int64
 	// min:[0], max:[1]
 	ttlRangeSeconds [2]int
@@ -48,7 +48,7 @@ func (f *filter) Set(ip string, cloudID int64) {
 	key := fmt.Sprintf("%s:%d", ip, cloudID)
 	f.lock.Lock()
 	// give a random ttl to avoid refresh the key concurrently.
-	f.pool[key] = f.randomTTL()
+	f.ipPool[key] = f.randomTTL()
 	f.lock.Unlock()
 }
 
@@ -56,7 +56,7 @@ func (f *filter) Set(ip string, cloudID int64) {
 func (f *filter) Exist(ip string, cloudID int64) bool {
 	key := fmt.Sprintf("%s:%d", ip, cloudID)
 	f.lock.Lock()
-	ttl, exist := f.pool[key]
+	ttl, exist := f.ipPool[key]
 	f.lock.Unlock()
 
 	if !exist {
@@ -75,10 +75,10 @@ func (f *filter) gc() {
 	for {
 		time.Sleep(time.Duration(f.ttlSeconds) * time.Second)
 		f.lock.Lock()
-		for host, ttl := range f.pool {
+		for host, ttl := range f.ipPool {
 			if time.Now().Unix()-ttl > f.ttlSeconds {
 				// remove from the cache.
-				delete(f.pool, host)
+				delete(f.ipPool, host)
 			}
 		}
 		f.lock.Unlock()

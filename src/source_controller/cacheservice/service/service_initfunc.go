@@ -27,8 +27,8 @@ func (s *cacheService) initCache(web *restful.WebService) {
 	})
 	utility.AddHandler(rest.Action{
 		Verb:    http.MethodPost,
-		Path:    "/find/cache/host/with_inner_ip",
-		Handler: s.SearchHostWithInnerIPInCache,
+		Path:    "/find/cache/host/with_agentID_or_inner_ip",
+		Handler: s.SearchHostWithAgentIDOrInnerIPInCache,
 	})
 	utility.AddHandler(rest.Action{
 		Verb:    http.MethodPost,

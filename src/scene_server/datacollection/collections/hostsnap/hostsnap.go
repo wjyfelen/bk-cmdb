@@ -143,48 +143,93 @@ func getLimitConfig(config string, defaultValue, minValue int) int {
 	}
 	return limit
 }
-
-// Analyze analyze host snap
-func (h *HostSnap) Analyze(msg *string) (bool, error) {
-	if msg == nil {
-		return false, fmt.Errorf("message nil")
-	}
+func getBaseInfoFromMsg(msg *string) (string, []string, int64, gjson.Result, error) {
 
 	var data string
-
 	if !gjson.Get(*msg, "cloudid").Exists() {
 		data = gjson.Get(*msg, "data").String()
 	} else {
 		data = *msg
 	}
 
-	header, rid := newHeaderWithRid()
+	agentID := ""
 
 	val := gjson.Parse(data)
-	cloudID := val.Get("cloudid").Int()
-	ips := getIPS(&val)
-	host, err := h.getHostByVal(header, cloudID, ips, &val)
-	if err != nil {
-		blog.Errorf("get host detail with ips: %v failed, err: %v, rid: %s", ips, err, rid)
-		return false, err
+	if val.Get("data.apiVer").String() > "v1.0" {
+		if !val.Get("data.apiVer").Exists() || val.Get("agentid").String() == "" {
+			return "", nil, 0, gjson.Result{}, errors.New("agentID nil")
+		}
+		agentID = val.Get("agentid").String()
 	}
-	elements := gjson.GetMany(host, common.BKHostIDField, common.BKHostInnerIPField, common.BKHostOuterIPField)
+	cloudID := val.Get("cloudid").Int()
+
+	ips := getIPS(&val)
+	if len(ips) == 0 {
+		//blog.Warnf("snapshot message has no ip, message: %s, rid: %s", val.String())
+		return "", nil, 0, gjson.Result{}, errors.New("snapshot has no root ip fields")
+	}
+
+	return agentID, ips, cloudID, val, nil
+}
+
+func checkHostInfoValid(rid string, host string, ips []string, elements []gjson.Result) error {
 	// check host id field
 	if !elements[0].Exists() {
 		blog.Errorf("snapshot analyze, but host id not exist, host: %s, ips: %v, rid: %s", host, ips, rid)
-		return false, errors.New("host id not exist")
+		return errors.New("host id not exist")
 	}
+	if !elements[3].Exists() {
+		blog.Errorf("snapshot analyze, but host addressing not exist, host: %s, ips: %v, rid: %s", host, ips, rid)
+		return errors.New("host id not exist")
+	}
+
 	hostID := elements[0].Int()
 	if hostID == 0 {
 		blog.Errorf("snapshot analyze, but host id is 0, host: %s, ips: %v, rid: %s", host, ips, rid)
-		return false, errors.New("host id can not be 0")
+		return errors.New("host id can not be 0")
 	}
 
 	// check inner ip
 	if !elements[1].Exists() {
 		blog.Errorf("snapshot analyze, but host inner ip not exist, host: %s, ips: %v, rid: %s", host, ips, rid)
-		return false, errors.New("host inner ip not exist")
+		return errors.New("host inner ip not exist")
 	}
+	return nil
+}
+
+// Analyze analyze host snap
+func (h *HostSnap) Analyze(msg *string) (bool, error) {
+
+	if msg == nil {
+		return false, errors.New("message nil")
+	}
+
+	header, rid := newHeaderWithRid()
+	agentID, ips, cloudID, val, err := getBaseInfoFromMsg(msg)
+	if err != nil {
+		blog.Errorf("parse base info failed, msg: %s, err: %v, rid: %s", *msg, err, rid)
+		return false, err
+	}
+
+	host, err := h.getHostByVal(header, agentID, cloudID, ips)
+	if err != nil {
+		blog.Errorf("get host detail with ips: %v failed, err: %v, rid: %s", ips, err, rid)
+		return false, err
+	}
+
+	fields := []string{common.BKHostIDField, common.BKHostInnerIPField,
+		common.BKHostOuterIPField, common.BKAddressingField}
+	elements := gjson.GetMany(host, fields...)
+	// check host id field
+	if !elements[0].Exists() {
+		blog.Errorf("snapshot analyze, but host id not exist, host: %s, ips: %v, rid: %s", host, ips, rid)
+		return false, errors.New("host id not exist")
+	}
+
+	if err := checkHostInfoValid(rid, host, ips, elements); err != nil {
+		return false, err
+	}
+	hostID := elements[0].Int()
 
 	innerIP := elements[1].String()
 	outerIP := elements[2].String()
@@ -202,7 +247,6 @@ func (h *HostSnap) Analyze(msg *string) (bool, error) {
 		}
 		return false, nil
 	}
-
 	if h.skipMsg(val, innerIP, rid, hostID, cloudID) {
 		return false, nil
 	}
@@ -246,7 +290,7 @@ func (h *HostSnap) Analyze(msg *string) (bool, error) {
 		blog.Errorf("unmarshal host %s failed, err: %v", host, err)
 		return false, err
 	}
-
+	// todo: 这里是否需要增加事务处理?
 	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).
 		WithOperateFrom(metadata.FromDataCollection).WithUpdateFields(setter)
 	auditLog, err := audit.GenerateAuditLog(generateAuditParameter, 0, []mapstr.MapStr{hostData})
@@ -293,7 +337,7 @@ func (h *HostSnap) skipMsg(val gjson.Result, innerIP, rid string, hostID, cloudI
 		return false
 	}
 
-	key := redisConsumptionCheckPrefix + innerIP + ":" + strconv.FormatInt(cloudID, 10)
+	key := redisConsumptionCheckPrefix + strconv.FormatInt(hostID, 10)
 	timestamp, err := h.redisCli.Get(context.Background(), key).Result()
 	if err != nil && !redis.IsNilErr(err) {
 		blog.Errorf("get key: %s from redis err: %v, rid: %s", key, err, rid)
@@ -355,8 +399,9 @@ func needToUpdate(src, toCompare string) bool {
 	return false
 }
 
+// todo: 这里需要做新的小版本的兼容例如需要判断版本是否大于1.0?  1.1 1.2...
 func parseSetter(val *gjson.Result, innerIP, outerIP string) (map[string]interface{}, string) {
-	if val.Get("data.apiVer").String() == "v1.0" {
+	if val.Get("data.apiVer").String() >= "v1.0" {
 		return parseV10Setter(val, innerIP, outerIP)
 	}
 
@@ -748,60 +793,122 @@ func parseV10Setter(val *gjson.Result, innerIP, outerIP string) (map[string]inte
 	return setter, raw.String()
 }
 
-func (h *HostSnap) getHostByVal(header http.Header, cloudID int64, ips []string, val *gjson.Result) (string, error) {
+func (h *HostSnap) getHostByVal(header http.Header, agentID string, cloudID int64, ips []string) (string, error) {
+
 	rid := util.GetHTTPCCRequestID(header)
 
-	if len(ips) == 0 {
-		blog.Warnf("snapshot message has no ip, message:%s, rid: %s", val.String(), rid)
-		return "", errors.New("snapshot has no ip fields")
+	opt := &metadata.SearchHostWithAgentIDAndIPOption{
+		AgentID:  agentID,
+		InnerIPs: ips,
+		CloudID:  cloudID,
+		Fields:   reqireFields,
 	}
-
-	for _, ip := range ips {
-		if h.filter.Exist(ip, cloudID) {
-			// skip the cached invalid ip which may not exist.
-			continue
-		}
-
-		opt := &metadata.SearchHostWithInnerIPOption{
-			InnerIP: ip,
-			CloudID: cloudID,
-			Fields:  reqireFields,
-		}
-
-		host, err := h.Engine.CoreAPI.CacheService().Cache().Host().SearchHostWithInnerIP(context.Background(),
-			header, opt)
-		if err != nil {
-			blog.Errorf("get host info with ip: %s, cloud id: %d failed, err: %v, rid: %s", ip, cloudID,
-				err, rid)
-			if ccErr, ok := err.(ccErr.CCErrorCoder); ok {
-				if ccErr.GetCode() == common.CCErrCommDBSelectFailed {
-					h.filter.Set(ip, cloudID)
-				}
+	host, err := h.Engine.CoreAPI.CacheService().Cache().Host().SearchHostWithAgentIdOrInnerIP(context.Background(),
+		header, opt)
+	if err != nil {
+		blog.Errorf("get host info with agentID: %s failed, err: %v, rid: %s", agentID, err, rid)
+		if ccErr, ok := err.(ccErr.CCErrorCoder); ok {
+			if ccErr.GetCode() == common.CCErrCommDBSelectFailed {
+				h.filter.Set(agentID, cloudID)
+				//这里根据agentid还是ip进行更新缓存
 			}
-			// do not return, continue search with next ip
 		}
-
-		if len(host) == 0 {
-			// not find host
-			continue
-		}
-
-		return host, nil
-
+		return "", err
+		// do not return, continue search with next ip
 	}
+	return host, nil
+
+	//if agentID != "" {
+	//	opt := &metadata.SearchHostWithAgentIDAndInnerIPOption{
+	//		AgentID: agentID,
+	//		Fields:  reqireFields,
+	//	}
+	//
+	//	host, err := h.Engine.CoreAPI.CacheService().Cache().Host().SearchHostWithAgentIdOrInnerIP(context.Background(),
+	//		header, opt)
+	//	if err != nil {
+	//		blog.Errorf("get host info with agentID: %s failed, err: %v, rid: %s", agentID, err, rid)
+	//		if ccErr, ok := err.(ccErr.CCErrorCoder); ok {
+	//			if ccErr.GetCode() == common.CCErrCommDBSelectFailed {
+	//				//h.filter.Set(agentID, cloudID)
+	//			}
+	//		}
+	//		return "", err
+	//		// do not return, continue search with next ip
+	//	}
+	//	return host, nil
+	//} else {
+	//	for _, ip := range ips {
+	//		if h.filter.Exist(ip, cloudID) {
+	//			// skip the cached invalid ip which may not exist.
+	//			continue
+	//		}
+	//
+	//		opt := &metadata.SearchHostWithAgentIDAndInnerIPOption{
+	//			InnerIP: ip,
+	//			CloudID: cloudID,
+	//			Fields:  reqireFields,
+	//		}
+	//
+	//		host, err := h.Engine.CoreAPI.CacheService().Cache().Host().SearchHostWithAgentIdOrInnerIP(context.Background(),
+	//			header, opt)
+	//		if err != nil {
+	//			blog.Errorf("get host info with ip: %s, cloud id: %d failed, err: %v, rid: %s", ip, cloudID,
+	//				err, rid)
+	//			if ccErr, ok := err.(ccErr.CCErrorCoder); ok {
+	//				if ccErr.GetCode() == common.CCErrCommDBSelectFailed {
+	//					h.filter.Set(ip, cloudID)
+	//				}
+	//			}
+	//			// do not return, continue search with next ip
+	//		}
+	//
+	//		if len(host) == 0 {
+	//			// not find host
+	//			continue
+	//		}
+	//
+	//		return host, nil
+	//	}
+	//}
 
 	return "", errors.New("can not find ip detail from cache")
 }
+
+// getRootIp get rootip after filtering out ipv4 or ipv6 loopback addresses.
+//func getRootIp(val *gjson.Result) ([]string, []string) {
+//	rootIP := val.Get("ip").String()
+//	if rootIP == "" {
+//		return []string{}, []string{}
+//	}
+//	ip := util.JudgeIpAddressV4OrV6(rootIP)
+//	if ip == "" {
+//		return []string{}, []string{}
+//	}
+//	switch ip {
+//	case metadata.IPv4Address:
+//		if !strings.HasPrefix(rootIP, metadata.IPv4LoopBackIp) {
+//			return []string{rootIP}, []string{}
+//		}
+//	case metadata.IPv6Address:
+//		if rootIP != metadata.IPv6LoopBackIp {
+//			return []string{}, []string{rootIP}
+//		}
+//	default:
+//		return []string{}, []string{}
+//	}
+//	return []string{}, []string{}
+//}
 
 func getIPS(val *gjson.Result) []string {
 	ipv4 := make([]string, 0)
 	ipv6 := make([]string, 0)
 
 	rootIP := val.Get("ip").String()
-	if !strings.HasPrefix(rootIP, "127.0.0.") && net.ParseIP(rootIP) != nil {
+	if !strings.HasPrefix(rootIP, metadata.IPv4LoopBackIp) && rootIP != metadata.IPv6LoopBackIp &&
+		net.ParseIP(rootIP) != nil {
 		if strings.Contains(rootIP, ":") {
-			// not support ipv6 for now.
-			// ipv6 = append(ipv6, rootIP)
+			ipv6 = append(ipv6, rootIP)
 		} else {
 			ipv4 = append(ipv4, rootIP)
 		}
@@ -811,7 +918,7 @@ func getIPS(val *gjson.Result) []string {
 	for _, addrs := range interfaces {
 		for _, addr := range addrs.Array() {
 			ip := strings.Split(addr.String(), "/")[0]
-			if strings.HasPrefix(ip, "127.0.0.") {
+			if strings.HasPrefix(ip, metadata.IPv4LoopBackIp) || ip == metadata.IPv6LoopBackIp {
 				continue
 			}
 
@@ -821,8 +928,7 @@ func getIPS(val *gjson.Result) []string {
 			}
 
 			if strings.Contains(ip, ":") {
-				// not support ipv6 for now.
-				// ipv6 = append(ipv6, ip)
+				ipv6 = append(ipv6, ip)
 			} else {
 				ipv4 = append(ipv4, ip)
 			}

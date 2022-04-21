@@ -26,13 +26,13 @@ import (
 	"configcenter/src/source_controller/cacheservice/event"
 )
 
-func (s *cacheService) SearchHostWithInnerIPInCache(ctx *rest.Contexts) {
-	opt := new(metadata.SearchHostWithInnerIPOption)
+func (s *cacheService) SearchHostWithAgentIDOrInnerIPInCache(ctx *rest.Contexts) {
+	opt := new(metadata.SearchHostWithAgentIDAndIPOption)
 	if err := ctx.DecodeInto(&opt); nil != err {
 		ctx.RespAutoError(err)
 		return
 	}
-	host, err := s.cacheSet.Host.GetHostWithInnerIP(ctx.Kit.Ctx, opt)
+	host, err := s.cacheSet.Host.GetHostWithAgentIDAndInnerIP(ctx.Kit.Ctx, opt)
 	if err != nil {
 		ctx.RespErrorCodeOnly(common.CCErrCommDBSelectFailed, "search host with inner ip in cache, but get host failed, err: %v", err)
 		return
@@ -47,7 +47,7 @@ func (s *cacheService) SearchHostWithHostIDInCache(ctx *rest.Contexts) {
 		return
 	}
 
-	host, err := s.cacheSet.Host.GetHostWithID(ctx.Kit.Ctx, opt)
+	host, err := s.cacheSet.Host.GetHostWithAgentID(ctx.Kit.Ctx, opt)
 	if err != nil {
 		ctx.RespErrorCodeOnly(common.CCErrCommDBSelectFailed, "search host with id in cache, but get host failed, err: %v", err)
 		return

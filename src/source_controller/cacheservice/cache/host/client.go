@@ -31,9 +31,9 @@ type Client struct {
 	lock tools.RefreshingLock
 }
 
-// GetHostWithID get host with host id.
+// GetHostWithAgentID get host with host id.
 // fields allows you can specify which fields you need only.
-func (c *Client) GetHostWithID(ctx context.Context, opt *metadata.SearchHostWithIDOption) (string, error) {
+func (c *Client) GetHostWithAgentID(ctx context.Context, opt *metadata.SearchHostWithIDOption) (string, error) {
 	rid := ctx.Value(common.ContextRequestIDField)
 	needRefresh := false
 	data, err := redis.Client().Get(context.Background(), hostKey.HostDetailKey(opt.HostID)).Result()
@@ -56,14 +56,14 @@ func (c *Client) GetHostWithID(ctx context.Context, opt *metadata.SearchHostWith
 	}
 
 	// data has already expired, need to refresh from db
-	ips, cloudID, detail, err := getHostDetailsFromMongoWithHostID(opt.HostID)
+	ips, cloudID, agentID, detail, err := getHostDetailsFromMongoWithHostID(opt.HostID)
 	if err != nil {
 		blog.Errorf("get host with id: %d, and cache expired, but get from mongo failed, err: %v, rid: %s", opt.HostID, err, rid)
 		return "", err
 	}
 
 	// try refresh cache
-	c.tryRefreshHostDetail(opt.HostID, ips, cloudID, detail)
+	c.tryRefreshHostDetail(opt.HostID, ips, cloudID, agentID, detail)
 
 	if len(opt.Fields) == 0 {
 		return string(detail), nil
@@ -131,7 +131,7 @@ func (c *Client) ListHostWithHostIDs(ctx context.Context, opt *metadata.ListWith
 			return nil, err
 		}
 		for _, host := range toAdd {
-			c.tryRefreshHostDetail(host.id, host.ip, host.cloudID, []byte(host.detail))
+			c.tryRefreshHostDetail(host.id, host.ip, host.cloudID, "", []byte(host.detail))
 
 			if len(opt.Fields) != 0 {
 				list = append(list, *json.CutJsonDataWithFields(&host.detail, opt.Fields))
@@ -143,17 +143,20 @@ func (c *Client) ListHostWithHostIDs(ctx context.Context, opt *metadata.ListWith
 	return list, nil
 }
 
-// GetHostWithInnerIP is to get host with the ip and cloud id it belongs.
+// GetHostWithAgentIDAndInnerIP is to get host with the ip and cloud id it belongs.
 // the ip must be a unique one, can not be a ip string with multiple ip separated with comma.
-func (c *Client) GetHostWithInnerIP(ctx context.Context, opt *metadata.SearchHostWithInnerIPOption) (string, error) {
+func (c *Client) GetHostWithAgentIDAndInnerIP(ctx context.Context, opt *metadata.SearchHostWithAgentIDAndIPOption) (string, error) {
 	rid := ctx.Value(common.ContextRequestIDField)
-	if len(opt.InnerIP) == 0 || len(strings.Split(opt.InnerIP, ",")) > 1 {
-		return "", errors.New("invalid ip address with multiple ip")
+	if len(opt.InnerIPs) == 0 && opt.AgentID == "" {
+		return "", errors.New("invalid ip address")
 	}
+	if opt.AgentID != "" {
 
-	detail, err := c.getHostDetailWithIP(opt.InnerIP, opt.CloudID)
+	}
+	// todo: 这里需要考虑的是如何获取详细信息，得好好想想
+	detail, err := c.getHostDetailWithIP(opt.InnerIPs, opt.CloudID, opt.AgentID)
 	if err != nil {
-		blog.Errorf("get host with inner ip: %s failed, err：%v, rid: %s", opt.InnerIP, err, rid)
+		blog.Errorf("get host with agentID: %s, ip: %s failed, err：%v, rid: %s", opt.AgentID, opt.InnerIPs, err, rid)
 		return "", err
 	}
 

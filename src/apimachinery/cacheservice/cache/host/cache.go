@@ -21,18 +21,18 @@ import (
 	"configcenter/src/common/metadata"
 )
 
-func (b *baseCache) SearchHostWithInnerIP(ctx context.Context, h http.Header, opt *metadata.SearchHostWithInnerIPOption) (jsonString string, err error) {
+func (b *baseCache) SearchHostWithAgentIdOrInnerIP(ctx context.Context, h http.Header, opt *metadata.SearchHostWithAgentIDAndIPOption) (jsonString string, err error) {
 
 	resp, err := b.client.Post().
 		WithContext(ctx).
 		Body(opt).
-		SubResourcef("/find/cache/host/with_inner_ip").
+		SubResourcef("/find/cache/host/with_agentID_or_inner_ip").
 		WithHeaders(h).
 		Do().
 		IntoJsonString()
 
 	if err != nil {
-		return "", errors.New(common.CCErrCommHTTPDoRequestFailed, err.Error())
+		return "", err
 	}
 
 	if !resp.Result {

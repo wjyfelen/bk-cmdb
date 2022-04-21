@@ -48,7 +48,44 @@ return detail
 const hostCloudIdRelationNotExitError = "host cloud id relation not exist"
 const hostDetailNotExitError = "host detail not exist"
 
-func (c *Client) getHostDetailWithIP(innerIP string, cloudID int64) (*string, error) {
+func (c *Client) getHostDetailWithAgentID(agentID string) (*string, error) {
+	keys := hostKey.AgentIDKey(agentID)
+	result, err := redis.Client().Eval(context.Background(), getHostWithIpScript, []string{keys}, hostCloudIdRelationNotExitError,
+		hostDetailNotExitError).Result()
+
+	if err != nil {
+		return nil, fmt.Errorf("run getHostWithIpScript in redis failed, err: %v", err)
+	}
+
+	resp, ok := result.(string)
+	if !ok {
+		return nil, fmt.Errorf("run getHostWithIpScript in redis, but get invalid result data: %v", result)
+	}
+
+	switch resp {
+	case hostCloudIdRelationNotExitError:
+		// host inner ip and cloud id relation not exist
+		blog.V(5).Infof("run getHostWithIpScript in redis, but not find key: %s", keys)
+	case hostDetailNotExitError:
+		blog.V(5).Infof("run getHostWithIpScript in redis, but not find host detail key pattern: %s", hostKey.HostDetailKey(-1))
+		// host detail not exist
+	default:
+		// we have find the data, return directly.
+		return &resp, nil
+	}
+
+	// now, we need to refresh the cache.
+	hostID, detail, err := getHostDetailsFromMongoWithAgentID(agentID)
+	if err != nil {
+		return nil, fmt.Errorf("get host detail with ip failed, err: %v", err)
+	}
+
+	c.tryRefreshHostDetail(hostID, "", 0, agentID, detail)
+	detailStr := string(detail)
+	return &detailStr, nil
+}
+
+func (c *Client) getHostDetailWithIP(innerIP string, cloudID int64, agentID string) (*string, error) {
 	keys := hostKey.IPCloudIDKey(innerIP, cloudID)
 	result, err := redis.Client().Eval(context.Background(), getHostWithIpScript, []string{keys}, hostCloudIdRelationNotExitError,
 		hostDetailNotExitError).Result()
@@ -80,7 +117,7 @@ func (c *Client) getHostDetailWithIP(innerIP string, cloudID int64) (*string, er
 		return nil, fmt.Errorf("get host detail with ip failed, err: %v", err)
 	}
 
-	c.tryRefreshHostDetail(hostID, innerIP, cloudID, detail)
+	c.tryRefreshHostDetail(hostID, innerIP, cloudID, agentID, detail)
 	detailStr := string(detail)
 	return &detailStr, nil
 }

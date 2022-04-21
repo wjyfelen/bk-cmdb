@@ -14,6 +14,7 @@ package util
 
 import (
 	"bytes"
+	"configcenter/src/common/metadata"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -42,4 +43,17 @@ func PeekRequest(req *http.Request) ([]byte, error) {
 		return byt, nil
 	}
 	return make([]byte, 0), nil
+}
+
+// JudgeIpAddressV4OrV6 determine whether the input ip address is a v4 or v6 address
+func JudgeIpAddressV4OrV6(s string) string {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '.':
+			return metadata.IPv4Address
+		case ':':
+			return metadata.IPv6Address
+		}
+	}
+	return ""
 }

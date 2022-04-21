@@ -29,7 +29,9 @@ import (
 	rawRedis "github.com/go-redis/redis/v7"
 )
 
-func (c *Client) tryRefreshHostDetail(hostID int64, ips string, cloudID int64, detail []byte) {
+// todo: 这里如果通过ip+cloud进行查询的话，可能出现多条数据，是否需要全部更新？ 如果全部更新应该没问不大，因为多条数据的话肯定是至多一条无agentid
+// 的数据，这个时候ip已经不准了更新了也不会影响业务。
+func (c *Client) tryRefreshHostDetail(hostID int64, ips string, cloudID int64, agentID string, detail []byte) {
 	hostKey := hostKey.HostDetailKey(hostID)
 	if !c.lock.CanRefresh(hostKey) {
 		return
@@ -42,8 +44,7 @@ func (c *Client) tryRefreshHostDetail(hostID int64, ips string, cloudID int64, d
 		defer func() {
 			c.lock.SetUnRefreshing(hostKey)
 		}()
-
-		refreshHostDetailCache(hostID, ips, cloudID, detail)
+		refreshHostDetailCache(hostID, ips, cloudID, agentID, detail)
 	}()
 }
 

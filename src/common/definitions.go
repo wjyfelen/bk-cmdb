@@ -268,6 +268,9 @@ const (
 	// BKHostOuterIPField the host outerip field
 	BKHostOuterIPField = "bk_host_outerip"
 
+	// BKAddressingField the host addressing field
+	BKAddressingField = "bk_addressing"
+
 	// BKCloudInstIDField the cloud instance id field
 	BKCloudInstIDField = "bk_cloud_inst_id"
 

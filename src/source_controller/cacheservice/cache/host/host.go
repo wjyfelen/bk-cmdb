@@ -98,12 +98,12 @@ func (h *hostCache) onUpsert(e *types.Event) {
 	}
 
 	// get host details from db again to avoid dirty data.
-	ips, cloudID, detail, err := getHostDetailsFromMongoWithHostID(hostID)
+	ips, cloudID, agentID, detail, err := getHostDetailsFromMongoWithHostID(hostID)
 	if err != nil {
 		blog.Errorf("received host %d upsert event, but get detail from mongodb failed, err: %v", hostID, err)
 		return
 	}
-	refreshHostDetailCache(hostID, ips, cloudID, detail)
+	refreshHostDetailCache(hostID, ips, cloudID, agentID, detail)
 }
 
 func (h *hostCache) onDelete(e *types.Event) {
@@ -159,7 +159,7 @@ func (h *hostCache) onListDone() {
 }
 
 // refreshHostDetailCache refresh the host's detail cache
-func refreshHostDetailCache(hostID int64, ips string, cloudID int64, hostDetail []byte) {
+func refreshHostDetailCache(hostID int64, ips string, cloudID int64, agentID string, hostDetail []byte) {
 	// get refresh lock to avoid concurrent
 	success, err := redis.Client().SetNX(context.Background(), hostKey.HostDetailLockKey(hostID), 1, 10*time.Second).Result()
 	if err != nil {
@@ -184,8 +184,12 @@ func refreshHostDetailCache(hostID int64, ips string, cloudID int64, hostDetail 
 	// upsert host ip and cloud id relation
 	// a host can have multiple host inner ips
 	ttl := hostKey.WithRandomExpireSeconds()
-	for _, ip := range strings.Split(ips, ",") {
-		pipeline.Set(hostKey.IPCloudIDKey(ip, cloudID), hostID, ttl)
+	if agentID != "" {
+		pipeline.Set(hostKey.AgentIDKey(agentID), hostID, ttl)
+	} else {
+		for _, ip := range strings.Split(ips, ",") {
+			pipeline.Set(hostKey.IPCloudIDKey(ip, cloudID), hostID, ttl)
+		}
 	}
 
 	// update host details
@@ -208,22 +212,32 @@ func refreshHostDetailCache(hostID int64, ips string, cloudID int64, hostDetail 
 	}
 }
 
-func getHostDetailsFromMongoWithHostID(hostID int64) (ips string, cloudID int64, detail []byte, err error) {
+func getHostDetailsFromMongoWithHostID(hostID int64) (string, int64, string, []byte, error) {
 	filter := mapstr.MapStr{
 		common.BKHostIDField: hostID,
 	}
 	host := make(metadata.HostMapStr)
-	err = mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).One(context.Background(), &host)
+	err := mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).One(context.Background(), &host)
 	if err != nil {
 		blog.Errorf("get host data from mongodb for cache failed, err: %v", err)
-		return "", 0, nil, err
+		return "", 0, "", nil, err
 	}
 
-	var ok bool
-	ips, ok = host[common.BKHostInnerIPField].(string)
+	//var ok bool
+	ips, ok := host[common.BKHostInnerIPField].(string)
 	if !ok {
 		blog.Errorf("get host: %d data from mongodb for cache, but got invalid ip, host: %v", hostID, host)
-		return "", 0, nil, fmt.Errorf("invalid host: %d innerip", hostID)
+		return "", 0, "", nil, fmt.Errorf("invalid host: %d innerip", hostID)
+	}
+
+	agentID := ""
+	if host[common.BKAgentIDField] != nil {
+		if id, ok := host[common.BKAgentIDField].(string); ok {
+			agentID = id
+		} else {
+			blog.Errorf("get host: %d data from mongodb for cache, but got invalid agentID, host: %v", hostID, host)
+			return "", 0, "", nil, fmt.Errorf("invalid host: %d innerip", hostID)
+		}
 	}
 
 	js, _ := json.Marshal(host)
@@ -231,9 +245,9 @@ func getHostDetailsFromMongoWithHostID(hostID int64) (ips string, cloudID int64,
 	ele := gjson.GetBytes(js, common.BKCloudIDField)
 	if !ele.Exists() {
 		blog.Errorf("get host: %d data from mongodb for cache, but cloud id not exist, host: %v", hostID, host)
-		return "", 0, nil, fmt.Errorf("host %d cloud id not exist", hostID)
+		return "", 0, "", nil, fmt.Errorf("host %d cloud id not exist", hostID)
 	}
-	return ips, ele.Int(), js, nil
+	return ips, ele.Int(), agentID, js, nil
 }
 
 type hostBase struct {
@@ -309,6 +323,26 @@ func getHostDetailsFromMongoWithIP(innerIP string, cloudID int64) (hostID int64,
 	if err != nil {
 		return 0, nil, fmt.Errorf("get host data from mongodb ip: %s, cloud: %d for cache, but got invalid host id: %v, err: %v",
 			innerIP, cloudID, host[common.BKHostIDField], err)
+	}
+
+	js, _ := json.Marshal(host)
+	return id, js, nil
+}
+func getHostDetailsFromMongoWithAgentID(agentID string) (hostID int64, detail []byte, err error) {
+	filter := mapstr.MapStr{
+		common.BKAgentIDField: agentID,
+	}
+	host := make(metadata.HostMapStr)
+	err = mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).One(context.Background(), &host)
+	if err != nil {
+		blog.Errorf("get host data from mongodb with agentID: %s failed, err: %v", agentID, err)
+		return 0, nil, err
+	}
+
+	id, err := util.GetInt64ByInterface(host[common.BKHostIDField])
+	if err != nil {
+		return 0, nil, fmt.Errorf("get host data from mongodb with agentID: %s failed, host: %+v, err: %v",
+			agentID, host, err)
 	}
 
 	js, _ := json.Marshal(host)
