@@ -1004,28 +1004,56 @@ func newMongoV1() (dal.RDB, error) {
 	return db, nil
 }
 
+//func newMongoV3() (dal.RDB, error) {
+//
+//	//mgoConfig := mongo.Config{
+//	//	Address:       "cmdbP.cloud.bk.db:27000,cmdbS.cloud.bk.db:27000",
+//	//	User:          "cmdb",
+//	//	Password:      "Du4E549KPQbz3pF5",
+//	//	Port:          "27000",
+//	//	Database:      "cmdb",
+//	//	Mechanism:     "SCRAM-SHA-1",
+//	//	MaxOpenConns:  10,
+//	//	MaxIdleConns:  5,
+//	//	RsName:        "bk-cloud-cmdb",
+//	//	SocketTimeout: 10,
+//	//}
+//
+//	mongoConfig := mongo.Config{
+//		MaxOpenConns: clientMaxOpenConns,
+//		MaxIdleConns: clientMaxIdleOpenConns,
+//		Connect:      ccV1mongoURI,
+//		RsName:       ccV1mongoRsName,
+//	}
+//	db, dbErr := local.NewMgo(mongoConfig.GetMongoConf(), 1*time.Minute)
+//	if dbErr != nil {
+//		blog.Errorf("failed to connect the mongo server, error info is %s", dbErr.Error())
+//		return nil, dbErr
+//	}
+//	//err := mongodb.InitClient("", &mongoConfig)
+//	//if err != nil {
+//	//	blog.Errorf("init v3 client failed, err: %v", err)
+//	//	return nil, fmt.Errorf("connect mongo server failed %s", err.Error())
+//	//}
+//
+//	//db := mongodb.Client()
+//	return db, nil
+//}
 func newMongoV3() (dal.RDB, error) {
 
-	//mgoConfig := mongo.Config{
-	//	Address:       "cmdbP.cloud.bk.db:27000,cmdbS.cloud.bk.db:27000",
-	//	User:          "cmdb",
-	//	Password:      "Du4E549KPQbz3pF5",
-	//	Port:          "27000",
-	//	Database:      "cmdb",
-	//	Mechanism:     "SCRAM-SHA-1",
-	//	MaxOpenConns:  10,
-	//	MaxIdleConns:  5,
-	//	RsName:        "bk-cloud-cmdb",
-	//	SocketTimeout: 10,
-	//}
-
-	mongoConfig := mongo.Config{
-		MaxOpenConns: clientMaxOpenConns,
-		MaxIdleConns: clientMaxIdleOpenConns,
-		Connect:      ccV1mongoURI,
-		RsName:       ccV1mongoRsName,
+	mgoConfig := mongo.Config{
+		Address:       "cmdbP.cloud.bk.db:27000,cmdbS.cloud.bk.db:27000",
+		User:          "cmdb",
+		Password:      "Du4E549KPQbz3pF5",
+		Port:          "27000",
+		Database:      "cmdb",
+		Mechanism:     "SCRAM-SHA-1",
+		MaxOpenConns:  10,
+		MaxIdleConns:  5,
+		RsName:        "bk-cloud-cmdb",
+		SocketTimeout: 10,
 	}
-	db, dbErr := local.NewMgo(mongoConfig.GetMongoConf(), 1*time.Minute)
+	db, dbErr := local.NewMgo(mgoConfig.GetMongoConf(), 1*time.Minute)
 	if dbErr != nil {
 		blog.Errorf("failed to connect the mongo server, error info is %s", dbErr.Error())
 		return nil, dbErr
