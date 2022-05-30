@@ -319,12 +319,16 @@ func isPortInV1PortsList(port string, v1PortList string) bool {
 func createNewProcess(ctx context.Context, s3 dal.RDB, serviceInstID, hostID int64, proc map[string]interface{}) error {
 
 	if proc[common.BKProcBindInfo] != nil {
-		atrr, ok := proc[common.BKProcBindInfo].([]map[string]interface{})
+		atrrs, ok := proc[common.BKProcBindInfo].([]map[string]interface{})
 		if !ok {
 			blog.Errorf("generate process fail, hostID: %d, type: %+v", hostID, reflect.TypeOf(proc[common.BKProcBindInfo]))
 			return fmt.Errorf("bindInfo type error")
 		}
-		proc[common.BKProcBindInfo] = atrr
+		// 强制改成true
+		for _, attr := range atrrs {
+			attr["enable"] = true
+		}
+		proc[common.BKProcBindInfo] = atrrs
 	}
 
 	id, err := s3.NextSequence(context.Background(), common.BKTableNameBaseProcess)
@@ -451,12 +455,18 @@ func generateProcess(ctx context.Context, s3 dal.RDB, serviceInstID, hostID int6
 	}
 
 	// 存在同名的进程，直接再原进程实例上添加端口即可
-	bindInfo, ok := procV1[common.BKProcBindInfo].([]map[string]interface{})
+	bindInfos, ok := procV1[common.BKProcBindInfo].([]map[string]interface{})
 	if !ok {
 		blog.Errorf("update process failed, hostID: %d, serviceInstanceID: %d, err: %v", hostID, serviceInstID, err)
 		return fmt.Errorf("type error: hostID: %d,", hostID)
 	}
-	if err := updatePortProcess(ctx, s3, hostID, procV3, bindInfo); err != nil {
+	blog.Errorf("000000000000000000000 bindInfos: %+v", bindInfos)
+	for _, bindinfo := range bindInfos {
+		bindinfo["enable"] = true
+	}
+	blog.Errorf("111111111111111111111 bindInfos: %+v", bindInfos)
+
+	if err := updatePortProcess(ctx, s3, hostID, procV3, bindInfos); err != nil {
 		blog.Errorf("update process failed, hostID: %d, serviceInstanceID: %d, err: %v", hostID, serviceInstID, err)
 		return err
 	}
