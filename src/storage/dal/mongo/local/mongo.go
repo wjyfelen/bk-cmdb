@@ -38,6 +38,103 @@ import (
 	"go.mongodb.org/mongo-driver/x/mongo/driver/connstring"
 )
 
+// Cluster container cluster table structure
+type Cluster struct {
+	// ID cluster auto-increment ID
+	ID int64 `json:"id" bson:"id"`
+	// BizID the business ID to which the cluster belongs
+	BizID int64 `json:"bk_biz_id" bson:"bk_biz_id"`
+	// Name cluster name
+	Name string `json:"name" bson:"name"`
+	// SchedulingEngine scheduling engines, such as k8s, tke, etc.
+	SchedulingEngine string `json:"scheduling_engine" bson:"scheduling_engine"`
+	// Uid
+	Uid         string   `json:"uid" bson:"uid"`
+	Xid         string   `json:"xid" bson:"xid"`
+	Version     string   `json:"version" bson:"version"`
+	NetworkType string   `json:"network_type" bson:"network_type"`
+	Region      string   `json:"region" bson:"region"`
+	Vpc         string   `json:"vpc" bson:"vpc"`
+	NetWork     []string `json:"network" bson:"network"`
+
+	Type string `json:"type" bson:"type"`
+	// SupplierAccount the supplier account that this resource belongs to.
+	SupplierAccount string `json:"bk_supplier_account" bson:"bk_supplier_account"`
+	// Revision record this app's revision information
+	Revision *Revision `json:",inline"`
+}
+
+// Revision is a resource's status information
+type Revision struct {
+	Creator    string `json:"creator" bson:"creator"`
+	Modifier   string `json:"modifier" bson:"modifier"`
+	CreateTime int64  `json:"create_time" bson:"create_time"`
+	LastTime   int64  `json:"last_time" bson:"last_time"`
+}
+
+// IsCreateEmpty Insert data case validator and creator
+func (r Revision) IsCreateEmpty() bool {
+	if len(r.Creator) != 0 {
+		return false
+	}
+
+	if r.CreateTime == 0 {
+		return false
+	}
+
+	return true
+}
+
+const lagSeconds = 5 * 60
+
+// ValidateCreate Insert data case validator and creator
+func (r Revision) ValidateCreate() error {
+
+	if len(r.Creator) == 0 {
+		return errors.New("creator can not be empty")
+	}
+
+	now := time.Now().Unix()
+	if (r.CreateTime <= (now - lagSeconds)) || (r.CreateTime >= (now + lagSeconds)) {
+		return errors.New("invalid create time")
+	}
+
+	return nil
+}
+
+// IsModifyEmpty the update data scene verifies the revisioner and modification time of the updated data.
+func (r Revision) IsModifyEmpty() bool {
+	if len(r.Modifier) != 0 {
+		return false
+	}
+
+	if r.LastTime == 0 {
+		return false
+	}
+
+	return true
+}
+
+// ValidateUpdate validate revision when updated
+func (r Revision) ValidateUpdate() error {
+	if len(r.Modifier) == 0 {
+		return errors.New("reviser can not be empty")
+	}
+
+	if len(r.Creator) != 0 {
+		return errors.New("creator can not be updated")
+	}
+
+	now := time.Now().Unix()
+	if (r.LastTime <= (now - lagSeconds)) || (r.LastTime >= (now + lagSeconds)) {
+		return errors.New("invalid update time")
+	}
+	if r.LastTime < r.CreateTime-60*5 {
+		return errors.New("update time must be later create time")
+	}
+	return nil
+}
+
 type Mongo struct {
 	dbc    *mongo.Client
 	dbname string
