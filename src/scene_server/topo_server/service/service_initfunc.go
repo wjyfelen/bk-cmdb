@@ -91,6 +91,24 @@ func (s *Service) initBusiness(web *restful.WebService) {
 	utility.AddToRestfulWebService(web)
 }
 
+// 容器数据
+func (s *Service) initContainer(web *restful.WebService) {
+	utility := rest.NewRestUtility(rest.Config{
+		ErrorIf:  s.Engine.CCErr,
+		Language: s.Engine.Language,
+	})
+
+	utility.AddHandler(rest.Action{Verb: http.MethodGet,
+		Path:    "/find/container/{object}/attributes",
+		Handler: s.FindContainerAttrs})
+
+	utility.AddHandler(rest.Action{Verb: http.MethodGet,
+		Path:    "/create/container/cluster/bk_biz_id/{bk_biz_id}",
+		Handler: s.FindContainerAttrs})
+
+	utility.AddToRestfulWebService(web)
+}
+
 // 业务集
 func (s *Service) initBizSet(web *restful.WebService) {
 	utility := rest.NewRestUtility(rest.Config{
@@ -275,6 +293,7 @@ func (s *Service) initService(web *restful.WebService) {
 	s.initAuditLog(web)
 	s.initBusiness(web)
 	s.initBizSet(web)
+	s.initContainer(web)
 	s.initInst(web)
 	s.initModule(web)
 	s.initSet(web)

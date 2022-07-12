@@ -320,6 +320,42 @@ func (ps *parseStream) business() *parseStream {
 	return ps
 }
 
+var (
+	findContainerAttrsRegexp = regexp.MustCompile(`^/find/container/{object}/attributes$`)
+)
+
+func (ps *parseStream) container() *parseStream {
+	if ps.shouldReturn() {
+		return ps
+	}
+	//todo: 后续补齐
+	if ps.hitRegexp(findContainerAttrsRegexp, http.MethodGet) {
+		bizSetIDVal, err := ps.RequestCtx.getValueFromBody("object")
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+
+		bizSetID := bizSetIDVal.Int()
+		if bizSetID <= 0 {
+			ps.err = errors.New("invalid biz set id")
+			return ps
+		}
+
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				Basic: meta.Basic{
+					Type:       meta.BizSet,
+					Action:     meta.AccessBizSet,
+					InstanceID: bizSetID,
+				},
+			},
+		}
+		return ps
+	}
+	return ps
+}
+
 const (
 	createBizSetPattern                  = `/api/v3/create/biz_set`
 	deleteBizSetPattern                  = `/api/v3/deletemany/biz_set`
