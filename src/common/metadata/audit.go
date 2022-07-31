@@ -425,6 +425,13 @@ type InstanceOpDetail struct {
 	ModelID string `json:"bk_obj_id" bson:"bk_obj_id"`
 }
 
+// ContainerOpDetail
+type ContainerOpDetail struct {
+	BasicOpDetail `bson:",inline"`
+	// Object 容器资源名称
+	Object string `json:"bk_obj_id" bson:"bk_obj_id"`
+}
+
 func (op *InstanceOpDetail) WithName() string {
 	return "InstanceOpDetail"
 }

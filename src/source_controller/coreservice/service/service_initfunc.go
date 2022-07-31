@@ -90,6 +90,16 @@ func (s *coreService) initAttrUnique(web *restful.WebService) {
 	utility.AddToRestfulWebService(web)
 }
 
+func (s *coreService) initContainerInstances(web *restful.WebService) {
+	utility := rest.NewRestUtility(rest.Config{
+		ErrorIf:  s.engine.CCErr,
+		Language: s.engine.Language,
+	})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost,
+		Path:    "/create/cluster/{bk_biz_id}/instance",
+		Handler: s.CreateClusterInstance})
+}
+
 func (s *coreService) initModelInstances(web *restful.WebService) {
 	utility := rest.NewRestUtility(rest.Config{
 		ErrorIf:  s.engine.CCErr,
@@ -394,6 +404,7 @@ func (s *coreService) initCommon(web *restful.WebService) {
 func (s *coreService) initService(web *restful.WebService) {
 	s.initModelClassification(web)
 	s.initModel(web)
+	s.initContainerInstances(web)
 	s.initAssociationKind(web)
 	s.initAttrUnique(web)
 	s.initModelAssociation(web)

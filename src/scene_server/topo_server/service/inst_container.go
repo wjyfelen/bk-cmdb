@@ -13,11 +13,12 @@
 package service
 
 import (
+	"strconv"
+
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/http/rest"
-	"configcenter/src/common/metadata"
-	"configcenter/src/storage/dal/mongo/local"
+	"configcenter/src/kube/types"
 )
 
 const (
@@ -58,18 +59,42 @@ type ContainerAttrsRsp struct {
 
 // CreateContainerCluster 创建容器集群
 func (s *Service) CreateContainerCluster(ctx *rest.Contexts) {
-	data := new(local.ClusterOption)
+	data := new(types.ClusterBaseFields)
 	if err := ctx.DecodeInto(data); err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
-	fields, errRaw := data.ValidateCreate()
-	if errRaw.ErrCode != 0 {
-		blog.Errorf("validate create business set failed, err: %v, rid: %s", errRaw, ctx.Kit.Rid)
-		ctx.RespAutoError(errRaw.ToCCError(ctx.Kit.CCError))
+	if err := data.ValidateCreate(); err != nil {
+		blog.Errorf("validate create container cluster failed, err: %v, rid: %s", err, ctx.Kit.Rid)
+		ctx.RespAutoError(err)
 		return
 	}
+
+	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
+	if err != nil {
+		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
+		ctx.RespAutoError(err)
+		return
+	}
+
+	var cluster *types.Cluster
+	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
+		var err error
+		cluster, err = s.Logics.ContainerOperation().CreateCluster(ctx.Kit, data, bizID, ctx.Request.PathParameter("bk_supplier_account"))
+		if err != nil {
+			blog.Errorf("create business set failed, err: %v, rid: %s", err, ctx.Kit.Rid)
+			return err
+		}
+		return nil
+	})
+
+	if txnErr != nil {
+		ctx.RespAutoError(txnErr)
+		return
+	}
+
+	ctx.RespEntity(cluster.ID)
 }
 
 // FindContainerAttrs 获取容器对象的属性信息
@@ -84,7 +109,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 	result := make([]ContainerAttrsRsp, 0)
 	switch object {
 	case KubeCluster:
-		for _, descriptor := range local.ClusterSpecFieldsDescriptor {
+		for _, descriptor := range types.ClusterSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),
@@ -92,7 +117,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 			})
 		}
 	case KubeNamespace:
-		for _, descriptor := range local.NamespaceSpecFieldsDescriptor {
+		for _, descriptor := range types.NamespaceSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),
@@ -100,7 +125,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 			})
 		}
 	case KubeNode:
-		for _, descriptor := range local.NodeSpecFieldsDescriptor {
+		for _, descriptor := range types.NodeSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),
@@ -108,7 +133,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 			})
 		}
 	case KubeWorkload:
-		for _, descriptor := range local.WorkLoadSpecFieldsDescriptor {
+		for _, descriptor := range types.WorkLoadSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),
@@ -116,7 +141,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 			})
 		}
 	case KubePod:
-		for _, descriptor := range local.PodSpecFieldsDescriptor {
+		for _, descriptor := range types.PodSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),
@@ -124,7 +149,7 @@ func (s *Service) FindContainerAttrs(ctx *rest.Contexts) {
 			})
 		}
 	case KubeContainer:
-		for _, descriptor := range local.ContainerSpecFieldsDescriptor {
+		for _, descriptor := range types.ContainerSpecFieldsDescriptor {
 			result = append(result, ContainerAttrsRsp{
 				Field:    descriptor.Field,
 				Type:     string(descriptor.Type),

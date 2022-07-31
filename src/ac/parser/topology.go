@@ -321,7 +321,8 @@ func (ps *parseStream) business() *parseStream {
 }
 
 var (
-	findContainerAttrsRegexp = regexp.MustCompile(`^/find/container/{object}/attributes$`)
+	findContainerAttrsRegexp     = regexp.MustCompile(`^/api/v3/find/container/{object}/attributes$`)
+	createContainerClusterRegexp = regexp.MustCompile(`^/api/v3/create/container/cluster/{bk_supplier_account}/bk_biz_id/{bk_biz_id}$`)
 )
 
 func (ps *parseStream) container() *parseStream {
@@ -330,6 +331,11 @@ func (ps *parseStream) container() *parseStream {
 	}
 	//todo: 后续补齐
 	if ps.hitRegexp(findContainerAttrsRegexp, http.MethodGet) {
+		if len(ps.RequestCtx.Elements) != 6 {
+			ps.err = fmt.Errorf("get invalid url elements length %d", len(ps.RequestCtx.Elements))
+			return ps
+		}
+
 		bizSetIDVal, err := ps.RequestCtx.getValueFromBody("object")
 		if err != nil {
 			ps.err = err
@@ -353,6 +359,32 @@ func (ps *parseStream) container() *parseStream {
 		}
 		return ps
 	}
+
+	if ps.hitRegexp(createContainerClusterRegexp, http.MethodPost) {
+		if len(ps.RequestCtx.Elements) != 8 {
+			ps.err = fmt.Errorf("get invalid url elements length %d", len(ps.RequestCtx.Elements))
+			return ps
+		}
+
+		bizSetID, err := strconv.ParseInt(ps.RequestCtx.Elements[7], 10, 64)
+		if err != nil {
+			ps.err = fmt.Errorf("get invalid business set id %s, err: %v", ps.RequestCtx.Elements[5], err)
+			return ps
+		}
+
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				Basic: meta.Basic{
+					Type:       meta.BizSet,
+					Action:     meta.AccessBizSet,
+					InstanceID: bizSetID,
+				},
+			},
+		}
+
+		return ps
+	}
+
 	return ps
 }
 

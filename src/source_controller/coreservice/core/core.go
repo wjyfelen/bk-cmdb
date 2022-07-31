@@ -13,6 +13,7 @@
 package core
 
 import (
+	"configcenter/src/kube/types"
 	"context"
 	"net/http"
 
@@ -117,6 +118,11 @@ type InstanceOperation interface {
 	DeleteModelInstance(kit *rest.Kit, objID string, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error)
 	CascadeDeleteModelInstance(kit *rest.Kit, objID string, inputParam metadata.DeleteOption) (*metadata.DeletedCount,
 		error)
+}
+
+// ContainerOperation 对于容器数据的crud操作
+type ContainerOperation interface {
+	CreateCluster(kit *rest.Kit, bizID int64, option *types.ClusterBaseFields) (*types.Cluster, errors.CCErrorCoder)
 }
 
 // AssociationKind association kind methods
@@ -234,6 +240,7 @@ type StatisticOperation interface {
 type Core interface {
 	ModelOperation() ModelOperation
 	InstanceOperation() InstanceOperation
+	ContainerOperation() ContainerOperation
 	AssociationOperation() AssociationOperation
 	TopoOperation() TopoOperation
 	DataSynchronizeOperation() DataSynchronizeOperation
@@ -414,6 +421,7 @@ type CommonOperation interface {
 type core struct {
 	model           ModelOperation
 	instance        InstanceOperation
+	container       ContainerOperation
 	association     AssociationOperation
 	dataSynchronize DataSynchronizeOperation
 	topo            TopoOperation
@@ -434,6 +442,7 @@ type core struct {
 func New(
 	model ModelOperation,
 	instance InstanceOperation,
+	container ContainerOperation,
 	association AssociationOperation,
 	dataSynchronize DataSynchronizeOperation,
 	topo TopoOperation, host HostOperation,
@@ -451,6 +460,7 @@ func New(
 	return &core{
 		model:           model,
 		instance:        instance,
+		container:       container,
 		association:     association,
 		dataSynchronize: dataSynchronize,
 		topo:            topo,
@@ -474,6 +484,10 @@ func (m *core) ModelOperation() ModelOperation {
 
 func (m *core) InstanceOperation() InstanceOperation {
 	return m.instance
+}
+
+func (m *core) ContainerOperation() ContainerOperation {
+	return m.container
 }
 
 func (m *core) AssociationOperation() AssociationOperation {

@@ -102,9 +102,9 @@ func (s *Service) initContainer(web *restful.WebService) {
 		Path:    "/find/container/{object}/attributes",
 		Handler: s.FindContainerAttrs})
 
-	utility.AddHandler(rest.Action{Verb: http.MethodGet,
-		Path:    "/create/container/cluster/bk_biz_id/{bk_biz_id}",
-		Handler: s.FindContainerAttrs})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost,
+		Path:    "/create/container/cluster/{bk_supplier_account}/bk_biz_id/{bk_biz_id}",
+		Handler: s.CreateContainerCluster})
 
 	utility.AddToRestfulWebService(web)
 }
