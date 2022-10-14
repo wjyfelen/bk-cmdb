@@ -229,8 +229,9 @@ func (option *Pod) createValidate() error {
 // Container container details
 type Container struct {
 	// cc的自增主键
-	ID                  int64 `json:"id,omitempty" bson:"id"`
-	PodID               int64 `json:"bk_pod_id,omitempty" bson:"bk_pod_id"`
+	ID                  int64  `json:"id,omitempty" bson:"id"`
+	PodID               int64  `json:"bk_pod_id,omitempty" bson:"bk_pod_id"`
+	SupplierAccount     string `json:"bk_supplier_account" bson:"bk_supplier_account"`
 	ContainerBaseFields `json:",inline" bson:",inline"`
 	// Revision record this app's revision information
 	table.Revision `json:",inline" bson:",inline"`
