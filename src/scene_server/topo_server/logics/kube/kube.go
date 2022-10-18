@@ -318,19 +318,18 @@ func (b *kube) BatchCreatePod(kit *rest.Kit, data *types.CreatePodsOption) ([]in
 }
 
 // BatchCreateNode batch create node.
-func (b *kube) BatchCreateNode(kit *rest.Kit, data *types.CreateNodesOption, bizID int64) (
-	[]int64, error) {
+func (b *kube) BatchCreateNode(kit *rest.Kit, data *types.CreateNodesOption, bizID int64) ([]int64, error) {
 
-	names := make([]string, 0)
-
+	conds := make([]map[string]interface{}, 0)
 	for _, node := range data.Nodes {
-		names = append(names, *node.Name)
+		conds = append(conds, map[string]interface{}{
+			common.BKFieldName:     *node.Name,
+			types.BKClusterIDFiled: node.ClusterID,
+		})
 	}
 
 	cond := map[string]interface{}{
-		common.BKFieldName: map[string]interface{}{
-			common.BKDBIN: names,
-		},
+		common.BKDBOR:         conds,
 		common.BKAppIDField:   bizID,
 		common.BKOwnerIDField: kit.SupplierAccount,
 	}

@@ -197,20 +197,25 @@ func (p *kubeOperation) getClusterInfo(kit *rest.Kit, bizID int64, data []types.
 
 	// 获取cluster信息
 	clusterFilter := map[string]interface{}{
-		common.BKAppIDField:    bizID,
-		common.BKOwnerIDField:  kit.SupplierAccount,
-		types.BKClusterIDFiled: map[string]interface{}{common.BKDBIN: clusterIDs},
+		common.BKAppIDField:   bizID,
+		common.BKOwnerIDField: kit.SupplierAccount,
+		types.BKIDField:       map[string]interface{}{common.BKDBIN: clusterIDs},
 	}
 
 	clusters := make([]types.Cluster, 0)
 	err := mongodb.Client().Table(types.BKTableNameBaseCluster).Find(clusterFilter).
-		Fields([]string{types.ClusterUIDField, types.BKClusterIDFiled}...).All(kit.Ctx, &clusters)
+		Fields([]string{types.UidField, types.BKIDField}...).All(kit.Ctx, &clusters)
 	if err != nil {
 		blog.Errorf("query cluster failed, filter: %+v, err: %s, rid:%s", clusterFilter, err, kit.Rid)
 		return nil, kit.CCError.CCError(common.CCErrCommDBSelectFailed)
 	}
+
 	clusterMap := make(map[int64]string)
 	for _, cluster := range clusters {
+		if cluster.Uid == nil {
+			blog.Errorf("query cluster uid failed, filter: %+v, err: %s, rid:%s", clusterFilter, err, kit.Rid)
+			return nil, kit.CCError.CCError(common.CCErrCommDBSelectFailed)
+		}
 		clusterMap[cluster.ID] = *cluster.Uid
 	}
 	return clusterMap, nil
@@ -233,19 +238,10 @@ func (p *kubeOperation) BatchCreateNode(kit *rest.Kit, bizID int64, data []types
 
 	for _, node := range data {
 		filter := map[string]interface{}{
-			common.BKDBOR: []map[string]interface{}{
-				{
-					common.BKAppIDField:    bizID,
-					types.BKClusterIDFiled: nameClusterID[*node.Name],
-					types.KubeNameField:    *node.Name},
-				{
-					common.BKAppIDField:   bizID,
-					types.KubeNameField:   *node.Name,
-					types.ClusterUIDField: clusterMap[nameClusterID[*node.Name]],
-				},
-			},
+			common.BKAppIDField:    bizID,
+			types.BKClusterIDFiled: nameClusterID[*node.Name],
+			types.KubeNameField:    *node.Name,
 		}
-
 		count, err := mongodb.Client().Table(types.BKTableNameBaseNode).Find(filter).Count(kit.Ctx)
 		if err != nil {
 			blog.Errorf("query node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)

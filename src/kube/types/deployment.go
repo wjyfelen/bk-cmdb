@@ -30,7 +30,7 @@ import (
 
 // DeploymentFields merge the fields of the Deployment and the details corresponding to the fields together.
 var DeploymentFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	DeploymentSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, DeploymentSpecFieldsDescriptor)
 
 // DeploymentSpecFieldsDescriptor Deployment spec's fields descriptors.
 var DeploymentSpecFieldsDescriptor = table.FieldsDescriptors{

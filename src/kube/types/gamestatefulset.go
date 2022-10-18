@@ -30,7 +30,7 @@ import (
 
 // GameStatefulSetFields merge the fields of the GameStatefulSet and the details corresponding to the fields together.
 var GameStatefulSetFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	GameStatefulSetSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, GameStatefulSetSpecFieldsDescriptor)
 
 // GameStatefulSetSpecFieldsDescriptor GameStatefulSet spec's fields descriptors.
 var GameStatefulSetSpecFieldsDescriptor = table.FieldsDescriptors{

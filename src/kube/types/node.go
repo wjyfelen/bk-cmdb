@@ -36,7 +36,8 @@ const (
 )
 
 // NodeFields merge the fields of the cluster and the details corresponding to the fields together.
-var NodeFields = table.MergeFields(CommonSpecFieldsDescriptor, BizIDDescriptor, NodeSpecFieldsDescriptor)
+var NodeFields = table.MergeFields(CommonSpecFieldsDescriptor, BizIDDescriptor, ClusterBaseRefDescriptor,
+	NodeSpecFieldsDescriptor)
 
 // NodeSpecFieldsDescriptor node spec's fields descriptors.
 var NodeSpecFieldsDescriptor = table.FieldsDescriptors{

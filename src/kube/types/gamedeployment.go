@@ -30,7 +30,7 @@ import (
 
 // GameDeploymentFields merge the fields of the GameDeployment and the details corresponding to the fields together.
 var GameDeploymentFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	GameDeploymentSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, GameDeploymentSpecFieldsDescriptor)
 
 // GameDeploymentSpecFieldsDescriptor GameDeployment spec's fields descriptors.
 var GameDeploymentSpecFieldsDescriptor = table.FieldsDescriptors{

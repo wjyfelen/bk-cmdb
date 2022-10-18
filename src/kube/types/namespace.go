@@ -30,7 +30,8 @@ import (
 )
 
 // NamespaceFields merge the fields of the namespace and the details corresponding to the fields together.
-var NamespaceFields = table.MergeFields(CommonSpecFieldsDescriptor, BizIDDescriptor, NamespaceSpecFieldsDescriptor)
+var NamespaceFields = table.MergeFields(CommonSpecFieldsDescriptor, BizIDDescriptor,
+	ClusterBaseRefDescriptor, NamespaceSpecFieldsDescriptor)
 
 // NamespaceSpecFieldsDescriptor namespace spec's fields descriptors.
 var NamespaceSpecFieldsDescriptor = table.FieldsDescriptors{
@@ -370,6 +371,10 @@ func (ns *NsQueryReq) Validate() errors.RawErrorInfo {
 
 	if err := ns.Page.ValidateWithEnableCount(false, NsQueryLimit); err.ErrCode != 0 {
 		return err
+	}
+
+	if ns.Filter == nil {
+		return errors.RawErrorInfo{}
 	}
 
 	op := filter.NewDefaultExprOpt(NamespaceFields.FieldsType())

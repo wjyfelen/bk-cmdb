@@ -697,6 +697,10 @@ func (wl *WlQueryReq) Validate(kind WorkloadType) errors.RawErrorInfo {
 		}
 	}
 
+	if wl.Filter == nil {
+		return errors.RawErrorInfo{}
+	}
+
 	op := filter.NewDefaultExprOpt(fields.FieldsType())
 	if err := wl.Filter.Validate(op); err != nil {
 		return errors.RawErrorInfo{

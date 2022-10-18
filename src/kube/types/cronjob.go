@@ -30,7 +30,7 @@ import (
 
 // CronJobFields merge the fields of the CronJob and the details corresponding to the fields together.
 var CronJobFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	CronJobSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, CronJobSpecFieldsDescriptor)
 
 // CronJobSpecFieldsDescriptor CronJob spec's fields descriptors.
 var CronJobSpecFieldsDescriptor = table.FieldsDescriptors{

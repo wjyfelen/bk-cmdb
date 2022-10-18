@@ -30,7 +30,7 @@ import (
 
 // DaemonSetFields merge the fields of the DaemonSet and the details corresponding to the fields together.
 var DaemonSetFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	DaemonSetSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, DaemonSetSpecFieldsDescriptor)
 
 // DaemonSetSpecFieldsDescriptor DaemonSet spec's fields descriptors.
 var DaemonSetSpecFieldsDescriptor = table.FieldsDescriptors{

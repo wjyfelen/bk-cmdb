@@ -30,7 +30,7 @@ import (
 
 // PodsWorkloadFields merge the fields of the PodsWorkload and the details corresponding to the fields together.
 var PodsWorkloadFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	PodsWorkloadSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, PodsWorkloadSpecFieldsDescriptor)
 
 // PodsWorkloadSpecFieldsDescriptor PodsWorkload spec's fields descriptors.
 var PodsWorkloadSpecFieldsDescriptor = table.FieldsDescriptors{

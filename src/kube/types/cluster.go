@@ -48,7 +48,7 @@ var ClusterSpecFieldsDescriptor = table.FieldsDescriptors{
 	{Field: NetworkTypeField, Type: enumor.Enum, IsRequired: false, IsEditable: true},
 	{Field: RegionField, Type: enumor.String, IsRequired: false, IsEditable: true},
 	{Field: VpcField, Type: enumor.String, IsRequired: false, IsEditable: false},
-	{Field: NetworkField, Type: enumor.String, IsRequired: false, IsEditable: false},
+	{Field: NetworkField, Type: enumor.String, IsRequired: false, IsEditable: true},
 	{Field: TypeField, Type: enumor.String, IsRequired: false, IsEditable: true},
 }
 

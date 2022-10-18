@@ -30,7 +30,7 @@ import (
 
 // StatefulSetFields merge the fields of the StatefulSet and the details corresponding to the fields together.
 var StatefulSetFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	StatefulSetSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, StatefulSetSpecFieldsDescriptor)
 
 // StatefulSetSpecFieldsDescriptor StatefulSet spec's fields descriptors.
 var StatefulSetSpecFieldsDescriptor = table.FieldsDescriptors{

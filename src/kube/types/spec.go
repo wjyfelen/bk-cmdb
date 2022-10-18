@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strings"
 
+	"configcenter/src/common/criteria/enumor"
 	"configcenter/src/storage/dal/table"
 )
 
@@ -70,19 +71,44 @@ type WorkloadSpec struct {
 
 // CommonSpecFieldsDescriptor public field properties
 var CommonSpecFieldsDescriptor = table.FieldsDescriptors{
-	{Field: BKIDField, IsRequired: true, IsEditable: false},
-	{Field: BKSupplierAccountField, IsRequired: true, IsEditable: false},
-	{Field: CreatorField, IsRequired: true, IsEditable: false},
-	{Field: ModifierField, IsRequired: true, IsEditable: true},
-	{Field: CreateTimeField, IsRequired: true, IsEditable: false},
-	{Field: LastTimeField, IsRequired: true, IsEditable: true},
+	{Field: BKIDField, Type: enumor.Numeric, IsRequired: true, IsEditable: false},
+	{Field: BKSupplierAccountField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: CreatorField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: ModifierField, Type: enumor.String, IsRequired: true, IsEditable: true},
+	{Field: CreateTimeField, Type: enumor.Timestamp, IsRequired: true, IsEditable: false},
+	{Field: LastTimeField, Type: enumor.Timestamp, IsRequired: true, IsEditable: true},
 }
 
 // BizIDDescriptor bizID descriptor is taken out separately and not placed in CommonSpecFieldsDescriptor because
 // bk_biz_id does not exist in the container table and needs to be processed separately.
 var BizIDDescriptor = table.FieldsDescriptors{
-	{Field: BKBizIDField, IsRequired: true, IsEditable: false},
-	{Field: "bk_host_id", IsRequired: false, IsEditable: false},
+	{Field: BKBizIDField, Type: enumor.Numeric, IsRequired: true, IsEditable: false},
+	{Field: "bk_host_id", Type: enumor.Numeric, IsRequired: false, IsEditable: false},
+}
+
+// NodeBaseRefDescriptor 用于其他结构引用时的校验表述，目前只有pod中用到.
+var NodeBaseRefDescriptor = table.FieldsDescriptors{
+	{Field: NodeField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: BKNodeIDField, Type: enumor.Numeric, IsRequired: false, IsEditable: false},
+}
+
+// ClusterBaseRefDescriptor 用于其他结构引用cluster时的校验表述.
+var ClusterBaseRefDescriptor = table.FieldsDescriptors{
+	{Field: ClusterUIDField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: BKClusterIDFiled, Type: enumor.Numeric, IsRequired: false, IsEditable: false},
+}
+
+// NamespaceBaseRefDescriptor 用于其他结构引用cluster时的校验表述.
+var NamespaceBaseRefDescriptor = table.FieldsDescriptors{
+	{Field: NamespaceField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: BKNamespaceIDField, Type: enumor.Numeric, IsRequired: false, IsEditable: false},
+}
+
+// WorkLoadRefDescriptor pod对应的workload ref定义.
+var WorkLoadRefDescriptor = table.FieldsDescriptors{
+	{Field: RefKindField, Type: enumor.String, IsRequired: true, IsEditable: false},
+	{Field: RefIDField, Type: enumor.Numeric, IsRequired: false, IsEditable: false},
+	{Field: RefNameField, Type: enumor.String, IsRequired: false, IsEditable: false},
 }
 
 // isRequiredField check if field is required Field is not filled

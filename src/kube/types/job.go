@@ -30,7 +30,7 @@ import (
 
 // JobFields merge the fields of the Job and the details corresponding to the fields together.
 var JobFields = table.MergeFields(CommonSpecFieldsDescriptor, WorkLoadBaseFieldsDescriptor,
-	JobSpecFieldsDescriptor)
+	NamespaceBaseRefDescriptor, ClusterBaseRefDescriptor, JobSpecFieldsDescriptor)
 
 // JobSpecFieldsDescriptor Job spec's fields descriptors.
 var JobSpecFieldsDescriptor = table.FieldsDescriptors{

@@ -32,7 +32,8 @@ import (
 )
 
 // PodFields merge the fields of the cluster and the details corresponding to the fields together.
-var PodFields = table.MergeFields(PodSpecFieldsDescriptor)
+var PodFields = table.MergeFields(WorkLoadRefDescriptor,
+	NodeBaseRefDescriptor, ClusterBaseRefDescriptor, NamespaceBaseRefDescriptor, PodSpecFieldsDescriptor)
 
 // PodSpecFieldsDescriptor pod spec's fields descriptors.
 var PodSpecFieldsDescriptor = table.FieldsDescriptors{
@@ -108,6 +109,10 @@ func (p *PodQueryReq) Validate() ccErr.RawErrorInfo {
 
 	if err := p.Page.ValidateWithEnableCount(false, podQueryLimit); err.ErrCode != 0 {
 		return err
+	}
+
+	if p.Filter == nil {
+		return ccErr.RawErrorInfo{}
 	}
 
 	op := filter.NewDefaultExprOpt(PodFields.FieldsType())
