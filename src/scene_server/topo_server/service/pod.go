@@ -18,6 +18,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -226,6 +227,41 @@ func (s *Service) BatchCreatePod(ctx *rest.Contexts) {
 	if err := data.Validate(); err != nil {
 		blog.Errorf("batch create pods param verification failed, data: %+v, err: %v, rid: %s", data, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
+		return
+	}
+
+	filters := make([]map[string]interface{}, 0)
+	for _, info := range data.Data {
+		for _, pod := range info.Pods {
+			filter := map[string]interface{}{
+				common.BKOwnerIDField:    ctx.Kit.SupplierAccount,
+				types.BKBizIDField:       info.BizID,
+				types.BKClusterIDFiled:   *pod.Spec.ClusterID,
+				types.BKNamespaceIDField: *pod.Spec.NamespaceID,
+				types.BKNodeIDField:      *pod.Spec.NodeID,
+				types.KubeNameField:      *pod.Name,
+				types.RefKindField:       pod.Spec.Ref.Kind,
+				types.RefIDField:         pod.Spec.Ref.ID,
+			}
+			filters = append(filters, filter)
+		}
+	}
+
+	counts, err := s.Engine.CoreAPI.CoreService().Count().GetCountByFilter(ctx.Kit.Ctx, ctx.Kit.Header,
+		types.BKTableNameBasePod, filters)
+	if err != nil {
+		blog.Errorf("count pods failed, filter: %#v, err: %v, rid: %s", filters, err, ctx.Kit.Rid)
+		ctx.RespAutoError(err)
+		return
+	}
+
+	var podNum int64
+	for _, count := range counts {
+		podNum += count
+	}
+	if podNum > 0 {
+		blog.Errorf("some pods already exists and the creation fails, filter: %#v, rid: %s", filters, ctx.Kit.Rid)
+		ctx.RespAutoError(errors.New("some pod already exists and the creation fails"))
 		return
 	}
 

@@ -41,8 +41,12 @@ func (s *coreService) BatchCreatePod(ctx *rest.Contexts) {
 		return
 	}
 
+	var podsLen int
+	for _, info := range inputData.Data {
+		podsLen += len(info.Pods)
+	}
 	// generate pod ids field
-	ids, err := mongodb.Client().NextSequences(ctx.Kit.Ctx, types.BKTableNameBasePod, len(inputData.Data))
+	ids, err := mongodb.Client().NextSequences(ctx.Kit.Ctx, types.BKTableNameBasePod, podsLen)
 	if err != nil {
 		blog.Errorf("create pods failed, generate ids failed, err: %+v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
@@ -50,10 +54,11 @@ func (s *coreService) BatchCreatePod(ctx *rest.Contexts) {
 	}
 	pods := make([]types.Pod, 0)
 	now := time.Now().Unix()
+	var i int
 	nodeIDMap := make(map[int64]struct{})
 	for _, info := range inputData.Data {
-		for idx, pod := range info.Pods {
-			podTmp, nodeID, err := s.insertPodTable(ctx.Kit, pod, info.BizID, now, int64(ids[idx]))
+		for _, pod := range info.Pods {
+			podTmp, nodeID, err := s.insertPodTable(ctx.Kit, pod, info.BizID, now, int64(ids[i]))
 			if err != nil {
 				ctx.RespAutoError(err)
 				return
@@ -77,12 +82,13 @@ func (s *coreService) BatchCreatePod(ctx *rest.Contexts) {
 			}
 
 			for id, container := range pod.Containers {
-				err := s.insertContainerTable(ctx.Kit, int64(containerIDs[id]), int64(ids[idx]), container, now)
+				err := s.insertContainerTable(ctx.Kit, int64(containerIDs[id]), int64(ids[i]), container, now)
 				if err != nil {
 					ctx.RespAutoError(err)
 					return
 				}
 			}
+			i++
 		}
 	}
 	nodeIDs := make([]int64, 0)

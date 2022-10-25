@@ -253,41 +253,7 @@ func (b *kube) isExistKubeResource(kit *rest.Kit, option *types.DeleteClusterOpt
 // BatchCreatePod batch create pod.
 func (b *kube) BatchCreatePod(kit *rest.Kit, data *types.CreatePodsOption) ([]int64, error) {
 
-	filters := make([]map[string]interface{}, 0)
-
-	for _, info := range data.Data {
-		for _, pod := range info.Pods {
-			filter := map[string]interface{}{
-				common.BKOwnerIDField: kit.SupplierAccount,
-				types.BKBizIDField:    info.BizID,
-			}
-			filter[types.BKClusterIDFiled] = *pod.Spec.ClusterID
-			filter[types.BKNamespaceIDField] = *pod.Spec.NamespaceID
-			filter[types.BKNodeIDField] = *pod.Spec.NodeID
-			filter[types.KubeNameField] = *pod.Name
-			filter[types.RefKindField] = pod.Spec.Ref.Kind
-			filter[types.RefIDField] = pod.Spec.Ref.ID
-			filters = append(filters, filter)
-		}
-	}
-
-	counts, err := b.clientSet.CoreService().Count().GetCountByFilter(kit.Ctx, kit.Header,
-		types.BKTableNameBasePod, filters)
-	if err != nil {
-		blog.Errorf("count cluster failed, cond: %#v, err: %v, rid: %s", filters, err, kit.Rid)
-		return nil, err
-	}
-
-	var podNum int64
-	for _, count := range counts {
-		podNum += count
-	}
-	if podNum > 0 {
-		blog.Errorf("some pod already exists and the creation fails, rid: %s", kit.Rid)
-		return nil, errors.New("some pod already exists and the creation fails")
-	}
-
-	//2、create pods and containers.
+	// create pods and containers.
 	result, err := b.clientSet.CoreService().Kube().BatchCreatePod(kit.Ctx, kit.Header, data)
 	if err != nil {
 		blog.Errorf("create pod failed, data: %#v, err: %v, rid: %s", data, err, kit.Rid)
