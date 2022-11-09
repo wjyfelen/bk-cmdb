@@ -106,9 +106,8 @@ func (b *kube) BatchDeleteNode(kit *rest.Kit, bizID int64, option *types.BatchDe
 	// otherwise an error will be returned.
 	podCond := []map[string]interface{}{
 		{
-			types.BKBizIDField:    bizID,
-			types.BKNodeIDField:   map[string]interface{}{common.BKDBIN: option.IDs},
-			common.BKOwnerIDField: kit.SupplierAccount,
+			types.BKBizIDField:  bizID,
+			types.BKNodeIDField: map[string]interface{}{common.BKDBIN: option.IDs},
 		},
 	}
 	// 2、check if there is a pod on the node.
@@ -392,7 +391,6 @@ func (b *kube) CreateCluster(kit *rest.Kit, data *types.Cluster, bizID int64) (i
 	cond := map[string]interface{}{
 		common.BKDBOR: []map[string]interface{}{filterName, filterUid},
 	}
-	util.SetQueryOwner(cond, kit.SupplierAccount)
 
 	counts, err := b.clientSet.CoreService().Count().GetCountByFilter(kit.Ctx, kit.Header,
 		types.BKTableNameBaseCluster, []map[string]interface{}{cond})

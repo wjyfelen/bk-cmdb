@@ -294,6 +294,7 @@ func (p *kubeOperation) BatchCreateNode(kit *rest.Kit, bizID int64, data []types
 
 	result := make([]*types.Node, 0)
 	now := time.Now().Unix()
+	hasPod := false
 	for idx, node := range data {
 		if err := validateNodeData(kit, bizID, node); err != nil {
 			return nil, err
@@ -303,6 +304,7 @@ func (p *kubeOperation) BatchCreateNode(kit *rest.Kit, bizID int64, data []types
 			BizID:            bizID,
 			HostID:           node.HostID,
 			ClusterID:        node.ClusterID,
+			HasPod:           &hasPod,
 			ClusterUID:       clusterMap[node.ClusterID],
 			Name:             node.Name,
 			Roles:            node.Roles,

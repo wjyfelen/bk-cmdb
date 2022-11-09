@@ -44,6 +44,8 @@ func (s *coreService) SearchClusters(ctx *rest.Contexts) {
 	if input.Condition == nil {
 		input.Condition = mapstr.New()
 	}
+	input.Condition = util.SetQueryOwner(input.Condition, ctx.Kit.SupplierAccount)
+
 	err := mongodb.Client().Table(types.BKTableNameBaseCluster).Find(input.Condition).Start(uint64(input.Page.Start)).
 		Limit(uint64(input.Page.Limit)).
 		Sort(input.Page.Sort).

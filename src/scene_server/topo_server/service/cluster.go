@@ -27,7 +27,6 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
-	"configcenter/src/common/util"
 	"configcenter/src/kube/types"
 )
 
@@ -65,7 +64,6 @@ func (s *Service) SearchClusters(ctx *rest.Contexts) {
 		filter = cond
 	}
 
-	util.SetQueryOwner(filter, ctx.Kit.SupplierAccount)
 	filter[types.BKBizIDField] = bizID
 
 	// get the number of clusters
@@ -101,7 +99,6 @@ func (s *Service) getUpdateClustersInfo(kit *rest.Kit, bizID int64, clusterIDs [
 		types.BKIDField:     map[string]interface{}{common.BKDBIN: clusterIDs},
 		common.BKAppIDField: bizID,
 	}
-	util.SetQueryOwner(cond, kit.SupplierAccount)
 
 	input := &metadata.QueryCondition{
 		Condition: cond,

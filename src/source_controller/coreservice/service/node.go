@@ -89,6 +89,8 @@ func (s *coreService) SearchNodes(ctx *rest.Contexts) {
 	if input.Condition == nil {
 		input.Condition = mapstr.New()
 	}
+	input.Condition = util.SetQueryOwner(input.Condition, ctx.Kit.SupplierAccount)
+
 	nodes := make([]types.Node, 0)
 	err := mongodb.Client().Table(types.BKTableNameBaseNode).Find(input.Condition).
 		Start(uint64(input.Page.Start)).
@@ -169,12 +171,13 @@ func (s *coreService) BatchDeleteNode(ctx *rest.Contexts) {
 	}
 
 	filter := map[string]interface{}{
-		common.BKAppIDField:   bizID,
-		common.BKOwnerIDField: ctx.Kit.SupplierAccount,
+		common.BKAppIDField: bizID,
 		types.BKIDField: map[string]interface{}{
 			common.BKDBIN: option.IDs,
 		},
 	}
+	filter = util.SetQueryOwner(filter, ctx.Kit.SupplierAccount)
+
 	if err := mongodb.Client().Table(types.BKTableNameBaseNode).Delete(ctx.Kit.Ctx, filter); err != nil {
 		blog.Errorf("delete cluster failed, filter: %+v, err: %+v, rid: %s", filter, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)

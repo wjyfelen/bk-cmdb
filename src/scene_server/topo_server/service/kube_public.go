@@ -288,10 +288,9 @@ func (s *Service) getTopoHostNumber(ctx *rest.Contexts, resourceInfos []types.Ku
 		// it is necessary to add the number of hosts under the folder node under the cluster.
 		if clusterID, ok := filter[types.BKClusterIDFiled]; ok {
 			nodeFilter := mapstr.MapStr{
-				types.BKClusterIDFiled:       clusterID,
-				types.HasPodField:            false,
-				types.BKBizIDField:           bizID,
-				types.BKSupplierAccountField: ctx.Kit.SupplierAccount,
+				types.BKClusterIDFiled: clusterID,
+				types.HasPodField:      false,
+				types.BKBizIDField:     bizID,
 			}
 			folderHostCount, err = s.getHostIDsInNodeByCond(ctx.Kit, nodeFilter, bizID)
 			if err != nil {
