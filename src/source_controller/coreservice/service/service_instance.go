@@ -63,7 +63,7 @@ func (s *coreService) ConstructServiceInstanceName(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
+	blog.Errorf("888888888")
 	if _, err := s.core.ProcessOperation().ConstructServiceInstanceName(ctx.Kit, params.ServiceInstanceID,
 		params.Host, params.Process); err != nil {
 		blog.Errorf("ConstructServiceInstanceName failed, err: %+v, rid: %s", err, ctx.Kit.Rid)

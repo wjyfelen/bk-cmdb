@@ -120,7 +120,7 @@ func (p *processOperation) CreateServiceInstance(kit *rest.Kit, instance *metada
 	// get host data for instance name and bind IP
 	host := metadata.HostMapStr{}
 	filter := map[string]interface{}{common.BKHostIDField: instance.HostID}
-	if err = mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).Fields(common.BKHostInnerIPField,
+	if err = mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).Fields(common.BKHostInnerIPField, common.BKHostInnerIPv6Field,
 		common.BKHostOuterIPField).One(kit.Ctx, &host); err != nil {
 		return nil, kit.CCError.CCError(common.CCErrCommDBSelectFailed)
 	}
@@ -214,7 +214,7 @@ func (p *processOperation) CreateServiceInstance(kit *rest.Kit, instance *metada
 			}
 		}
 	}
-
+	blog.Errorf("111111111111111")
 	if instance.Name == "" {
 		name, err := p.ConstructServiceInstanceName(kit, instance.ID, host, firstTemplateProcess)
 		if err != nil {
@@ -658,9 +658,11 @@ func (p *processOperation) generateServiceInstanceName(kit *rest.Kit, instanceID
 // hostInnerIP(if exist) + firstProcessName(if exist) + firstProcessPort(if exist)
 func (p *processOperation) ConstructServiceInstanceName(kit *rest.Kit, instanceID int64, host map[string]interface{},
 	process *metadata.Process) (string, errors.CCErrorCoder) {
-
+	blog.Errorf("000000000000host: %+v ", host)
 	serviceInstanceName := util.GetStrByInterface(host[common.BKHostInnerIPField])
-
+	if serviceInstanceName == "" {
+		serviceInstanceName = util.GetStrByInterface(host[common.BKHostInnerIPv6Field])
+	}
 	if process != nil {
 		if process.ProcessName != nil && len(*process.ProcessName) > 0 {
 			serviceInstanceName += fmt.Sprintf("_%s", *process.ProcessName)
@@ -792,7 +794,7 @@ func (p *processOperation) AutoCreateServiceInstanceModuleHost(kit *rest.Kit, ho
 	hosts := make([]metadata.HostMapStr, 0)
 	hostFilter := map[string]interface{}{common.BKHostIDField: map[string]interface{}{common.BKDBIN: hostIDs}}
 	if err = mongodb.Client().Table(common.BKTableNameBaseHost).Find(hostFilter).Fields(common.BKHostIDField,
-		common.BKHostInnerIPField, common.BKHostOuterIPField).All(kit.Ctx, &hosts); err != nil {
+		common.BKHostInnerIPField, common.BKHostInnerIPv6Field, common.BKHostOuterIPField).All(kit.Ctx, &hosts); err != nil {
 		return kit.CCError.CCError(common.CCErrCommDBSelectFailed)
 	}
 
@@ -930,7 +932,7 @@ func (p *processOperation) AutoCreateServiceInstanceModuleHost(kit *rest.Kit, ho
 				blog.Errorf("create process relations(%#v) failed, err: %v, rid: %s", relations, ccErr, kit.Rid)
 				return ccErr
 			}
-
+			blog.Errorf("999999999999 ")
 			svcInstName, err := p.ConstructServiceInstanceName(kit, int64(id), host, processes[0])
 			if err != nil {
 				blog.Errorf("construct service instance(id: %d) name err: %v, rid: %s", id, err, kit.Rid)

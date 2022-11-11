@@ -600,8 +600,9 @@ func (lgc *Logic) GetHostIPMapByID(kit *rest.Kit, hostIDs []int64) (map[int64]ma
 	errors.CCErrorCoder) {
 	hostReq := metadata.QueryInput{
 		Condition: map[string]interface{}{common.BKHostIDField: map[string]interface{}{common.BKDBIN: hostIDs}},
-		Fields:    common.BKHostIDField + "," + common.BKHostInnerIPField + "," + common.BKHostOuterIPField,
-		Limit:     common.BKNoLimit,
+		Fields: common.BKHostIDField + "," + common.BKHostInnerIPField + "," +
+			common.BKHostInnerIPv6Field + "," + common.BKHostOuterIPField,
+		Limit: common.BKNoLimit,
 	}
 
 	hostRes, err := lgc.CoreAPI.CoreService().Host().GetHosts(kit.Ctx, kit.Header, &hostReq)
