@@ -65,11 +65,22 @@ type user struct{}
 func (m *user) LoginUser(c *gin.Context, config map[string]string, isMultiOwner bool) (user *metadata.LoginUserInfo, loginSucc bool) {
 	rid := util.GetHTTPCCRequestID(c.Request.Header)
 
-	bkToken, err := c.Cookie(common.HTTPCookieBKToken)
-	if err != nil || len(bkToken) == 0 {
-		blog.Infof("LoginUser failed, bk_token empty, rid: %s", rid)
-		return nil, false
+	cookies := c.Request.Cookies()
+	bkToken := ""
+	for _, cookie := range cookies {
+		if cookie.Name == common.HTTPCookieBKToken {
+			bkToken = cookie.Value
+			blog.Errorf("0000000000 bkToken: %v", bkToken)
+		}
 	}
+	token, _ := c.Cookie(common.HTTPCookieBKToken)
+
+	blog.Errorf("0000000000 cookies: %v, token: %v", cookies, token)
+	//bkToken, err := c.Cookie(common.HTTPCookieBKToken)
+	//if err != nil || len(bkToken) == 0 {
+	//	blog.Infof("LoginUser failed, bk_token empty, rid: %s", rid)
+	//	return nil, false
+	//}
 	checkUrl, err := cc.String("webServer.site.checkUrl")
 	if err != nil {
 		blog.Errorf("get login url config item not found, rid: %s", rid)
