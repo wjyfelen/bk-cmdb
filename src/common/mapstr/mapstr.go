@@ -392,3 +392,21 @@ func (cli MapStr) Different(target MapStr) (more MapStr, less MapStr, changes Ma
 
 	return more, less, changes
 }
+
+type convertFunc func(string) string
+
+// ReassignmentValue 替换指定field的值
+func ReassignmentValue(data map[string]interface{}, field []string, f convertFunc) error {
+	if data == nil || len(field) == 0 {
+		return nil
+	}
+	for k, v := range data {
+
+		// case 1：k是特殊类型，例如 $and $or 且仅支持这两个特殊字符，如果有别的特殊字符需要报错
+		// 如果是这种场景，需要判断value是否是array ，如果不是array需要报错。如果是那么还需要递归调用
+		// case 2：v是普通string 看是否命中field中，如果命中了，看对应的value是否是string 如果是直接替换。如果是mapstring 那么判断
+		// 对应的key是否是"$in", "nin","eq"等
+
+	}
+	return nil
+}
