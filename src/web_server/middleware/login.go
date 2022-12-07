@@ -123,12 +123,26 @@ func isAuthed(c *gin.Context, config options.Config) bool {
 		return user.LoginUser(c)
 	}
 
-	bkTokenName := common.HTTPCookieBKToken
-	bkToken, err := c.Cookie(bkTokenName)
+	//bkTokenName := common.HTTPCookieBKToken
+	//bkToken, err := c.Cookie(bkTokenName)
+	//blog.V(5).Infof("valid user login session token %s, cookie token %s, rid: %s", ccToken, bkToken, rid)
+	//if nil != err || bkToken != ccToken {
+	//	return user.LoginUser(c)
+	//}
+
+	cookies := c.Request.Cookies()
+	bkToken := ""
+	for _, cookie := range cookies {
+		if cookie.Name == common.HTTPCookieBKToken {
+			bkToken = cookie.Value
+			blog.Errorf("222222222222222 bkToken: %v", bkToken)
+		}
+	}
 	blog.V(5).Infof("valid user login session token %s, cookie token %s, rid: %s", ccToken, bkToken, rid)
-	if nil != err || bkToken != ccToken {
+	if bkToken != ccToken {
 		return user.LoginUser(c)
 	}
+
 	return true
 
 }
