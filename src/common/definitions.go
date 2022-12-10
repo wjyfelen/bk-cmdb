@@ -212,6 +212,9 @@ const (
 	// BKDBSum the db opeartor
 	BKDBSum = "$sum"
 
+	// BKDBEach the db opeartor
+	BKDBEach = "$each"
+
 	// BKDBPush the db opeartor
 	BKDBPush = "$push"
 
