@@ -13,7 +13,9 @@
 package querybuilder
 
 import (
+	"configcenter/src/common/blog"
 	"fmt"
+	"reflect"
 	"regexp"
 	"time"
 
@@ -254,29 +256,78 @@ func (r AtomRule) validateValue(option *RuleOption) error {
 	}
 }
 
+func testIpv6Addr(addr string) string {
+	blog.Errorf("000000000000 addr: %v", addr)
+	return "0000:0000:0000:0000:0000:0000:0000:0009"
+}
+
+func ConvertIpv6ToFullWord(field string, value interface{}) interface{} {
+	if field != common.BKHostInnerIPv6Field && field != common.BKHostOuterIPv6Field {
+		return value
+	}
+	v := reflect.ValueOf(value)
+	var data interface{}
+	switch v.Kind() {
+	case reflect.String:
+		data = testIpv6Addr(value.(string))
+		blog.Errorf("0000000000000000000000000 value: %v, data: %v", value, data)
+	case reflect.Array, reflect.Slice:
+		v := reflect.ValueOf(value)
+		length := v.Len()
+		if length == 0 {
+			return value
+		}
+
+		result := make([]interface{}, 0)
+		// each element in the array or slice should be of the same basic type.
+		for i := 0; i < length; i++ {
+			item := v.Index(i).Interface()
+
+			switch item.(type) {
+			case string:
+				v := testIpv6Addr(item.(string))
+				result = append(result, v)
+			default:
+				return value
+			}
+		}
+
+		data = result
+		blog.Errorf("111111111111111111111 value: %v, data: %v", value, data)
+
+	default:
+		return value
+	}
+	return data
+}
+
 // ToMgo generate mongo filter from rule
 func (r AtomRule) ToMgo() (mgoFiler map[string]interface{}, key string, err error) {
 	if key, err := r.Validate(&RuleOption{NeedSameSliceElementType: true}); err != nil {
 		return nil, key, fmt.Errorf("validate failed, key: %s, err: %s", key, err)
 	}
-
+	blog.Errorf("88888888888888888888888888")
 	filter := make(map[string]interface{})
 	switch r.Operator {
 	case OperatorEqual:
+		value := ConvertIpv6ToFullWord(r.Field, r.Value)
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBEQ: r.Value,
+			common.BKDBEQ: value,
 		}
 	case OperatorNotEqual:
+		value := ConvertIpv6ToFullWord(r.Field, r.Value)
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBNE: r.Value,
+			common.BKDBNE: value,
 		}
 	case OperatorIn:
+		value := ConvertIpv6ToFullWord(r.Field, r.Value)
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBIN: r.Value,
+			common.BKDBIN: value,
 		}
 	case OperatorNotIn:
+		value := ConvertIpv6ToFullWord(r.Field, r.Value)
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBNIN: r.Value,
+			common.BKDBNIN: value,
 		}
 	case OperatorLess:
 		filter[r.Field] = map[string]interface{}{
@@ -471,11 +522,13 @@ func (r CombinedRule) ToMgo() (mgoFilter map[string]interface{}, key string, err
 	if err := r.Condition.Validate(); err != nil {
 		return nil, "condition", err
 	}
+	blog.Errorf("555555555555555555555555")
 	if r.Rules == nil || len(r.Rules) == 0 {
 		return nil, "rules", fmt.Errorf("combined rules shouldn't be empty")
 	}
 	filters := make([]map[string]interface{}, 0)
 	for idx, rule := range r.Rules {
+		blog.Errorf("555555555555555555555555")
 		filter, key, err := rule.ToMgo()
 		if err != nil {
 			return nil, fmt.Sprintf("rules[%d].%s", idx, key), err

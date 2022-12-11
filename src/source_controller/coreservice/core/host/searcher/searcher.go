@@ -97,6 +97,7 @@ func (s *Searcher) ListHosts(ctx context.Context, option metadata.ListHosts) (se
 		blog.Errorf("ListHosts failed, db select failed, filter: %+v, err: %+v, rid: %s", hostIDFilter, err, rid)
 		return nil, err
 	}
+	blog.Errorf("99999900000000 propertyFilter: %v", propertyFilter)
 	if len(propertyFilter) > 0 {
 		filters = append(filters, propertyFilter)
 	}

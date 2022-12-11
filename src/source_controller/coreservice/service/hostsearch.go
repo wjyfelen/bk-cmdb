@@ -25,7 +25,7 @@ func (s *coreService) ListHosts(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
+	blog.Errorf("00000000000000000000000000")
 	hosts, err := s.core.HostOperation().ListHosts(ctx.Kit, option)
 	if err != nil {
 		blog.Errorf("ListHostByTopoNode failed, call host operation failed, err: %s, rid: %s", err.Error(), ctx.Kit.Rid)

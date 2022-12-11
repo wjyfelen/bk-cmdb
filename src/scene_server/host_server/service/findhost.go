@@ -505,6 +505,7 @@ func (s *Service) ListBizHosts(ctx *rest.Contexts) {
 		ctx.RespAutoError(ccErr)
 		return
 	}
+	blog.Errorf("00099999999999999999999999999999")
 	bizID, err := strconv.ParseInt(req.PathParameter("appid"), 10, 64)
 	if err != nil {
 		ccErr := defErr.Errorf(common.CCErrCommParamsInvalid, common.BKAppIDField)
@@ -602,6 +603,7 @@ func (s *Service) listBizHosts(ctx *rest.Contexts, bizID int64, parameter meta.L
 		Fields:             parameter.Fields,
 		Page:               parameter.Page,
 	}
+	blog.Errorf("777777777777777777777777777777777777777777777777")
 	hostResult, err := s.CoreAPI.CoreService().Host().ListHosts(ctx.Kit.Ctx, header, option)
 	if err != nil {
 		blog.Errorf("find host failed, err: %s, input:%#v, rid:%s", err.Error(), parameter, rid)
