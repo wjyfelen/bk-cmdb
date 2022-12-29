@@ -11,24 +11,28 @@
 -->
 
 <script>
-  import { computed, defineComponent, reactive, ref, watch, watchEffect } from '@vue/composition-api'
+  import { computed, defineComponent, reactive, ref, watch, watchEffect } from 'vue'
   import store from '@/store'
   import RouterQuery from '@/router/query'
   import routerActions from '@/router/actions'
   import tableMixin from '@/mixins/table'
   import { getDefaultPaginationConfig, getSort, getHeaderProperties, getHeaderPropertyName } from '@/utils/tools.js'
   import { transformGeneralModelCondition, getDefaultData } from '@/components/filters/utils.js'
+  import podValueFilter from '@/filters/pod'
   import ColumnsConfig from '@/components/columns-config/columns-config.js'
   import PodListOptions from './pod-list-options.vue'
   import { MENU_POD_DETAILS } from '@/dictionary/menu-symbol'
   import { CONTAINER_OBJECTS, CONTAINER_OBJECT_PROPERTY_KEYS, CONTAINER_OBJECT_INST_KEYS } from '@/dictionary/container'
-  import containerPropertyService from '@/service/container/property.js'
+  import containerPropertyService, { getPodTopoNodeProps } from '@/service/container/property.js'
   import containerPodService from '@/service/container/pod.js'
   import { getContainerNodeType } from '@/service/container/common.js'
 
   export default defineComponent({
     components: {
       PodListOptions
+    },
+    filters: {
+      podValueFilter
     },
     mixins: [tableMixin],
     mounted() {
@@ -44,6 +48,8 @@
       const MODEL_NAME_KEY = CONTAINER_OBJECT_INST_KEYS[CONTAINER_OBJECTS.POD].NAME
       const MODEL_FULL_NAME_KEY = CONTAINER_OBJECT_INST_KEYS[CONTAINER_OBJECTS.POD].FULL_NAME
 
+      const tableRef = ref(null)
+
       const table = reactive({
         data: [],
         header: [],
@@ -55,8 +61,7 @@
       const columnsConfig = reactive({
         disabledColumns: [
           MODEL_ID_KEY,
-          MODEL_NAME_KEY,
-          'namespace'
+          MODEL_NAME_KEY
         ]
       })
 
@@ -132,7 +137,8 @@
           requestId: requestIds.property,
           fromCache: true
         })
-        properties.value = podProperties
+
+        properties.value = [...podProperties, ...getPodTopoNodeProps()]
 
         setTableHeader()
 
@@ -264,6 +270,11 @@
         return params
       }
 
+      const getColumnSortable = (column) => {
+        const topoNodePropIds = getPodTopoNodeProps()?.map(prop => prop.bk_property_id) ?? []
+        return !topoNodePropIds.includes(column.id) ? 'custom' : false
+      }
+
       const handlePageChange = (current = 1) => {
         RouterQuery.set({
           page: current,
@@ -330,6 +341,7 @@
 
       return {
         requestIds,
+        tableRef,
         table,
         filter,
         handlePageChange,
@@ -337,7 +349,8 @@
         handleSortChange,
         handleValueClick,
         handleSelectionChange,
-        handleHeaderClick
+        handleHeaderClick,
+        getColumnSortable
       }
     }
   })
@@ -352,7 +365,7 @@
     </pod-list-options>
     <bk-table class="pod-table"
       v-bkloading="{ isLoading: $loading(Object.values(requestIds)) }"
-      ref="table"
+      ref="tableRef"
       :data="table.data"
       :pagination="table.pagination"
       :max-height="$APP.height - 250"
@@ -364,16 +377,16 @@
       <bk-table-column type="selection" width="50" align="center" fixed></bk-table-column>
       <bk-table-column v-for="column in table.header"
         :show-overflow-tooltip="!['map'].includes(column.property.bk_property_type)"
-        :min-width="column.id === 'id' ? 80 : 120"
+        :min-width="$tools.getHeaderPropertyMinWidth(column.property, { hasSort: true })"
         :key="column.id"
-        :sortable="'custom'"
+        :sortable="getColumnSortable(column)"
         :prop="column.id"
         :label="column.name"
         :fixed="column.id === 'id'">
         <template slot-scope="{ row }">
           <cmdb-property-value
             :theme="column.id === 'id' ? 'primary' : 'default'"
-            :value="row[column.id]"
+            :value="row | podValueFilter(column.id)"
             :show-unit="false"
             :property="column.property"
             @click.native.stop="handleValueClick(row, column)">
