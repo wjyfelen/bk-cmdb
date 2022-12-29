@@ -26,6 +26,7 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
+	"configcenter/src/common/util"
 	"configcenter/src/kube/types"
 )
 
@@ -208,18 +209,16 @@ func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 		return
 	}
 
+	ids := make([]int64, 0)
 	for _, namespace := range resp.Data {
-		ids := make([]int64, 0)
 		if namespace.BizID != bizID {
 			ids = append(ids, namespace.ID)
 		}
-
-		if len(ids) != 0 {
-			blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %d, rid: %s", ids, bizID,
-				ctx.Kit.Rid)
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, ids))
-			return
-		}
+	}
+	if len(ids) != 0 {
+		blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %d, rid: %s", ids, bizID, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, ids))
+		return
 	}
 
 	hasRes, err := s.hasNextLevelResource(ctx.Kit, types.KubeNamespace, bizID, req.IDs)
@@ -282,40 +281,116 @@ func (s *Service) ListNamespace(ctx *rest.Contexts) {
 		return
 	}
 
-	cond, err := req.BuildCond(bizID)
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
 	if err != nil {
-		blog.Errorf("build query namespace condition failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 
-	if req.Page.EnableCount {
-		counts, err := s.Engine.CoreAPI.CoreService().Count().GetCountByFilter(ctx.Kit.Ctx, ctx.Kit.Header,
-			types.BKTableNameBaseNamespace, []map[string]interface{}{cond})
+	bizIDs := []int64{bizID}
+	if len(nsBizIDs) != 0 {
+		bizIDs = append(bizIDs, nsBizIDs...)
+	}
+
+	cond := mapstr.MapStr{
+		common.BKAppIDField: mapstr.MapStr{
+			common.BKDBIN: bizIDs,
+		},
+	}
+
+	if req.Filter != nil {
+		filterCond, err := req.Filter.ToMgo()
 		if err != nil {
-			blog.Errorf("count namespace failed, cond: %v, err: %v, rid: %s", cond, err, ctx.Kit.Rid)
 			ctx.RespAutoError(err)
 			return
 		}
-		ctx.RespEntityWithCount(counts[0], make([]mapstr.MapStr, 0))
+		cond = mapstr.MapStr{common.BKDBAND: []mapstr.MapStr{cond, filterCond}}
+	}
+
+	if req.Page.EnableCount {
+		count, err := s.countNamespace(ctx.Kit, bizID, cond, req.Page, nsBizIDs)
+		if err != nil {
+			ctx.RespAutoError(err)
+			return
+		}
+		ctx.RespEntityWithCount(count, make([]mapstr.MapStr, 0))
 		return
 	}
 
-	if req.Page.Sort == "" {
-		req.Page.Sort = common.BKFieldID
-	}
-
-	query := &metadata.QueryCondition{
-		Condition: cond,
-		Page:      req.Page,
-		Fields:    req.Fields,
-	}
-	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListNamespace(ctx.Kit.Ctx, ctx.Kit.Header, query)
+	result, err := s.getNamespaceDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs)
 	if err != nil {
 		blog.Errorf("list namespace failed, bizID: %s, data: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
+	ctx.RespEntityWithCount(0, result)
+}
 
-	ctx.RespEntityWithCount(0, resp.Data)
+func (s *Service) countNamespace(kit *rest.Kit, bizID int64, filter mapstr.MapStr,
+	page metadata.BasePage, nsBizIDs []int64) (int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         []string{types.BKBizAsstIDField, types.ClusterTypeField},
+		DisableCounter: true,
+	}
+
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListNamespace(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("find namespace failed, cond: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return 0, err
+	}
+	var count int64
+	for _, node := range result.Data {
+		if node.BizID != bizID {
+			if util.InArray(node.BizAsstID, nsBizIDs) && node.ClusterType == types.ClusterShareTypeField {
+				count++
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (s *Service) getNamespaceDetails(kit *rest.Kit, bizID int64, filter map[string]interface{}, page metadata.BasePage,
+	reqFields []string, nsBizIDs []int64) ([]types.Namespace, error) {
+	// 这里得加一个逻辑看是否前端传了BizAsstID ClusterType
+	// 如果没有传那么需要加上，之后再返回给前端的时候需要把这两个数据删掉
+
+	fields, fieldsMap := dealFieldsForShareCluster(reqFields)
+
+	if page.Sort == "" {
+		page.Sort = common.BKFieldID
+	}
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         fields,
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListNamespace(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return nil, err
+	}
+
+	namespaces := make([]types.Namespace, 0)
+	for _, ns := range result.Data {
+		if !fieldsMap[types.ClusterTypeField] {
+			ns.ClusterType = ""
+		}
+		if !fieldsMap[types.BKBizAsstIDField] {
+			ns.BizAsstID = 0
+		}
+		if ns.BizID != bizID {
+			if util.InArray(ns.BizAsstID, nsBizIDs) && ns.ClusterType == types.ClusterShareTypeField {
+				namespaces = append(namespaces, ns)
+			}
+		}
+		namespaces = append(namespaces, ns)
+	}
+
+	return namespaces, nil
 }

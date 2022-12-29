@@ -73,7 +73,6 @@ func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
 	respData := metadata.RspIDs{
 		IDs: make([]int64, len(ids)),
 	}
@@ -96,13 +95,15 @@ func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
 
 		// in the shared cluster scenario, the relationship between the business cluster and the platform
 		// cluster needs to be inserted.
-		if data.ClusterSpec.BizID != bizID && data.ClusterSpec.ClusterType == types.ClusterShareTypeField {
+		if data.ClusterSpec.BizID != data.ClusterSpec.BizAsstID &&
+			data.ClusterSpec.ClusterType == types.ClusterShareTypeField {
 			nsRelationData = append(nsRelationData, types.NsClusterRelation{
-				BizID:       bizID,
-				AsstBizID:   data.ClusterSpec.BizID,
-				ClusterID:   data.ClusterSpec.ClusterID,
-				ClusterUID:  data.ClusterSpec.ClusterUID,
-				NamespaceID: id,
+				BizID:           bizID,
+				BizAsstID:       data.ClusterSpec.BizAsstID,
+				ClusterID:       data.ClusterSpec.ClusterID,
+				ClusterUID:      data.ClusterSpec.ClusterUID,
+				NamespaceID:     id,
+				SupplierAccount: data.SupplierAccount,
 			})
 		}
 	}
@@ -119,7 +120,7 @@ func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
 	}
 
 	if err = mongodb.Client().Table(types.BKTableNsClusterRelation).Insert(ctx.Kit.Ctx, nsRelationData); err != nil {
-		blog.Errorf("add namespace failed, data: %v, err: %v, rid: %s", nsData, err, ctx.Kit.Rid)
+		blog.Errorf("add ns relation failed, data: %v, err: %v, rid: %s", nsRelationData, err, ctx.Kit.Rid)
 		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommDBInsertFailed))
 		return
 	}
@@ -264,7 +265,7 @@ func (s *coreService) DeleteNamespace(ctx *rest.Contexts) {
 	util.SetQueryOwner(queryFilter, ctx.Kit.SupplierAccount)
 
 	namespaces := make([]types.Namespace, 0)
-	fields := []string{common.BKFieldID, types.BKClusterIDField, types.BKAsstBizIDField, types.BKBizIDField}
+	fields := []string{common.BKFieldID, types.BKClusterIDField, types.BKBizAsstIDField, types.BKBizIDField}
 	err = mongodb.Client().Table(types.BKTableNameBaseNamespace).Find(queryFilter).
 		Fields(fields...).All(ctx.Kit.Ctx, &namespaces)
 	if err != nil {
@@ -292,7 +293,7 @@ func (s *coreService) DeleteNamespace(ctx *rest.Contexts) {
 	for _, namespace := range namespaces {
 		delConds = append(delConds, map[string]interface{}{
 			types.BKNamespaceIDField: namespace.ID,
-			types.BKAsstBizIDField:   namespace.BizAsstID,
+			types.BKBizAsstIDField:   namespace.BizAsstID,
 			types.BKBizIDField:       namespace.BizID,
 			types.BKClusterIDField:   namespace.ClusterID,
 		})

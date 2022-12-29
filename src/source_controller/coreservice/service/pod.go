@@ -148,7 +148,7 @@ func validateNsCluster(kit *rest.Kit, workload types.WorkloadBase, bizID int64) 
 			types.BKNamespaceIDField: workload.NamespaceID,
 			types.ClusterUIDField:    workload.ClusterUID,
 			common.BKAppIDField:      bizID,
-			types.BKAsstBizIDField:   workload.BizAsstID,
+			types.BKBizAsstIDField:   workload.BizAsstID,
 		}
 		count, err := mongodb.Client().Table(types.BKTableNsClusterRelation).Find(countFilter).Count(kit.Ctx)
 		if err != nil {
@@ -189,7 +189,7 @@ func getSysSpecInfoByCond(kit *rest.Kit, spec types.SpecSimpleInfo, bizID int64,
 	util.SetModOwner(filter, kit.SupplierAccount)
 
 	fields := []string{types.ClusterUIDField, types.NamespaceField, types.KubeNameField, types.TypeField,
-		types.BKAsstBizIDField, common.BKAppIDField}
+		types.BKBizAsstIDField, common.BKAppIDField}
 
 	workload := make([]types.WorkloadBase, 0)
 

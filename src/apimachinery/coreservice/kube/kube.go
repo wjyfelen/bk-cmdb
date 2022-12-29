@@ -83,6 +83,8 @@ type KubeClientInterface interface {
 		*types.ResponseCluster, errors.CCErrorCoder)
 	SearchNsClusterRelation(ctx context.Context, header http.Header, input *metadata.QueryCondition) (
 		*types.ResponseNsClusterRelation, errors.CCErrorCoder)
+	SearchNodeClusterRelation(ctx context.Context, header http.Header, input *metadata.QueryCondition) (
+		*types.ResponseNodeClusterRelation, errors.CCErrorCoder)
 	DeleteCluster(ctx context.Context, header http.Header, bizID int64,
 		option *types.DeleteClusterOption) errors.CCErrorCoder
 	BatchDeleteNode(ctx context.Context, header http.Header, bizID int64,

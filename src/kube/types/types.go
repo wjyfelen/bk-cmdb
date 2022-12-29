@@ -272,8 +272,8 @@ const (
 	// BKBizIDField business id field
 	BKBizIDField = "bk_biz_id"
 
-	// BKAsstBizIDField asst business id field
-	BKAsstBizIDField = "bk_asst_biz_id"
+	// BKBizAsstIDField asst business id field
+	BKBizAsstIDField = "bk_biz_asst_id"
 
 	// BKSupplierAccountField supplier account
 	BKSupplierAccountField = "bk_supplier_account"

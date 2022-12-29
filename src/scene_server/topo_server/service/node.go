@@ -28,6 +28,7 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
+	"configcenter/src/common/util"
 	"configcenter/src/kube/types"
 )
 
@@ -317,36 +318,101 @@ func (s *Service) SearchNodes(ctx *rest.Contexts) {
 		filter = cond
 	}
 
-	// regardless of whether there is bk_biz_id or supplier_account in the condition,
-	// it is uniformly replaced with bk_biz_id in url and supplier_account in kit.
-	filter[types.BKBizIDField] = bizID
+	nodeBizIDs, err := s.searchNodeBizIDWithBizAsstID(ctx.Kit, bizID)
+	if err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
 
+	bizIDs := []int64{bizID}
+	if len(nodeBizIDs) != 0 {
+		bizIDs = append(bizIDs, nodeBizIDs...)
+	}
+
+	filter[types.BKBizIDField] = map[string]interface{}{
+		common.BKDBIN: bizIDs,
+	}
+
+	// 这里获取到node信息，然后还得看一下各个node信息中的cluster信息中的assID是否是传入的ID并且对应的cluster type需要是共享集群
 	// count biz in cluster enable count is set
 	if searchCond.Page.EnableCount {
-		filter := []map[string]interface{}{filter}
-		counts, err := s.Engine.CoreAPI.CoreService().Count().GetCountByFilter(ctx.Kit.Ctx, ctx.Kit.Header,
-			types.BKTableNameBaseNode, filter)
+		count, err := s.countNodes(ctx.Kit, bizID, filter, searchCond.Page, nodeBizIDs)
 		if err != nil {
-			blog.Errorf("count node failed, cond: %+v, err: %v, rid: %s", filter, err, ctx.Kit.Rid)
 			ctx.RespAutoError(err)
 			return
 		}
-		ctx.RespEntityWithCount(counts[0], make([]mapstr.MapStr, 0))
+		ctx.RespEntityWithCount(count, make([]mapstr.MapStr, 0))
 		return
 	}
 
-	query := &metadata.QueryCondition{
-		Condition:      filter,
-		Page:           searchCond.Page,
-		Fields:         searchCond.Fields,
-		DisableCounter: true,
-	}
-	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNode(ctx.Kit.Ctx, ctx.Kit.Header, query)
+	nodes, err := s.getNodeDetails(ctx.Kit, bizID, filter, searchCond.Page, searchCond.Fields, nodeBizIDs)
 	if err != nil {
-		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, ctx.Kit.Rid)
+		ctx.RespAutoError(err)
 		return
 	}
-	ctx.RespEntityWithCount(0, result.Data)
+
+	ctx.RespEntityWithCount(0, nodes)
+}
+
+func (s *Service) countNodes(kit *rest.Kit, bizID int64, filter map[string]interface{},
+	page metadata.BasePage, nodeBizIDs []int64) (int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         []string{types.BKBizAsstIDField, types.ClusterTypeField},
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNode(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return 0, err
+	}
+
+	var count int64
+	for _, node := range result.Data {
+		if node.BizID != bizID {
+			if util.InArray(node.BizAsstID, nodeBizIDs) && node.ClusterType == types.ClusterShareTypeField {
+				count++
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (s *Service) getNodeDetails(kit *rest.Kit, bizID int64, filter map[string]interface{}, page metadata.BasePage,
+	reqFields []string, nodeBizIDs []int64) ([]types.Node, error) {
+
+	fields, fieldsMap := dealFieldsForShareCluster(reqFields)
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         fields,
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNode(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return nil, err
+	}
+
+	nodes := make([]types.Node, 0)
+	for _, node := range result.Data {
+		if !fieldsMap[types.ClusterTypeField] {
+			node.ClusterType = ""
+		}
+		if !fieldsMap[types.BKBizAsstIDField] {
+			node.BizAsstID = 0
+		}
+		if node.BizID != bizID {
+			if util.InArray(node.BizAsstID, nodeBizIDs) && node.ClusterType == types.ClusterShareTypeField {
+				nodes = append(nodes, node)
+			}
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, nil
 }
 
 func (s *Service) getUpdateNodeInfo(kit *rest.Kit, bizID int64, nodeIDs []int64) ([]types.Node, error) {

@@ -71,12 +71,11 @@ func getClusterSpecInfo(kit *rest.Kit, bizID int64, data []types.OneNodeCreateOp
 	}
 
 	filter := map[string]interface{}{
-		common.BKAppIDField: bizID,
-		types.BKIDField:     map[string]interface{}{common.BKDBIN: clusterIDs},
+		types.BKIDField: map[string]interface{}{common.BKDBIN: clusterIDs},
 	}
 	util.SetModOwner(filter, kit.SupplierAccount)
 	clusters := make([]types.Cluster, 0)
-	fields := []string{types.UidField, types.BKIDField, types.TypeField, types.BKAsstBizIDField, common.BKAppIDField}
+	fields := []string{types.UidField, types.BKIDField, types.TypeField, types.BKBizAsstIDField, common.BKAppIDField}
 	err := mongodb.Client().Table(types.BKTableNameBaseCluster).Find(filter).
 		Fields(fields...).All(kit.Ctx, &clusters)
 	if err != nil {
@@ -105,10 +104,10 @@ func getClusterSpecInfo(kit *rest.Kit, bizID int64, data []types.OneNodeCreateOp
 
 		clusterMap[cluster.ID] = types.ClusterSpec{
 			BizID:       bizID,
+			BizAsstID:   cluster.BizID,
 			ClusterUID:  *cluster.Uid,
 			ClusterID:   cluster.ID,
 			ClusterType: *cluster.Type,
-			BizAsstID:   cluster.BizID,
 		}
 	}
 	return clusterMap, nil
@@ -170,7 +169,7 @@ func batchCreateNode(kit *rest.Kit, bizID int64, data []types.OneNodeCreateOptio
 		return nil, kit.CCError.CCErrorf(common.CCErrCommGenerateRecordIDFailed)
 	}
 
-	result := make([]types.Node, 0)
+	result, nodeRelationData := make([]types.Node, 0), make([]types.NodeClusterRelation, 0)
 	now := time.Now().Unix()
 	noPod := false
 
@@ -200,10 +199,32 @@ func batchCreateNode(kit *rest.Kit, bizID int64, data []types.OneNodeCreateOptio
 			},
 		}
 		result = append(result, node)
+
+		// in the shared cluster scenario, the relationship between the business cluster and the platform
+		// cluster needs to be inserted.
+		if clusterMap[node.ClusterID].BizID != clusterMap[node.ClusterID].BizAsstID &&
+			clusterMap[node.ClusterID].ClusterType == types.ClusterShareTypeField {
+			nodeRelationData = append(nodeRelationData, types.NodeClusterRelation{
+				BizID:           bizID,
+				BizAsstID:       clusterMap[node.ClusterID].BizAsstID,
+				ClusterID:       clusterMap[node.ClusterID].ClusterID,
+				ClusterUID:      clusterMap[node.ClusterID].ClusterUID,
+				NodeID:          int64(ids[idx]),
+				SupplierAccount: kit.SupplierAccount,
+			})
+		}
 	}
 
 	if err := mongodb.Client().Table(types.BKTableNameBaseNode).Insert(kit.Ctx, result); err != nil {
 		blog.Errorf("create nodes failed, db insert failed, node: %+v, err: %+v, rid: %s", result, err, kit.Rid)
+		return nil, kit.CCError.CCError(common.CCErrCommDBInsertFailed)
+	}
+	if len(nodeRelationData) == 0 {
+		return result, nil
+	}
+
+	if err = mongodb.Client().Table(types.BKTableNodeClusterRelation).Insert(kit.Ctx, nodeRelationData); err != nil {
+		blog.Errorf("add node relation failed, data: %v, err: %v, rid: %s", nodeRelationData, err, kit.Rid)
 		return nil, kit.CCError.CCError(common.CCErrCommDBInsertFailed)
 	}
 	return result, nil
@@ -327,17 +348,13 @@ func (s *coreService) BatchDeleteNode(ctx *rest.Contexts) {
 	}
 	util.SetQueryOwner(query, ctx.Kit.SupplierAccount)
 	nodes := make([]types.Node, 0)
-	fields := []string{common.BKFieldID, types.BKClusterIDField, types.BKAsstBizIDField, types.BKBizIDField}
+	fields := []string{common.BKFieldID, types.BKClusterIDField, types.BKBizAsstIDField, types.BKBizIDField}
 
 	if err := mongodb.Client().Table(types.BKTableNameBaseNode).Find(query).
 		Fields(fields...).All(ctx.Kit.Ctx, &nodes); err != nil {
 		blog.Errorf("query node failed, filter: %+v, err: %v, rid: %s", query, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
-	}
-	hostBizMap := make(map[int64]int64)
-	for _, node := range nodes {
-		hostBizMap[node.HostID] = node.BizID
 	}
 
 	// delete nodes.
@@ -357,13 +374,12 @@ func (s *coreService) BatchDeleteNode(ctx *rest.Contexts) {
 	delConds := make([]map[string]interface{}, 0)
 	for _, node := range nodes {
 		delConds = append(delConds, map[string]interface{}{
-			types.BKNamespaceIDField: node.ID,
-			types.BKAsstBizIDField:   node.BizAsstID,
-			types.BKBizIDField:       node.BizID,
-			types.BKClusterIDField:   node.ClusterID,
+			types.BKNodeIDField:    node.ID,
+			types.BKBizAsstIDField: node.BizAsstID,
+			types.BKBizIDField:     node.BizID,
+			types.BKClusterIDField: node.ClusterID,
 		})
 	}
-
 	cond := map[string]interface{}{common.BKDBOR: delConds}
 	cond = util.SetModOwner(cond, ctx.Kit.SupplierAccount)
 	if err := mongodb.Client().Table(types.BKTableNodeClusterRelation).Delete(ctx.Kit.Ctx, cond); err != nil {

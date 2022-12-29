@@ -60,6 +60,35 @@ func (s *coreService) SearchClusters(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// SearchNodeClusterRelation search node clusters relation in the shared cluster scenario.
+func (s *coreService) SearchNodeClusterRelation(ctx *rest.Contexts) {
+
+	input := new(metadata.QueryCondition)
+	if err := ctx.DecodeInto(input); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	relations := make([]types.NodeClusterRelation, 0)
+	util.SetQueryOwner(input.Condition, ctx.Kit.SupplierAccount)
+
+	err := mongodb.Client().Table(types.BKTableNodeClusterRelation).Find(input.Condition).
+		Start(uint64(input.Page.Start)).
+		Limit(uint64(input.Page.Limit)).
+		Sort(input.Page.Sort).
+		Fields(input.Fields...).All(ctx.Kit.Ctx, &relations)
+	if err != nil {
+		blog.Errorf("search node and cluster relation failed, cond: %+v, err: %v, rid: %s", input.Condition,
+			err, ctx.Kit.Rid)
+		ctx.RespAutoError(err)
+		return
+	}
+
+	result := &types.ResponseNodeClusterRelation{Data: relations}
+
+	ctx.RespEntity(result)
+}
+
 // SearchNsClusterRelation search ns clusters relation in the shared cluster scenario.
 func (s *coreService) SearchNsClusterRelation(ctx *rest.Contexts) {
 

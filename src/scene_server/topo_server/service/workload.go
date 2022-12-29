@@ -27,6 +27,7 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
+	"configcenter/src/common/util"
 	"configcenter/src/kube/types"
 )
 
@@ -219,23 +220,24 @@ func (s *Service) DeleteWorkload(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
+
 	if len(resp.Info) == 0 {
 		blog.Errorf("no workload founded, bizID: %s, data: %v, rid: %s", bizID, req, ctx.Kit.Rid)
 		ctx.RespAutoError(errors.New("no workload founded"))
 		return
 	}
+
+	ids := make([]int64, 0)
 	for _, workload := range resp.Info {
-		ids := make([]int64, 0)
 		if workload.GetWorkloadBase().BizID != bizID {
 			ids = append(ids, workload.GetWorkloadBase().ID)
 		}
-
-		if len(ids) != 0 {
-			blog.Errorf("workload does not belong to this business, kind: %v, ids: %v, bizID: %s, rid: %s", kind, ids,
-				bizID, ctx.Kit.Rid)
-			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKFieldID))
-			return
-		}
+	}
+	if len(ids) != 0 {
+		blog.Errorf("workload does not belong to this business, kind: %v, ids: %v, bizID: %s, rid: %s", kind, ids,
+			bizID, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKFieldID))
+		return
 	}
 
 	hasRes, err := s.hasNextLevelResource(ctx.Kit, string(kind), bizID, req.IDs)
@@ -304,47 +306,126 @@ func (s *Service) ListWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	cond, err := req.BuildCond(bizID)
+	//cond, err := req.BuildCond(bizID)
+	//if err != nil {
+	//	blog.Errorf("build query workload condition failed, err: %v, rid: %s", err, ctx.Kit.Rid)
+	//	ctx.RespAutoError(err)
+	//	return
+	//}
+
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
 	if err != nil {
-		blog.Errorf("build query workload condition failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 
+	bizIDs := []int64{bizID}
+	if len(nsBizIDs) != 0 {
+		bizIDs = append(bizIDs, nsBizIDs...)
+	}
+
+	cond := mapstr.MapStr{
+		common.BKAppIDField: mapstr.MapStr{
+			common.BKDBIN: bizIDs,
+		},
+	}
+
+	if req.Filter != nil {
+		filterCond, err := req.Filter.ToMgo()
+		if err != nil {
+			ctx.RespAutoError(err)
+			return
+		}
+		cond = mapstr.MapStr{common.BKDBAND: []mapstr.MapStr{cond, filterCond}}
+	}
+
 	if req.Page.EnableCount {
-		counts, err := s.Engine.CoreAPI.CoreService().Count().GetCountByFilter(ctx.Kit.Ctx, ctx.Kit.Header, table,
-			[]map[string]interface{}{cond})
+		count, err := s.countWorkload(ctx.Kit, bizID, cond, req.Page, nsBizIDs, kind)
 		if err != nil {
 			blog.Errorf("count workload failed, table: %s, cond: %v, err: %v, rid: %s", table, cond, err, ctx.Kit.Rid)
 			ctx.RespAutoError(err)
 			return
 		}
-		ctx.RespEntityWithCount(counts[0], make([]mapstr.MapStr, 0))
+		ctx.RespEntityWithCount(count, make([]mapstr.MapStr, 0))
 		return
 	}
 
-	if req.Page.Sort == "" {
-		req.Page.Sort = common.BKFieldID
-	}
-
-	query := &metadata.QueryCondition{
-		Condition: cond,
-		Page:      req.Page,
-		Fields:    req.Fields,
-	}
-
-	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListWorkload(ctx.Kit.Ctx, ctx.Kit.Header, query, kind)
+	info, err := s.getWorkloadDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs, kind)
 	if err != nil {
-		blog.Errorf("list workload failed, bizID: %s, cond: %v, err: %v, rid: %s", bizID, query, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
+	ctx.RespEntityWithCount(0, info)
+}
 
-	if len(resp.Info) == 0 {
-		ctx.RespEntityWithCount(0, []mapstr.MapStr{})
-		return
+func (s *Service) countWorkload(kit *rest.Kit, bizID int64, filter mapstr.MapStr,
+	page metadata.BasePage, nsBizIDs []int64, kind types.WorkloadType) (int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         []string{types.BKBizAsstIDField, types.ClusterTypeField},
+		DisableCounter: true,
 	}
 
-	ctx.RespEntityWithCount(0, resp.Info)
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListWorkload(kit.Ctx, kit.Header, query, kind)
+	if err != nil {
+		blog.Errorf("find namespace failed, cond: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return 0, err
+	}
+	var count int64
+	for _, wl := range result.Info {
+		data := wl.GetWorkloadBase()
+		if data.BizID != bizID {
+			if util.InArray(data.BizAsstID, nsBizIDs) && data.ClusterType == types.ClusterShareTypeField {
+				count++
+			}
+		}
+		count++
+	}
+	return count, nil
+}
 
+func (s *Service) getWorkloadDetails(kit *rest.Kit, bizID int64, filter map[string]interface{}, page metadata.BasePage,
+	reqFields []string, nsBizIDs []int64, kind types.WorkloadType) ([]types.WorkloadInterface, error) {
+	// 这里得加一个逻辑看是否前端传了BizAsstID ClusterType
+	// 如果没有传那么需要加上，之后再返回给前端的时候需要把这两个数据删掉
+
+	fields, fieldsMap := dealFieldsForShareCluster(reqFields)
+
+	if page.Sort == "" {
+		page.Sort = common.BKFieldID
+	}
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         fields,
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListWorkload(kit.Ctx, kit.Header, query, kind)
+	if err != nil {
+		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return nil, err
+	}
+
+	wls := make([]types.WorkloadInterface, 0)
+	for _, wl := range result.Info {
+		base := wl.GetWorkloadBase()
+		if !fieldsMap[types.ClusterTypeField] {
+			base.ClusterType = ""
+		}
+		if !fieldsMap[types.BKBizAsstIDField] {
+			base.BizAsstID = 0
+		}
+		if base.BizID != bizID {
+			if util.InArray(base.BizAsstID, nsBizIDs) && base.ClusterType == types.ClusterShareTypeField {
+				wls = append(wls, wl)
+
+			}
+		}
+		wls = append(wls, wl)
+	}
+
+	return wls, nil
 }

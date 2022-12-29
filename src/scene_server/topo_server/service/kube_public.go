@@ -158,7 +158,7 @@ func combinationForPodConditions(infos []types.KubeResourceInfo, bizID int64) []
 						types.HasPodField:      false,
 					},
 					{
-						types.BKAsstBizIDField: bizID,
+						types.BKBizAsstIDField: bizID,
 						types.BKClusterIDField: info.ID,
 						types.HasPodField:      false,
 					},
@@ -173,7 +173,7 @@ func combinationForPodConditions(infos []types.KubeResourceInfo, bizID int64) []
 						types.BKClusterIDField: info.ID,
 					},
 					{
-						types.BKAsstBizIDField: bizID,
+						types.BKBizAsstIDField: bizID,
 						types.BKClusterIDField: info.ID,
 					},
 				},
@@ -187,7 +187,7 @@ func combinationForPodConditions(infos []types.KubeResourceInfo, bizID int64) []
 						types.BKNamespaceIDField: info.ID,
 					},
 					{
-						types.BKAsstBizIDField:   bizID,
+						types.BKBizAsstIDField:   bizID,
 						types.BKNamespaceIDField: info.ID,
 					},
 				},
@@ -202,7 +202,7 @@ func combinationForPodConditions(infos []types.KubeResourceInfo, bizID int64) []
 						types.RefKindField: info.Kind,
 					},
 					{
-						types.BKAsstBizIDField: bizID,
+						types.BKBizAsstIDField: bizID,
 						types.RefIDField:       info.ID,
 						types.RefKindField:     info.Kind,
 					},
@@ -505,8 +505,70 @@ func (s *Service) getHostIDsInPodsByCond(kit *rest.Kit, bizID int64, cond mapstr
 	return result, nil
 }
 
-// searchAsstBizIDWithBizID 此函数前端展示拓扑的时候，查询集群时不能调用此函数!!!
-func (s *Service) searchAsstBizIDWithBizID(kit *rest.Kit, bizID int64) (int64, error) {
+// searchNsBizIDWithBizAsstID 根据平台bizID查询ns关系表中的bizID表
+func (s *Service) searchNsBizIDWithBizAsstID(kit *rest.Kit, bizID int64) ([]int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition: mapstr.MapStr{
+			types.BKBizAsstIDField: bizID,
+		},
+		Page: metadata.BasePage{
+			Limit: common.BKNoLimit,
+		},
+		Fields:         []string{common.BKAppIDField},
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNsClusterRelation(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node cluster relation failed, bizID: %d, err: %v, rid: %s", bizID, err, kit.Rid)
+		return nil, err
+	}
+
+	if len(result.Data) == 0 {
+		return []int64{}, nil
+	}
+
+	bizIDs := make([]int64, 0)
+	for _, data := range result.Data {
+		bizIDs = append(bizIDs, data.BizID)
+	}
+
+	return bizIDs, nil
+}
+
+// searchNodeBizIDWithBizAsstID 根据平台bizID查询node关系表中的bizID表
+func (s *Service) searchNodeBizIDWithBizAsstID(kit *rest.Kit, bizID int64) ([]int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition: mapstr.MapStr{
+			types.BKBizAsstIDField: bizID,
+		},
+		Page: metadata.BasePage{
+			Limit: common.BKNoLimit,
+		},
+		Fields:         []string{common.BKAppIDField},
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNodeClusterRelation(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node cluster relation failed, bizID: %d, err: %v, rid: %s", bizID, err, kit.Rid)
+		return nil, err
+	}
+
+	if len(result.Data) == 0 {
+		return []int64{}, nil
+	}
+
+	bizIDs := make([]int64, 0)
+	for _, data := range result.Data {
+		bizIDs = append(bizIDs, data.BizID)
+	}
+
+	return bizIDs, nil
+}
+
+// searchShareClusterIDWithBizID 此函数前端展示拓扑的时候，查询集群时不能调用此函数!!!
+func (s *Service) searchShareClusterIDWithBizID(kit *rest.Kit, bizID int64) (int64, error) {
 
 	query := &metadata.QueryCondition{
 		Condition: mapstr.MapStr{
@@ -515,7 +577,7 @@ func (s *Service) searchAsstBizIDWithBizID(kit *rest.Kit, bizID int64) (int64, e
 		Page: metadata.BasePage{
 			Limit: common.BKNoLimit,
 		},
-		Fields:         []string{types.BKAsstBizIDField},
+		Fields:         []string{types.BKClusterIDField},
 		DisableCounter: true,
 	}
 	result, err := s.Engine.CoreAPI.CoreService().Kube().SearchNsClusterRelation(kit.Ctx, kit.Header, query)
@@ -528,22 +590,22 @@ func (s *Service) searchAsstBizIDWithBizID(kit *rest.Kit, bizID int64) (int64, e
 		return 0, nil
 	}
 
-	bizIDMap := make(map[int64]struct{})
+	shareClusterIDMap := make(map[int64]struct{})
 	for _, data := range result.Data {
-		bizIDMap[data.AsstBizID] = struct{}{}
+		shareClusterIDMap[data.ClusterID] = struct{}{}
 	}
 
-	if len(bizIDMap) > 1 {
+	if len(shareClusterIDMap) > 1 {
 		blog.Errorf("multi ns cluster relation founded, bizID: %d, rid: %s", bizID, kit.Rid)
 		return 0, err
 	}
 
-	var asstBizID int64
-	for id := range bizIDMap {
-		asstBizID = id
+	var shareClusterID int64
+	for id := range shareClusterIDMap {
+		shareClusterID = id
 	}
 
-	return asstBizID, nil
+	return shareClusterID, nil
 }
 
 // getKubeSubTopoObject get the next-level topology resource object of the specified resource
@@ -552,23 +614,27 @@ func (s *Service) getKubeSubTopoObject(kit *rest.Kit, object string, id, bizID i
 
 	switch object {
 	case types.KubeBusiness:
-		bizList := make([]int64, 0)
-		bizList = append(bizList, bizID)
-		asstBizID, err := s.searchAsstBizIDWithBizID(kit, bizID)
+
+		shareClusterID, err := s.searchShareClusterIDWithBizID(kit, bizID)
 		if err != nil {
 			return "", nil, err
 		}
-
 		// compatible shared cluster information.
-		if asstBizID != 0 {
-			bizList = append(bizList, asstBizID)
+		conds := []map[string]interface{}{
+			{
+				types.BKBizIDField: bizID,
+			},
 		}
 
-		return types.KubeCluster, map[string]interface{}{
-			types.BKBizIDField: map[string]interface{}{
-				common.BKDBIN: bizList,
-			},
-		}, nil
+		if shareClusterID != 0 {
+			conds = append(conds, map[string]interface{}{
+				types.BKIDField: shareClusterID,
+			})
+		}
+		cond := map[string]interface{}{
+			common.BKDBOR: conds,
+		}
+		return types.KubeCluster, cond, nil
 	case types.KubeCluster:
 		return types.KubeNamespace, map[string]interface{}{
 			types.BKClusterIDField: id,
@@ -782,4 +848,31 @@ func (s *Service) hasNextLevelResource(kit *rest.Kit, kind string, bizID int64, 
 	}
 
 	return hasRes, nil
+}
+
+func dealFieldsForShareCluster(fields []string) ([]string, map[string]bool) {
+	fieldsMap := map[string]bool{
+		types.BKBizAsstIDField: false,
+		types.ClusterTypeField: false,
+	}
+
+	if len(fields) == 0 {
+		fieldsMap[types.BKBizAsstIDField] = true
+		fieldsMap[types.ClusterTypeField] = true
+	} else {
+		for _, field := range fields {
+			if field == types.BKBizAsstIDField {
+				fieldsMap[types.BKBizAsstIDField] = true
+			} else {
+				fields = append(fields, types.BKBizAsstIDField)
+			}
+
+			if field == types.ClusterTypeField {
+				fieldsMap[types.ClusterTypeField] = true
+			} else {
+				fields = append(fields, types.ClusterTypeField)
+			}
+		}
+	}
+	return fields, fieldsMap
 }

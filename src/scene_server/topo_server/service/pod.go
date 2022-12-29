@@ -18,6 +18,7 @@
 package service
 
 import (
+	"configcenter/src/common/util"
 	"errors"
 	"fmt"
 	"strconv"
@@ -180,11 +181,21 @@ func (s *Service) ListPod(ctx *rest.Contexts) {
 		return
 	}
 
-	cond, err := req.BuildCond(bizID)
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
 	if err != nil {
-		blog.Errorf("build query pod condition failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
+	}
+
+	bizIDs := []int64{bizID}
+	if len(nsBizIDs) != 0 {
+		bizIDs = append(bizIDs, nsBizIDs...)
+	}
+
+	cond := mapstr.MapStr{
+		common.BKAppIDField: mapstr.MapStr{
+			common.BKDBIN: bizIDs,
+		},
 	}
 
 	if req.Page.EnableCount {
@@ -199,23 +210,82 @@ func (s *Service) ListPod(ctx *rest.Contexts) {
 		return
 	}
 
-	if req.Page.Sort == "" {
-		req.Page.Sort = common.BKFieldID
-	}
-
-	query := &metadata.QueryCondition{
-		Condition: cond,
-		Page:      req.Page,
-		Fields:    req.Fields,
-	}
-	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListPod(ctx.Kit.Ctx, ctx.Kit.Header, query)
+	pods, err := s.getPodDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs)
 	if err != nil {
-		blog.Errorf("find pod failed, cond: %v, err: %v, rid: %s", query, err, ctx.Kit.Rid)
+		blog.Errorf("count pod failed, cond: %v, err: %v, rid: %s", cond, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
+	ctx.RespEntityWithCount(0, pods)
+}
 
-	ctx.RespEntityWithCount(0, resp.Info)
+func (s *Service) countPod(kit *rest.Kit, bizID int64, filter mapstr.MapStr, page metadata.BasePage,
+	nsBizIDs []int64) (int64, error) {
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         []string{types.BKBizAsstIDField, types.ClusterTypeField},
+		DisableCounter: true,
+	}
+
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListPod(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("find namespace failed, cond: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return 0, err
+	}
+	var count int64
+	for _, node := range result.Info {
+		if node.BizID != bizID {
+			if util.InArray(node.BizAsstID, nsBizIDs) && node.ClusterType == types.ClusterShareTypeField {
+				count++
+			}
+		}
+		count++
+	}
+	return count, nil
+}
+
+func (s *Service) getPodDetails(kit *rest.Kit, bizID int64, filter map[string]interface{}, page metadata.BasePage,
+	reqFields []string, nsBizIDs []int64) ([]types.Pod, error) {
+	// 这里得加一个逻辑看是否前端传了BizAsstID ClusterType
+	// 如果没有传那么需要加上，之后再返回给前端的时候需要把这两个数据删掉
+
+	fields, fieldsMap := dealFieldsForShareCluster(reqFields)
+
+	if page.Sort == "" {
+		page.Sort = common.BKFieldID
+	}
+
+	query := &metadata.QueryCondition{
+		Condition:      filter,
+		Page:           page,
+		Fields:         fields,
+		DisableCounter: true,
+	}
+	result, err := s.Engine.CoreAPI.CoreService().Kube().ListPod(kit.Ctx, kit.Header, query)
+	if err != nil {
+		blog.Errorf("search node failed, filter: %+v, err: %v, rid: %s", filter, err, kit.Rid)
+		return nil, err
+	}
+
+	pods := make([]types.Pod, 0)
+	for _, ns := range result.Info {
+		if !fieldsMap[types.ClusterTypeField] {
+			ns.ClusterType = ""
+		}
+		if !fieldsMap[types.BKBizAsstIDField] {
+			ns.BizAsstID = 0
+		}
+		if ns.BizID != bizID {
+			if util.InArray(ns.BizAsstID, nsBizIDs) && ns.ClusterType == types.ClusterShareTypeField {
+				pods = append(pods, ns)
+			}
+		}
+		pods = append(pods, ns)
+	}
+
+	return pods, nil
 }
 
 // BatchCreatePod batch create pods.
