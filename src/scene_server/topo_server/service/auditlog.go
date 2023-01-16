@@ -329,6 +329,9 @@ func buildInstAuditCondition(ctx *rest.Contexts, query metadata.InstAuditConditi
 	if query.ResourceType != "" {
 		cond[common.BKResourceTypeField] = query.ResourceType
 	}
+	if query.BizID != 0 {
+		cond[common.BKAppIDField] = query.BizID
+	}
 
 	if len(query.Action) > 0 {
 		cond[common.BKActionField] = map[string]interface{}{common.BKDBIN: query.Action}
