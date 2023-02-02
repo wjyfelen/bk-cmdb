@@ -260,10 +260,11 @@ var commNodeIndexes = []types.Index{
 		Background: true,
 	},
 	{
-		Name: common.CCLogicUniqueIdxNamePrefix + "cluster_uid_name",
+		Name: common.CCLogicIndexNamePrefix + "biz_id_cluster_uid",
 		Keys: bson.D{
+			{common.BKAppIDField, 1},
 			{kubetypes.ClusterUIDField, 1},
-			{common.BKFieldName, 1},
+			{common.BkSupplierAccount, 1},
 		},
 		Unique:     true,
 		Background: true,
@@ -317,7 +318,7 @@ var commClusterIndexes = []types.Index{
 		Unique:     true,
 	},
 	{
-		Name: common.CCLogicUniqueIdxNamePrefix + "cluster_uid",
+		Name: common.CCLogicUniqueIdxNamePrefix + "uid",
 		Keys: bson.D{
 			{kubetypes.UidField, 1},
 		},
@@ -325,7 +326,7 @@ var commClusterIndexes = []types.Index{
 		Unique:     true,
 	},
 	{
-		Name: common.CCLogicUniqueIdxNamePrefix + "bk_biz_id_name",
+		Name: common.CCLogicIndexNamePrefix + "bk_biz_id_name",
 		Keys: bson.D{
 			{common.BKAppIDField, 1},
 			{common.BKFieldName, 1},

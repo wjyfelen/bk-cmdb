@@ -308,7 +308,6 @@ func (s *Service) CountKubeTopoHostsOrPods(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
 	ctx.RespEntity(result)
 }
 

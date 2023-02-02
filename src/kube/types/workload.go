@@ -25,7 +25,6 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/criteria/enumor"
 	"configcenter/src/common/errors"
-	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
 	"configcenter/src/storage/dal/table"
 )
@@ -534,19 +533,4 @@ func (wl *WlQueryOption) Validate(kind WorkloadType) errors.RawErrorInfo {
 		}
 	}
 	return errors.RawErrorInfo{}
-}
-
-// BuildCond build query workload condition
-func (wl *WlQueryOption) BuildCond(bizID int64) (mapstr.MapStr, error) {
-	cond := mapstr.MapStr{
-		common.BKAppIDField: bizID,
-	}
-	if wl.Filter != nil {
-		filterCond, err := wl.Filter.ToMgo()
-		if err != nil {
-			return nil, err
-		}
-		cond = mapstr.MapStr{common.BKDBAND: []mapstr.MapStr{cond, filterCond}}
-	}
-	return cond, nil
 }
