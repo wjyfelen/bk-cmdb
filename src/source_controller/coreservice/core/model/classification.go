@@ -13,6 +13,8 @@
 package model
 
 import (
+	"strings"
+
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/errors"
@@ -21,12 +23,14 @@ import (
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/universalsql/mongo"
 	"configcenter/src/common/util"
+	"configcenter/src/storage/driver/mongodb"
 )
 
 type modelClassification struct {
 	model *modelManager
 }
 
+// CreateOneModelClassification TODO
 func (m *modelClassification) CreateOneModelClassification(kit *rest.Kit, inputParam metadata.CreateOneModelClassification) (*metadata.CreateOneDataResult, error) {
 
 	if 0 == len(inputParam.Data.ClassificationID) {
@@ -34,14 +38,12 @@ func (m *modelClassification) CreateOneModelClassification(kit *rest.Kit, inputP
 		return &metadata.CreateOneDataResult{}, kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.ClassFieldClassificationID)
 	}
 
-	_, exists, err := m.isExists(kit, inputParam.Data.ClassificationID)
-	if nil != err {
-		blog.Errorf("request(%s): it is failed to check if the classification ID (%s)is exists, error info is %s", kit.Rid, inputParam.Data.ClassificationID, err.Error())
-		return nil, err
-	}
-	if exists {
-		blog.Errorf("classification (%#v)is duplicated, rid: %s", inputParam.Data, kit.Rid)
-		return nil, kit.CCError.Errorf(common.CCErrCommDuplicateItem, inputParam.Data.ClassificationID)
+	// It is forbidden to create a model group starting with bk or BK, to prevent the subsequent creation of built-in
+	// model group conflicts. Note that the upper topo server has this id check, which is used here as a bottom line to
+	// prevent direct calls to core service without interception.
+	if strings.HasPrefix(strings.ToLower(inputParam.Data.ClassificationID), "bk") {
+		return &metadata.CreateOneDataResult{}, kit.CCError.Errorf(common.CCErrCommParamsIsInvalid,
+			"bk_classification_id can not start with bk or BK")
 	}
 
 	inputParam.Data.OwnerID = kit.SupplierAccount
@@ -49,11 +51,16 @@ func (m *modelClassification) CreateOneModelClassification(kit *rest.Kit, inputP
 	id, err := m.save(kit, inputParam.Data)
 	if nil != err {
 		blog.Errorf("request(%s): it is failed to save the classification(%#v), error info is %s", kit.Rid, inputParam.Data, err.Error())
+		if mongodb.Client().IsDuplicatedError(err) {
+			dupErr := kit.CCError.CCErrorf(common.CCErrCommDuplicateItem, mongodb.GetDuplicateKey(err))
+			return &metadata.CreateOneDataResult{}, dupErr
+		}
 		return &metadata.CreateOneDataResult{}, err
 	}
 	return &metadata.CreateOneDataResult{Created: metadata.CreatedDataResult{ID: id}}, err
 }
 
+// CreateManyModelClassification TODO
 func (m *modelClassification) CreateManyModelClassification(kit *rest.Kit, inputParam metadata.CreateManyModelClassifiaction) (*metadata.CreateManyDataResult, error) {
 
 	dataResult := &metadata.CreateManyDataResult{
@@ -109,6 +116,8 @@ func (m *modelClassification) CreateManyModelClassification(kit *rest.Kit, input
 
 	return dataResult, nil
 }
+
+// SetManyModelClassification TODO
 func (m *modelClassification) SetManyModelClassification(kit *rest.Kit, inputParam metadata.SetManyModelClassification) (*metadata.SetDataResult, error) {
 
 	dataResult := &metadata.SetDataResult{
@@ -178,6 +187,7 @@ func (m *modelClassification) SetManyModelClassification(kit *rest.Kit, inputPar
 	return dataResult, nil
 }
 
+// SetOneModelClassification TODO
 func (m *modelClassification) SetOneModelClassification(kit *rest.Kit, inputParam metadata.SetOneModelClassification) (*metadata.SetDataResult, error) {
 
 	dataResult := &metadata.SetDataResult{
@@ -231,6 +241,7 @@ func (m *modelClassification) SetOneModelClassification(kit *rest.Kit, inputPara
 	return dataResult, err
 }
 
+// UpdateModelClassification TODO
 func (m *modelClassification) UpdateModelClassification(kit *rest.Kit, inputParam metadata.UpdateOption) (*metadata.UpdatedCount, error) {
 
 	cond, err := mongo.NewConditionFromMapStr(util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount))
@@ -242,11 +253,16 @@ func (m *modelClassification) UpdateModelClassification(kit *rest.Kit, inputPara
 	cnt, err := m.update(kit, inputParam.Data, cond)
 	if nil != err {
 		blog.Errorf("request(%s): it is failed to update some fields(%#v) for some classifications by the condition(%#v), error info is %s", kit.Rid, inputParam.Data, inputParam.Condition, err.Error())
+		if mongodb.Client().IsDuplicatedError(err) {
+			dupErr := kit.CCError.CCErrorf(common.CCErrCommDuplicateItem, mongodb.GetDuplicateKey(err))
+			return &metadata.UpdatedCount{}, dupErr
+		}
 		return &metadata.UpdatedCount{}, err
 	}
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
+// DeleteModelClassification TODO
 func (m *modelClassification) DeleteModelClassification(kit *rest.Kit, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error) {
 
 	deleteCond, err := mongo.NewConditionFromMapStr(util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount))
@@ -273,6 +289,7 @@ func (m *modelClassification) DeleteModelClassification(kit *rest.Kit, inputPara
 	return &metadata.DeletedCount{Count: cnt}, nil
 }
 
+// SearchModelClassification TODO
 func (m *modelClassification) SearchModelClassification(kit *rest.Kit, inputParam metadata.QueryCondition) (*metadata.QueryModelClassificationDataResult, error) {
 
 	dataResult := &metadata.QueryModelClassificationDataResult{

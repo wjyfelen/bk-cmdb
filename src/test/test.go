@@ -1,3 +1,4 @@
+// Package test TODO
 package test
 
 import (
@@ -28,6 +29,7 @@ var reportUrl string
 var reportDir string
 var db *local.Mongo
 
+// TestConfig TODO
 type TestConfig struct {
 	ZkAddr         string
 	Concurrent     int
@@ -39,10 +41,11 @@ type TestConfig struct {
 	RedisCfg       RedisConfig
 }
 
+// RedisConfig TODO
 type RedisConfig struct {
-	RedisAdress string
-	RedisPort   string
-	RedisPasswd string
+	RedisAddress string
+	RedisPort    string
+	RedisPasswd  string
 }
 
 func init() {
@@ -51,7 +54,7 @@ func init() {
 	flag.Float64Var(&tConfig.SustainSeconds, "sustain-seconds", 10, "the load test sustain time in seconds ")
 	flag.Int64Var(&tConfig.TotalRequest, "total-request", 0, "the load test total request,it has higher priority than SustainSeconds")
 	flag.IntVar(&tConfig.DBWriteKBSize, "write-size", 1, "MongoDB write size , unit is KB.")
-	flag.StringVar(&tConfig.RedisCfg.RedisAdress, "redis-addr", "127.0.0.1:6379", "redis host address with port")
+	flag.StringVar(&tConfig.RedisCfg.RedisAddress, "redis-addr", "127.0.0.1:6379", "redis host address with port")
 	flag.StringVar(&tConfig.RedisCfg.RedisPasswd, "redis-passwd", "cc", "redis password")
 	flag.StringVar(&tConfig.MongoURI, "mongo-addr", "mongodb://127.0.0.1:27017/cmdb", "mongodb URI")
 	flag.StringVar(&tConfig.MongoRsName, "mongo-rs-name", "rs0", "mongodb replica set name")
@@ -93,14 +96,17 @@ func init() {
 	fmt.Println("**** initialize clientSet success ***")
 }
 
+// GetClientSet TODO
 func GetClientSet() apimachinery.ClientSetInterface {
 	return clientSet
 }
 
+// GetTestConfig TODO
 func GetTestConfig() TestConfig {
 	return tConfig
 }
 
+// GetHeader TODO
 func GetHeader() http.Header {
 	header := make(http.Header)
 	header.Add(common.BKHTTPOwnerID, "0")
@@ -109,6 +115,7 @@ func GetHeader() http.Header {
 	return header
 }
 
+// ClearDatabase TODO
 func ClearDatabase() {
 	fmt.Println("********Clear Database*************")
 	// clientSet.AdminServer().ClearDatabase(context.Background(), GetHeader())
@@ -120,13 +127,17 @@ func ClearDatabase() {
 	}
 	db, err := local.NewMgo(mongoConfig, time.Minute)
 	Expect(err).Should(BeNil())
-	for _, tableName := range common.AllTables {
+	tables, err := db.ListTables(context.Background())
+	Expect(err).Should(BeNil())
+	for _, tableName := range tables {
 		db.DropTable(context.Background(), tableName)
 	}
 	db.Close()
 	clientSet.AdminServer().Migrate(context.Background(), "0", "community", GetHeader())
+	clientSet.AdminServer().RunSyncDBIndex(context.Background(), GetHeader())
 }
 
+// GetReportUrl TODO
 func GetReportUrl() string {
 	if !strings.HasSuffix(reportUrl, "/") {
 		reportUrl = reportUrl + "/"
@@ -134,6 +145,7 @@ func GetReportUrl() string {
 	return reportUrl
 }
 
+// GetReportDir TODO
 func GetReportDir() string {
 	if !strings.HasSuffix(reportDir, "/") {
 		reportDir = reportDir + "/"
@@ -141,6 +153,7 @@ func GetReportDir() string {
 	return reportDir
 }
 
+// GetDB TODO
 func GetDB() *local.Mongo {
 	return db
 }

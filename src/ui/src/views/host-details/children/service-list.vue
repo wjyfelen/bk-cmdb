@@ -1,21 +1,35 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="service-wrapper">
-    <div class="options">
-      <bk-checkbox class="options-checkall"
-        :size="16"
-        v-model="isCheckAll"
-        :disabled="!instances.length"
-        :title="$t('全选本页')"
-        @change="handleCheckALL">
-      </bk-checkbox>
-      <cmdb-auth :auth="HOST_AUTH.D_SERVICE_INSTANCE">
-        <bk-button slot-scope="{ disabled }"
-          class="ml10"
-          :disabled="disabled || !checked.length"
-          @click="batchDelete(!checked.length)">
-          {{$t('批量删除')}}
-        </bk-button>
-      </cmdb-auth>
+    <div class="options clearfix">
+      <template v-if="!readonly">
+        <bk-checkbox class="options-checkall"
+          :size="16"
+          v-model="isCheckAll"
+          :disabled="!instances.length"
+          :title="$t('全选本页')"
+          @change="handleCheckALL">
+        </bk-checkbox>
+        <cmdb-auth :auth="HOST_AUTH.D_SERVICE_INSTANCE">
+          <bk-button slot-scope="{ disabled }"
+            class="ml10"
+            :disabled="disabled || !checked.length"
+            @click="batchDelete(!checked.length)">
+            {{$t('批量删除')}}
+          </bk-button>
+        </cmdb-auth>
+      </template>
       <div class="option-right fr">
         <bk-checkbox class="options-checkbox"
           :size="16"
@@ -35,14 +49,6 @@
             @change="handleSearch">
           </bk-search-select>
         </div>
-        <cmdb-switcher-group v-model="currentView" tips-key="host_service_list_view_tips" :tips="$t('标签或路径切换')">
-          <cmdb-switcher-item name="path" :tips="$t('显示拓扑')">
-            <i class="icon-cc-instance-path"></i>
-          </cmdb-switcher-item>
-          <cmdb-switcher-item name="label" :tips="$t('显示标签')">
-            <i class="icon-cc-label"></i>
-          </cmdb-switcher-item>
-        </cmdb-switcher-group>
       </div>
     </div>
     <div class="tables">
@@ -52,8 +58,8 @@
         :key="instance.id"
         :instance="instance"
         :expanded="index === 0"
-        :current-view="currentView"
         @delete-instance="handleDeleteInstance"
+        @update-instance="handleUpdateInstance"
         @check-change="handleCheckChange"
         @edit-name="handleEditName(instance)"
         @edit-name-success="handleEditNameSuccess(instance, ...arguments)"
@@ -85,21 +91,19 @@
 <script>
   import has from 'has'
   import {
-    MENU_BUSINESS_HOST_AND_SERVICE,
-    MENU_BUSINESS_DELETE_SERVICE
+    MENU_BUSINESS_HOST_AND_SERVICE
   } from '@/dictionary/menu-symbol'
   import { mapState } from 'vuex'
   import serviceInstanceTable from './service-instance-table.vue'
   import authMixin from '../mixin-auth'
-  import CmdbSwitcherGroup from '@/components/switcher/switcher-group'
-  import CmdbSwitcherItem from '@/components/switcher/switcher-item'
+  import { readonlyMixin } from '../mixin-readonly'
+  import { historyLabelProxy, hostServiceInstancesProxy } from '../service-proxy'
+
   export default {
     components: {
-      serviceInstanceTable,
-      CmdbSwitcherGroup,
-      CmdbSwitcherItem
+      serviceInstanceTable
     },
-    mixins: [authMixin],
+    mixins: [authMixin, readonlyMixin],
     data() {
       return {
         searchSelect: [
@@ -166,20 +170,18 @@
         try {
           const searchKey = this.searchSelectData.find(item => (item.id === 0 && has(item, 'values'))
             || (![0, 1].includes(item.id) && !has(item, 'values')))
-          const data = await this.$store.dispatch('serviceInstance/getHostServiceInstances', {
-            params: {
-              page: {
-                start: (this.pagination.current - 1) * this.pagination.size,
-                limit: this.pagination.size
-              },
-              bk_host_id: this.host.bk_host_id,
-              bk_biz_id: this.info.biz[0].bk_biz_id,
-              // eslint-disable-next-line no-nested-ternary
-              search_key: searchKey
-                ? has(searchKey, 'values') ? searchKey.values[0].name : searchKey.name
-                : '',
-              selectors: this.getSelectorParams()
-            }
+          const data = await hostServiceInstancesProxy({
+            page: {
+              start: (this.pagination.current - 1) * this.pagination.size,
+              limit: this.pagination.size
+            },
+            bk_host_id: this.host.bk_host_id,
+            bk_biz_id: this.info.biz[0].bk_biz_id,
+            // eslint-disable-next-line no-nested-ternary
+            search_key: searchKey
+              ? has(searchKey, 'values') ? searchKey.values[0].name : searchKey.name
+              : '',
+            selectors: this.getSelectorParams()
           })
           if (data.count && !data.info.length) {
             this.pagination.current -= 1
@@ -236,15 +238,15 @@
         }
       },
       async getHistoryLabel() {
-        const historyLabels = await this.$store.dispatch('instanceLabel/getHistoryLabel', {
-          params: {
+        const historyLabels = await historyLabelProxy(
+          {
             bk_biz_id: this.info.biz[0].bk_biz_id
           },
-          config: {
+          {
             requestId: 'getHistoryLabel',
             cancelPrevious: true
           }
-        })
+        )
         this.historyLabels = historyLabels
         const keys = Object.keys(historyLabels)
         const valueOption = keys.map(key => ({
@@ -265,6 +267,9 @@
         this.$set(this.searchSelect[2], 'children', keyOption)
       },
       handleDeleteInstance() {
+        this.getHostSeriveInstances()
+      },
+      handleUpdateInstance() {
         this.getHostSeriveInstances()
       },
       handleEditName(instance) {
@@ -296,12 +301,28 @@
         if (disabled) {
           return false
         }
-        this.$routerActions.redirect({
-          name: MENU_BUSINESS_DELETE_SERVICE,
-          params: {
-            ids: this.checked.map(instance => instance.id).join('/')
-          },
-          history: true
+        this.$bkInfo({
+          title: this.$t('确定删除N个实例', { count: this.checked.length }),
+          confirmLoading: true,
+          confirmFn: async () => {
+            const serviceInstanceIds = this.checked.map(instance => instance.id)
+            try {
+              await this.$store.dispatch('serviceInstance/deleteServiceInstance', {
+                config: {
+                  data: {
+                    service_instance_ids: serviceInstanceIds,
+                    bk_biz_id: this.info.biz[0].bk_biz_id
+                  }
+                }
+              })
+              this.$success(this.$t('删除成功'))
+              this.getHostSeriveInstances()
+              return true
+            } catch (e) {
+              console.error(e)
+              return false
+            }
+          }
         })
       },
       handleCheckChange(checked, instance) {

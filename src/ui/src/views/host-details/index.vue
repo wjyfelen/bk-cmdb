@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="details-layout">
     <div v-bkloading="{ isLoading: loading }" style="height: 100%;">
@@ -15,7 +27,7 @@
         <bk-tab-panel name="property" :label="$t('主机属性')">
           <cmdb-host-property></cmdb-host-property>
         </bk-tab-panel>
-        <bk-tab-panel name="service" :label="$t('服务列表')" :visible="isBusinessHost">
+        <bk-tab-panel name="service" :label="$t('服务列表')" v-if="isBusinessHost">
           <cmdb-host-service v-if="active === 'service'"></cmdb-host-service>
         </bk-tab-panel>
         <bk-tab-panel name="association" :label="$t('关联')">
@@ -24,7 +36,8 @@
         <bk-tab-panel name="history" :label="$t('变更记录')">
           <cmdb-audit-history v-if="active === 'history'"
             resource-type="host"
-            category="host"
+            obj-id="host"
+            :biz-id="business"
             :resource-id="id">
           </cmdb-audit-history>
         </bk-tab-panel>
@@ -41,6 +54,8 @@
   import cmdbAuditHistory from '@/components/model-instance/audit-history'
   import cmdbHostService from './children/service-list.vue'
   import RouterQuery from '@/router/query'
+  import { hostInfoProxy } from './service-proxy.js'
+
   export default {
     components: {
       cmdbHostInfo,
@@ -115,9 +130,8 @@
       },
       async getHostInfo() {
         try {
-          const { info } = await this.$store.dispatch('hostSearch/searchHost', {
-            params: this.getSearchHostParams()
-          })
+          const { info } = await hostInfoProxy(this.getSearchHostParams())
+
           if (info.length) {
             this.$store.commit('hostDetails/setHostInfo', info[0])
           } else {

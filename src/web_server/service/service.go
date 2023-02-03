@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -24,24 +25,28 @@ import (
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/metric"
 	"configcenter/src/common/types"
+	"configcenter/src/common/webservice/ginservice"
 	"configcenter/src/storage/dal/redis"
+	"configcenter/src/thirdparty/logplatform/opentelemetry"
 	"configcenter/src/web_server/app/options"
 	"configcenter/src/web_server/logics"
 	"configcenter/src/web_server/middleware"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/holmeswang/contrib/sessions"
 )
 
+// Service TODO
 type Service struct {
 	*options.ServerOption
 	Engine   *backbone.Engine
 	CacheCli redis.Client
 	*logics.Logics
 	Config  *options.Config
-	Session sessions.RedisStore
+	Session redis.RedisStore
 }
 
+// WebService TODO
 func (s *Service) WebService() *gin.Engine {
 	setGinMode()
 	ws := gin.New()
@@ -68,6 +73,9 @@ func (s *Service) WebService() *gin.Engine {
 		}()
 		c.Next()
 	})
+
+	opentelemetry.UseOtlpMiddleware(ws)
+
 	middleware.Engine = s.Engine
 
 	ws.Static("/static", s.Config.Site.HtmlRoot)
@@ -78,13 +86,16 @@ func (s *Service) WebService() *gin.Engine {
 	ws.POST("/hosts/update", s.UpdateHosts)
 	ws.GET("/hosts/:bk_host_id/listen_ip_options", s.ListenIPOptions)
 	ws.POST("/importtemplate/:bk_obj_id", s.BuildDownLoadExcelTemplate)
-	ws.POST("/insts/owner/:bk_supplier_account/object/:bk_obj_id/import", s.ImportInst)
-	ws.POST("/insts/owner/:bk_supplier_account/object/:bk_obj_id/export", s.ExportInst)
+	ws.POST("/insts/object/:bk_obj_id/import", s.ImportInst)
+	ws.POST("/insts/object/:bk_obj_id/export", s.ExportInst)
 	ws.POST("/logout", s.LogOutUser)
 	ws.GET("/login", s.Login)
 	ws.POST("/login", s.LoginUser)
-	ws.POST("/object/owner/:bk_supplier_account/object/:bk_obj_id/import", s.ImportObject)
-	ws.POST("/object/owner/:bk_supplier_account/object/:bk_obj_id/export", s.ExportObject)
+	ws.POST("/object/object/:bk_obj_id/import", s.ImportObject)
+	ws.POST("/object/object/:bk_obj_id/export", s.ExportObject)
+	ws.POST("/object/exportmany", s.BatchExportObject)
+	ws.POST("/object/importmany/analysis", s.BatchImportObjectAnalysis)
+	ws.POST("/object/importmany", s.BatchImportObject)
 	ws.GET("/user/list", s.GetUserList)
 	// suggest move to  Organization
 	ws.GET("/user/department", s.GetDepartment)
@@ -99,7 +110,6 @@ func (s *Service) WebService() *gin.Engine {
 	ws.PUT("/user/current/supplier/:id", s.UpdateSupplier)
 	ws.POST("/biz/search/web", s.SearchBusiness)
 
-	ws.GET("/healthz", s.Healthz)
 	ws.GET("/", s.Index)
 
 	ws.POST("/netdevice/import", s.ImportNetDevice)
@@ -108,6 +118,16 @@ func (s *Service) WebService() *gin.Engine {
 	ws.POST("/netproperty/import", s.ImportNetProperty)
 	ws.POST("/netproperty/export", s.ExportNetProperty)
 	ws.GET("/netcollect/importtemplate/netproperty", s.BuildDownLoadNetPropertyExcelTemplate)
+	ws.POST("/object/count", s.GetObjectInstanceCount)
+
+	ws.POST("/regular/verify_regular_express", s.VerifyRegularExpress)
+	ws.POST("/regular/verify_regular_content_batch", s.VerifyRegularContentBatch)
+
+	ws.Any("/proxy/:method/:target/*target_url", s.ProxyRequest)
+
+	// common api
+	ws.GET("/healthz", s.Healthz)
+	ws.GET("/version", ginservice.Version)
 
 	// if no route, redirect to 404 page
 	ws.NoRoute(func(c *gin.Context) {
@@ -126,6 +146,7 @@ func setGinMode() {
 	gin.SetMode(mode)
 }
 
+// Healthz TODO
 func (s *Service) Healthz(c *gin.Context) {
 	meta := metric.HealthMeta{IsHealthy: true}
 

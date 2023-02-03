@@ -23,8 +23,8 @@ import (
 	"configcenter/src/common/util"
 	"configcenter/src/web_server/middleware/user"
 
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/holmeswang/contrib/sessions"
 )
 
 // LogOutUser log out user
@@ -84,8 +84,8 @@ func (s *Service) LoginUser(c *gin.Context) {
 			userManger := user.NewUser(*s.Config, s.Engine, s.CacheCli)
 			userManger.LoginUser(c)
 			var redirectURL string
-			if c.Param("c_url") != "" {
-				redirectURL = c.Param("c_url")
+			if c.Query("c_url") != "" {
+				redirectURL = c.Query("c_url")
 			} else {
 				redirectURL = s.Config.Site.DomainUrl
 			}

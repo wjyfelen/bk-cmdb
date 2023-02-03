@@ -1,5 +1,17 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
-  <bk-table class="instance-table" ref="instanceTable"
+  <bk-table class="instance-table" ref="instanceTable" v-test-id.businessHostAndService="'svrInstList'"
     v-bkloading="{ isLoading: $loading(request.getList) }"
     :row-class-name="getRowClassName"
     :data="list"
@@ -13,7 +25,10 @@
     <bk-table-column type="selection" prop="id"></bk-table-column>
     <bk-table-column type="expand" prop="expand" width="15" :before-expand-change="beforeExpandChange">
       <div slot-scope="{ row }" v-bkloading="{ isLoading: row.pending }">
-        <expand-list :service-instance="row" @update-list="handleExpandResolved(row, ...arguments)"></expand-list>
+        <expand-list
+          :service-instance="row"
+          :list-request="processListRequest"
+          @update-list="handleExpandResolved(row, ...arguments)"></expand-list>
       </div>
     </bk-table-column>
     <bk-table-column :label="$t('实例名称')" prop="name" width="340">
@@ -133,6 +148,7 @@
       handleFilterChange(filters) {
         this.filters = filters
         RouterQuery.set({
+          node: this.selectedNode.id,
           page: 1,
           _t: Date.now()
         })
@@ -161,6 +177,12 @@
           console.error(error)
         }
       },
+      processListRequest(reqParams, reqConfig) {
+        return this.$store.dispatch('processInstance/getServiceInstanceProcesses', {
+          params: reqParams,
+          config: reqConfig
+        })
+      },
       getRowClassName({ row }) {
         const className = ['instance-table-row']
         if (!row.process_count) {
@@ -171,6 +193,7 @@
       handlePageChange(page) {
         this.pagination.current = page
         RouterQuery.set({
+          node: this.selectedNode.id,
           page,
           _t: Date.now()
         })
@@ -237,6 +260,14 @@
       },
       handleCancelEditName(row) {
         row.editing.name = false
+      },
+      handleClickAddHost() {
+        RouterQuery.set({
+          tab: 'hostList',
+          _t: Date.now(),
+          page: '',
+          limit: ''
+        })
       }
     }
   }
@@ -256,10 +287,6 @@
                     }
                 }
                 &:hover {
-                    // 试用操作列替代聚合菜单
-                    // .instance-dot-menu {
-                    //     display: inline-block;
-                    // }
                     .tag-edit {
                         visibility: visible;
                     }
@@ -278,16 +305,17 @@
                         cursor: not-allowed;
                     }
                 }
-                td {
-                    position: sticky;
-                    top: 0;
-                    z-index: 1;
-                    background-color: #fff;
-                }
             }
             .bk-table-expanded-cell {
                 padding-left: 80px !important;
             }
         }
+    }
+    .empty-content {
+      .text-btn {
+        font-size: 14px;
+        margin-left: 2px;
+        height: auto;
+      }
     }
 </style>

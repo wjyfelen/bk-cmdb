@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="property">
     <div class="group"
@@ -61,6 +73,7 @@
                     :data-vv-as="property.bk_property_name"
                     :placeholder="getPlaceholder(property)"
                     :auto-check="false"
+                    v-bind="$tools.getValidateEvents(property)"
                     v-validate="$tools.getValidateRules(property)"
                     v-model.trim="editState.value"
                     :ref="`component-${property.bk_property_id}`">
@@ -93,12 +106,19 @@
         </li>
       </ul>
     </div>
+    <slot name="append"></slot>
   </div>
 </template>
 
 <script>
   import { mapGetters, mapActions } from 'vuex'
   import formMixins from '@/mixins/form'
+  import {
+    BUILTIN_MODELS,
+    BUILTIN_MODEL_PROPERTY_KEYS,
+    BUILTIN_MODEL_RESOURCE_TYPES
+  } from '@/dictionary/model-constants.js'
+  import businessSetService from '@/service/business-set/index.js'
   import authMixin from './mixin-auth'
   export default {
     filters: {
@@ -131,10 +151,11 @@
     computed: {
       ...mapGetters('objectModelClassify', ['models', 'getModelById']),
       authData() {
-        if (this.resourceType === 'business') {
-          return this.INST_AUTH.U_BUSINESS
+        const auths = {
+          [BUILTIN_MODEL_RESOURCE_TYPES[BUILTIN_MODELS.BUSINESS]]: this.INST_AUTH.U_BUSINESS,
+          [BUILTIN_MODEL_RESOURCE_TYPES[BUILTIN_MODELS.BUSINESS_SET]]: this.INST_AUTH.U_BUSINESS_SET
         }
-        return this.INST_AUTH.U_INST
+        return auths[this.resourceType] || this.INST_AUTH.U_INST
       }
     },
     watch: {
@@ -179,10 +200,18 @@
           this.loadingState.push(property)
           const values = { [property.bk_property_id]: this.$tools.formatValue(value, property) }
 
-          if (this.resourceType === 'business') {
+          if (this.resourceType === BUILTIN_MODEL_RESOURCE_TYPES[BUILTIN_MODELS.BUSINESS]) {
             await this.updateBusiness({
               bizId: this.instState.bk_biz_id,
               params: values
+            })
+          } else if (this.resourceType === BUILTIN_MODEL_RESOURCE_TYPES[BUILTIN_MODELS.BUSINESS_SET]) {
+            const MODEL_ID_KEY = BUILTIN_MODEL_PROPERTY_KEYS[BUILTIN_MODELS.BUSINESS_SET].ID
+            await businessSetService.update({
+              bk_biz_set_ids: [this.instState[MODEL_ID_KEY]],
+              data: {
+                bk_biz_set_attr: { ...values },
+              }
             })
           } else {
             await this.updateInst({
@@ -192,9 +221,13 @@
             })
           }
 
+          this.$success(this.$t('修改成功'))
+
           this.instState = { ...this.instState, ...values }
 
           this.loadingState = this.loadingState.filter(exist => exist !== property)
+
+          this.$emit('after-update')
         } catch (e) {
           console.error(e)
           this.loadingState = this.loadingState.filter(exist => exist !== property)
@@ -246,7 +279,7 @@
         }
     }
     .property-list {
-        width: 1000px;
+        width: 1208px;
         margin: 25px 0 0 0;
         color: #63656e;
         display: flex;
@@ -267,11 +300,12 @@
             }
             .property-name {
                 position: relative;
-                width: 160px;
+                width: 260px;
                 line-height: 32px;
                 padding: 0 16px 0 36px;
                 font-size: 14px;
                 color: #63656E;
+                text-align: right;
                 @include ellipsis;
                 &:after {
                     position: absolute;

@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <table class="audit-business-options">
     <colgroup>
@@ -48,18 +60,11 @@
         </cmdb-form-date-range>
       </td>
       <td align="right"><label class="option-label">{{$t('账号')}}</label></td>
-      <td>
-        <cmdb-form-objuser class="option-value"
-          v-model="condition.user"
-          :exclude="false"
-          :multiple="false"
-          :placeholder="$t('请输入xx', { name: $t('账号') })">
-        </cmdb-form-objuser>
-      </td>
+      <td><audit-user-selector class="option-value" v-model="condition.condition.user" /></td>
       <td align="right"><label class="option-label">{{$t('实例')}}</label></td>
       <td>
         <bk-input class="option-value"
-          v-model="instanceFilter"
+          v-model.trim="instanceFilter"
           :placeholder="$t('请输入xx', { name: instanceType === 'resource_id' ? 'ID' : $t('名称') })">
           <bk-select class="option-type" slot="prepend"
             :clearable="false"
@@ -85,6 +90,7 @@
 <script>
   import AuditTargetSelector from './audit-target-selector'
   import AuditActionSelector from './audit-action-selector'
+  import AuditUserSelector from './audit-user-selector'
   import AuditBusinessSelector from '@/components/audit-history/audit-business-selector'
   import RouterQuery from '@/router/query'
   export default {
@@ -92,6 +98,7 @@
     components: {
       AuditTargetSelector,
       AuditActionSelector,
+      AuditUserSelector,
       AuditBusinessSelector
     },
     data() {
@@ -101,11 +108,13 @@
         resource_type: '',
         action: [],
         operation_time: [today, today],
-        user: '',
         resource_id: '',
         resource_name: '',
         category: 'business',
-        fuzzy_query: false
+        fuzzy_query: false,
+        condition: {
+          user: ['in', '']
+        }
       }
       return {
         instanceType: 'resource_name',

@@ -21,6 +21,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// SearchHostWithInnerIP TODO
 func (b *baseCache) SearchHostWithInnerIP(ctx context.Context, h http.Header, opt *metadata.SearchHostWithInnerIPOption) (jsonString string, err error) {
 
 	resp, err := b.client.Post().
@@ -42,6 +43,7 @@ func (b *baseCache) SearchHostWithInnerIP(ctx context.Context, h http.Header, op
 	return resp.Data, nil
 }
 
+// SearchHostWithHostID TODO
 func (b *baseCache) SearchHostWithHostID(ctx context.Context, h http.Header, opt *metadata.SearchHostWithIDOption) (jsonString string, err error) {
 
 	resp, err := b.client.Post().
@@ -86,6 +88,7 @@ func (b *baseCache) ListHostWithPage(ctx context.Context, h http.Header, opt *me
 	return resp.Data.Count, resp.Data.Info, nil
 }
 
+// ListHostWithHostID TODO
 func (b *baseCache) ListHostWithHostID(ctx context.Context, h http.Header, opt *metadata.ListWithIDOption) (jsonString string, err error) {
 
 	resp, err := b.client.Post().
@@ -105,31 +108,4 @@ func (b *baseCache) ListHostWithHostID(ctx context.Context, h http.Header, opt *
 	}
 
 	return resp.Data, nil
-}
-
-func (b *baseCache) GetHostSnap(ctx context.Context, header http.Header, hostID string) (resp *metadata.GetHostSnapResult, err error) {
-	resp = new(metadata.GetHostSnapResult)
-	subPath := "/find/cache/host/snapshot/%s"
-
-	err = b.client.Get().
-		WithContext(ctx).
-		SubResourcef(subPath, hostID).
-		WithHeaders(header).
-		Do().
-		Into(resp)
-	return resp, err
-}
-
-func (b *baseCache) GetHostSnapBatch(ctx context.Context, header http.Header, input metadata.HostSnapBatchInput) (resp *metadata.GetHostSnapBatchResult, err error) {
-	resp = new(metadata.GetHostSnapBatchResult)
-	subPath := "/findmany/cache/host/snapshot/batch"
-
-	err = b.client.Post().
-		Body(input).
-		WithContext(ctx).
-		SubResourcef(subPath).
-		WithHeaders(header).
-		Do().
-		Into(resp)
-	return resp, err
 }

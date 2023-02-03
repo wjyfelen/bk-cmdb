@@ -24,6 +24,7 @@ import (
 type associationModel struct {
 }
 
+// CreateModelAssociation TODO
 func (m *associationModel) CreateModelAssociation(kit *rest.Kit, inputParam metadata.CreateModelAssociation) (*metadata.CreateOneDataResult, error) {
 	enableMainlineAssociationType := false
 	return m.createModelAssociation(kit, inputParam, enableMainlineAssociationType)
@@ -91,6 +92,7 @@ func (m *associationModel) createModelAssociation(kit *rest.Kit, inputParam meta
 	return &metadata.CreateOneDataResult{Created: metadata.CreatedDataResult{ID: id}}, nil
 }
 
+// SetModelAssociation TODO
 func (m *associationModel) SetModelAssociation(kit *rest.Kit, inputParam metadata.SetModelAssociation) (*metadata.SetDataResult, error) {
 
 	// TODO: need to care instance association, which used this model association
@@ -98,6 +100,7 @@ func (m *associationModel) SetModelAssociation(kit *rest.Kit, inputParam metadat
 	return nil, nil
 }
 
+// UpdateModelAssociation TODO
 func (m *associationModel) UpdateModelAssociation(kit *rest.Kit, inputParam metadata.UpdateOption) (*metadata.UpdatedCount, error) {
 
 	// ATTENTION: only to update the fields except bk_obj_asst_id, bk_obj_id, bk_asst_obj_id
@@ -138,6 +141,7 @@ func (m *associationModel) UpdateModelAssociation(kit *rest.Kit, inputParam meta
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
+// SearchModelAssociation TODO
 func (m *associationModel) SearchModelAssociation(kit *rest.Kit, inputParam metadata.QueryCondition) (*metadata.QueryResult, error) {
 
 	searchCond, err := mongo.NewConditionFromMapStr(util.SetQueryOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount))
@@ -155,6 +159,28 @@ func (m *associationModel) SearchModelAssociation(kit *rest.Kit, inputParam meta
 	return &metadata.QueryResult{Count: uint64(len(resultItems)), Info: resultItems}, nil
 }
 
+// CountModelAssociations counts target model associations num
+func (m *associationModel) CountModelAssociations(kit *rest.Kit, input *metadata.Condition) (
+	*metadata.CommonCountResult, error) {
+
+	cond, err := mongo.NewConditionFromMapStr(util.SetQueryOwner(input.Condition, kit.SupplierAccount))
+	if err != nil {
+		blog.Errorf("convert the condition (%v) from mapstr into condition object, err: %s, rid: %s",
+			input.Condition, err.Error(), kit.Rid)
+		return nil, kit.CCError.New(common.CCErrCommPostInputParseError, err.Error())
+	}
+
+	count, err := m.count(kit, cond)
+	if err != nil {
+		blog.Errorf("count model associations by the condition (%#v) failed, err: %s, rid: %s", cond.ToMapStr(),
+			err.Error(), kit.Rid)
+		return nil, err
+	}
+
+	return &metadata.CommonCountResult{Count: count}, nil
+}
+
+// DeleteModelAssociation TODO
 func (m *associationModel) DeleteModelAssociation(kit *rest.Kit, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error) {
 
 	// read all model associations
@@ -195,6 +221,7 @@ func (m *associationModel) DeleteModelAssociation(kit *rest.Kit, inputParam meta
 	return &metadata.DeletedCount{Count: cnt}, nil
 }
 
+// CascadeDeleteModelAssociation TODO
 func (m *associationModel) CascadeDeleteModelAssociation(kit *rest.Kit, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error) {
 
 	// read all model associations

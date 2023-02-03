@@ -1,9 +1,21 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="table-layout" v-show="show">
     <div class="table-title" @click="localExpanded = !localExpanded"
       @mouseenter="handleShowDotMenu"
       @mouseleave="handleHideDotMenu">
-      <bk-checkbox class="title-checkbox"
+      <bk-checkbox v-if="!readonly" class="title-checkbox"
         :size="16"
         v-model="checked"
         @click.native.stop>
@@ -11,8 +23,8 @@
       <i class="title-icon bk-icon icon-down-shape" v-if="localExpanded"></i>
       <i class="title-icon bk-icon icon-right-shape" v-else></i>
       <template v-if="!instance.editing.name">
-        <span class="title-label">{{instance.name}}</span>
-        <cmdb-dot-menu class="instance-menu" ref="dotMenu" @click.native.stop>
+        <span class="title-label" v-bk-overflow-tips>{{instance.name}}</span>
+        <cmdb-dot-menu v-if="!readonly" class="instance-menu" ref="dotMenu" @click.native.stop>
           <ul class="menu-list"
             @mouseenter="handleShowDotMenu"
             @mouseleave="handleHideDotMenu">
@@ -39,8 +51,8 @@
           @confirm="handleConfirmEditName"
           @cancel="handleCancelEditName" />
       </div>
-      <div class="right-content fr">
-        <div class="instance-label clearfix" @click.stop v-if="currentView === 'label'">
+      <div class="right-content">
+        <div class="instance-label clearfix" @click.stop>
           <div class="label-list fl">
             <div class="label-item" :title="`${label.key}：${label.value}`" :key="index"
               v-for="(label, index) in labelShowList">
@@ -65,7 +77,7 @@
             </bk-popover>
           </div>
         </div>
-        <span class="topology-path" v-else
+        <span class="topology-path" v-bk-overflow-tips
           @click.stop="goTopologyInstance">
           {{topologyPath}}
         </span>
@@ -96,7 +108,7 @@
           </process-bind-info-value>
         </template>
       </bk-table-column>
-      <bk-table-column width="150" :resizable="false" :label="$t('操作')">
+      <bk-table-column v-if="!readonly" width="150" :resizable="false" :label="$t('操作')">
         <template slot-scope="{ row }">
           <cmdb-auth class="mr10" :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }">
             <bk-button slot-scope="{ disabled }"
@@ -123,21 +135,25 @@
         <span class="process-count-tips" v-if="instance.service_template_id">
           <i class="tips-icon bk-icon icon-exclamation-circle"></i>
           <i18n class="tips-content" path="模板服务实例无进程提示">
-            <cmdb-auth class="tips-link" place="link"
-              :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
-              @click="redirectToTemplate">
-              {{$t('跳转添加并同步')}}
-            </cmdb-auth>
+            <template #link>
+              <cmdb-auth class="tips-link"
+                :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
+                @click="redirectToTemplate">
+                {{$t('跳转添加并同步')}}
+              </cmdb-auth>
+            </template>
           </i18n>
         </span>
         <span class="process-count-tips" v-else>
           <i class="tips-icon bk-icon icon-exclamation-circle"></i>
           <i18n class="tips-content" path="普通服务实例无进程提示">
-            <cmdb-auth class="tips-link" place="link"
-              :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
-              @click="handleAddProcess">
-              {{$t('立即添加')}}
-            </cmdb-auth>
+            <template #link>
+              <cmdb-auth class="tips-link"
+                :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
+                @click="handleAddProcess">
+                {{$t('立即添加')}}
+              </cmdb-auth>
+            </template>
           </i18n>
         </span>
       </template>
@@ -148,7 +164,7 @@
 <script>
   import {
     MENU_BUSINESS_HOST_AND_SERVICE,
-    MENU_BUSINESS_DELETE_SERVICE
+    MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS
   } from '@/dictionary/menu-symbol'
   import { processTableHeader } from '@/dictionary/table-header'
   import ProcessBindInfoValue from '@/components/service/process-bind-info-value'
@@ -156,22 +172,21 @@
   import { mapState } from 'vuex'
   import authMixin from '../mixin-auth'
   import Form from '@/components/service/form/form.js'
+  import { readonlyMixin } from '../mixin-readonly'
+  import { serviceInstanceProcessesProxy } from '../service-proxy'
+
   export default {
     components: {
       ProcessBindInfoValue,
       ServiceInstanceNameEditForm
     },
-    mixins: [authMixin],
+    mixins: [authMixin, readonlyMixin],
     props: {
       instance: {
         type: Object,
         required: true
       },
-      expanded: Boolean,
-      currentView: {
-        type: String,
-        default: 'label'
-      }
+      expanded: Boolean
     },
     data() {
       return {
@@ -271,21 +286,21 @@
         this.properties = properties
         this.setHeader()
       },
-      async getServiceProcessList() {
-        try {
-          this.list = await this.$store.dispatch('processInstance/getServiceInstanceProcesses', {
-            params: {
-              service_instance_id: this.instance.id,
-              bk_biz_id: this.info.biz[0].bk_biz_id
-            },
-            config: {
-              requestId: this.requestId.processList
-            }
+      getServiceProcessList() {
+        serviceInstanceProcessesProxy(
+          {
+            service_instance_id: this.instance.id,
+            bk_biz_id: this.info.biz[0].bk_biz_id
+          },
+          {
+            requestId: this.requestId.processList
+          }
+        ).then((list) => {
+          this.list = list
+        })
+          .catch(() => {
+            this.list = []
           })
-        } catch (e) {
-          this.list = []
-          console.error(e)
-        }
       },
       setHeader() {
         const header = processTableHeader.map((id) => {
@@ -299,12 +314,27 @@
         this.header = header
       },
       handleDeleteInstance() {
-        this.$routerActions.redirect({
-          name: MENU_BUSINESS_DELETE_SERVICE,
-          params: {
-            ids: this.instance.id
-          },
-          history: true
+        this.$bkInfo({
+          title: this.$t('确定删除该服务实例'),
+          confirmLoading: true,
+          confirmFn: async () => {
+            try {
+              await this.$store.dispatch('serviceInstance/deleteServiceInstance', {
+                config: {
+                  data: {
+                    service_instance_ids: [this.instance.id],
+                    bk_biz_id: this.bizId
+                  }
+                }
+              })
+              this.$success(this.$t('删除成功'))
+              this.$emit('delete-instance')
+              return true
+            } catch (e) {
+              console.error(e)
+              return false
+            }
+          }
         })
       },
       handleEditInstance() {
@@ -390,7 +420,8 @@
           bizId: this.bizId,
           serviceTemplateId: this.instance.service_template_id,
           processTemplateId: row.relation.process_template_id,
-          submitHandler: this.editSubmitHandler
+          submitHandler: this.editSubmitHandler,
+          showOptions: false
         })
       },
       handleEdit(row) {
@@ -443,7 +474,7 @@
       },
       redirectToTemplate() {
         this.$routerActions.redirect({
-          name: 'operationalTemplate',
+          name: MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS,
           params: {
             bizId: this.bizId,
             templateId: this.instance.service_template_id
@@ -452,7 +483,7 @@
         })
       },
       updateInstanceInfo() {
-        // todo 需要后端提供接口查询数据变更后的服务实例信息，用于更新服务实例名
+        this.$emit('update-instance')
       }
     }
   }
@@ -463,6 +494,8 @@
         padding: 0 0 12px 0;
     }
     .table-title {
+        display: flex;
+        align-items: center;
         height: 40px;
         padding: 0 10px;
         line-height: 40px;
@@ -470,7 +503,9 @@
         background-color: #DCDEE5;
         overflow: hidden;
         cursor: pointer;
+
         .title-checkbox {
+            flex: none;
             /deep/ .bk-checkbox {
                 background-color: #fff;
             }
@@ -480,6 +515,15 @@
                 }
             }
         }
+
+        .right-content {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            max-width: 75%;
+            margin-left: auto;
+        }
+
         .title-icon {
             font-size: 14px;
             margin: 0 2px 0 6px;
@@ -489,7 +533,9 @@
         .title-label {
             font-size: 14px;
             color: #313238;
+            min-width: 90px;
             @include inlineBlock;
+            @include ellipsis;
         }
         .topology-path {
             font-size: 12px;
@@ -499,6 +545,10 @@
             padding: 0 6px;
             outline: none;
             @include inlineBlock;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            direction: rtl;
             &:hover {
                 color: #3a84ff;
             }
@@ -509,6 +559,7 @@
         }
     }
     .instance-menu {
+        flex: none;
         opacity: 0;
         /deep/ .bk-tooltip-ref {
             width: 100%;
@@ -545,6 +596,7 @@
         }
     }
     .instance-label {
+        flex: none;
         @include inlineBlock;
         font-size: 12px;
         .icon-cc-label {

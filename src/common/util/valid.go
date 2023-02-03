@@ -38,6 +38,7 @@ func ValidPropertyOption(propertyType string, option interface{}, errProxy error
 	return nil
 }
 
+// ValidFieldTypeEnumOption TODO
 func ValidFieldTypeEnumOption(option interface{}, errProxy errors.DefaultCCErrorIf) error {
 	if nil == option {
 		return errProxy.Errorf(common.CCErrCommParamsLostField, "option")
@@ -94,6 +95,7 @@ func ValidFieldTypeEnumOption(option interface{}, errProxy errors.DefaultCCError
 	return nil
 }
 
+// ValidFieldTypeIntOption TODO
 func ValidFieldTypeIntOption(option interface{}, errProxy errors.DefaultCCErrorIf) error {
 	if nil == option {
 		return errProxy.Errorf(common.CCErrCommParamsLostField, "option")
@@ -166,6 +168,7 @@ func ValidFieldTypeIntOption(option interface{}, errProxy errors.DefaultCCErrorI
 	return nil
 }
 
+// ValidFieldTypeListOption TODO
 func ValidFieldTypeListOption(option interface{}, errProxy errors.DefaultCCErrorIf) error {
 	if nil == option {
 		return errProxy.Errorf(common.CCErrCommParamsLostField, "option")
@@ -197,6 +200,7 @@ func ValidFieldTypeListOption(option interface{}, errProxy errors.DefaultCCError
 	return nil
 }
 
+// ValidFieldRegularExpressionOption TODO
 func ValidFieldRegularExpressionOption(option interface{}, errProxy errors.DefaultCCErrorIf) error {
 	// check regular is legal
 	if option == nil {
@@ -235,6 +239,8 @@ func IsStrProperty(propertyType string) bool {
 func IsInnerObject(objID string) bool {
 	switch objID {
 	case common.BKInnerObjIDApp:
+		return true
+	case common.BKInnerObjIDBizSet:
 		return true
 	case common.BKInnerObjIDHost:
 		return true
@@ -281,4 +287,51 @@ func ValidTopoNameField(name string, nameField string, errProxy errors.DefaultCC
 	}
 
 	return name, nil
+}
+
+// ValidMustSetStringField valid if the value is of string type and is not empty
+func ValidMustSetStringField(value interface{}, field string, errProxy errors.DefaultCCErrorIf) (string, error) {
+	switch val := value.(type) {
+	case string:
+		if len(val) == 0 {
+			return val, errProxy.Errorf(common.CCErrCommParamsNeedSet, field)
+		}
+		return val, nil
+	default:
+		return "", errProxy.New(common.CCErrCommParamsNeedString, field)
+	}
+}
+
+// ValidModelIDField validate model related id field, like classification id, attribute id, group id...
+func ValidModelIDField(value interface{}, field string, errProxy errors.DefaultCCErrorIf) error {
+	strValue, err := ValidMustSetStringField(value, field, errProxy)
+	if err != nil {
+		return err
+	}
+
+	if utf8.RuneCountInString(strValue) > common.AttributeIDMaxLength {
+		return errProxy.Errorf(common.CCErrCommValExceedMaxFailed, field, common.AttributeIDMaxLength)
+	}
+
+	match, err := regexp.MatchString(common.FieldTypeStrictCharRegexp, strValue)
+	if nil != err {
+		return err
+	}
+	if !match {
+		return errProxy.Errorf(common.CCErrCommParamsIsInvalid, field)
+	}
+	return nil
+}
+
+// ValidModelNameField validate model related name field, like classification name, attribute name, group name...
+func ValidModelNameField(value interface{}, field string, errProxy errors.DefaultCCErrorIf) error {
+	strValue, err := ValidMustSetStringField(value, field, errProxy)
+	if err != nil {
+		return err
+	}
+
+	if utf8.RuneCountInString(strValue) > common.AttributeNameMaxLength {
+		return errProxy.Errorf(common.CCErrCommValExceedMaxFailed, field, common.AttributeNameMaxLength)
+	}
+	return nil
 }

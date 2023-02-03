@@ -20,14 +20,14 @@ import (
 	"configcenter/src/common/mapstr"
 )
 
+// ObjectUnique TODO
 type ObjectUnique struct {
-	ID        uint64      `json:"id" bson:"id"`
-	ObjID     string      `json:"bk_obj_id" bson:"bk_obj_id"`
-	MustCheck bool        `json:"must_check" bson:"must_check"`
-	Keys      []UniqueKey `json:"keys" bson:"keys"`
-	Ispre     bool        `json:"ispre" bson:"ispre"`
-	OwnerID   string      `json:"bk_supplier_account" bson:"bk_supplier_account"`
-	LastTime  Time        `json:"last_time" bson:"last_time"`
+	ID       uint64      `json:"id" bson:"id"`
+	ObjID    string      `json:"bk_obj_id" bson:"bk_obj_id"`
+	Keys     []UniqueKey `json:"keys" bson:"keys"`
+	Ispre    bool        `json:"ispre" bson:"ispre"`
+	OwnerID  string      `json:"bk_supplier_account" bson:"bk_supplier_account"`
+	LastTime Time        `json:"last_time" bson:"last_time"`
 }
 
 // Parse load the data from mapstr attribute into ObjectUnique instance
@@ -41,6 +41,7 @@ func (cli *ObjectUnique) Parse(data mapstr.MapStr) (*ObjectUnique, error) {
 	return cli, err
 }
 
+// KeysHash TODO
 func (u ObjectUnique) KeysHash() string {
 	keys := []string{}
 	for _, key := range u.Keys {
@@ -50,55 +51,65 @@ func (u ObjectUnique) KeysHash() string {
 	return strings.Join(keys, "#")
 }
 
+// UniqueKey TODO
 type UniqueKey struct {
 	Kind string `json:"key_kind" bson:"key_kind"`
 	ID   uint64 `json:"key_id" bson:"key_id"`
 }
 
 const (
-	UniqueKeyKindProperty    = "property"
+	// UniqueKeyKindProperty TODO
+	UniqueKeyKindProperty = "property"
+	// UniqueKeyKindAssociation TODO
 	UniqueKeyKindAssociation = "association"
 )
 
+// CreateUniqueRequest TODO
 type CreateUniqueRequest struct {
-	ObjID     string      `json:"bk_obj_id" bson:"bk_obj_id"`
-	MustCheck bool        `json:"must_check" bson:"must_check"`
-	Keys      []UniqueKey `json:"keys" bson:"keys"`
+	ObjID string      `json:"bk_obj_id" bson:"bk_obj_id"`
+	Keys  []UniqueKey `json:"keys" bson:"keys"`
 }
 
+// CreateUniqueResult TODO
 type CreateUniqueResult struct {
 	BaseResp
 	Data RspID `json:"data"`
 }
 
+// UpdateUniqueRequest TODO
 type UpdateUniqueRequest struct {
-	MustCheck bool        `json:"must_check" bson:"must_check"`
-	Keys      []UniqueKey `json:"keys" bson:"keys"`
-	LastTime  Time        `json:"last_time" bson:"last_time"`
+	Keys     []UniqueKey `json:"keys" bson:"keys"`
+	LastTime Time        `json:"last_time" bson:"last_time"`
 }
 
+// UpdateUniqueResult TODO
 type UpdateUniqueResult struct {
 	BaseResp
 }
 
+// DeleteUniqueRequest TODO
 type DeleteUniqueRequest struct {
 	ID    uint64 `json:"id"`
 	ObjID string `json:"bk_obj_id"`
 }
 
+// DeleteUniqueResult TODO
 type DeleteUniqueResult struct {
 	BaseResp
 }
 
+// SearchUniqueRequest TODO
 type SearchUniqueRequest struct {
 	ObjID string `json:"bk_obj_id"`
 }
 
+// SearchUniqueResult TODO
 type SearchUniqueResult struct {
 	BaseResp
 	Data []ObjectUnique `json:"data"`
 }
 
+// QueryUniqueResult TODO
 type QueryUniqueResult struct {
 	Count uint64         `json:"count"`
 	Info  []ObjectUnique `json:"info"`

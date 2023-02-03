@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package api TODO
 package api
 
 import (
@@ -43,11 +44,6 @@ func Init() {
 	// init inputer
 	for _, inputer := range inputers {
 		mgr.InputerMgr.AddInputer(inputer)
-	}
-
-	// register events
-	for _, eve := range events {
-		mgr.RegisterEvent(eve.key, eve.eveType, eve.eveCallbackFunc)
 	}
 
 	/** start the main business loop */

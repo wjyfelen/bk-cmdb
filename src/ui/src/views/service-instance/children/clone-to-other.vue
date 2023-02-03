@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="create-layout clearfix" v-bkloading="{ isLoading: $loading() }">
     <label class="create-label fl">{{$t('添加主机')}}</label>
@@ -23,19 +35,26 @@
             @delete-instance="handleDeleteInstance"
             @edit-name="handleEditName(data.instance)"
             @confirm-edit-name="handleConfirmEditName(data.instance, ...arguments)"
-            @cancel-edit-name="handleCancelEditName(data.instance)">
+            @cancel-edit-name="handleCancelEditName(data.instance)"
+            @change-process="handleChangeProcess">
           </service-instance-table>
         </transition-group>
       </div>
     </div>
     <div class="buttons" :class="{ 'is-sticky': hasScrollbar }">
       <cmdb-auth class="mr5" :auth="{ type: $OPERATION.C_SERVICE_INSTANCE, relation: [bizId] }">
-        <bk-button slot-scope="{ disabled }"
-          theme="primary"
-          :disabled="!hosts.length || disabled"
-          @click="handleConfirm">
-          {{$t('确定')}}
-        </bk-button>
+        <div slot-scope="{ disabled }"
+          v-bk-tooltips="{
+            content: $t('请补充服务实例的进程等相关配置信息'),
+            theme: 'light',
+            disabled: !hosts.length || hasProcess
+          }">
+          <bk-button theme="primary"
+            :disabled="!hosts.length || disabled || !hasProcess"
+            @click="handleConfirm">
+            {{$t('确定')}}
+          </bk-button>
+        </div>
       </cmdb-auth>
       <bk-button @click="handleBackToModule">{{$t('取消')}}</bk-button>
     </div>
@@ -52,14 +71,14 @@
 
 <script>
   import { mapGetters } from 'vuex'
-  import HostSelector from '@/views/business-topology/host/host-selector-new'
-  import serviceInstanceTable from '@/components/service/instance-table.vue'
+  import HostSelector from '@/views/business-topology/service-instance/common/host-selector.vue'
+  import ServiceInstanceTable from '@/components/service/instance-table.vue'
   import { addResizeListener, removeResizeListener } from '@/utils/resize-events'
   export default {
     name: 'clone-to-other',
     components: {
-      serviceInstanceTable,
-      [HostSelector.name]: HostSelector
+      HostSelector,
+      ServiceInstanceTable
     },
     props: {
       module: {
@@ -83,7 +102,8 @@
           props: {}
         },
         hosts: [],
-        hasScrollbar: false
+        hasScrollbar: false,
+        hasProcess: false
       }
     },
     computed: {
@@ -96,6 +116,12 @@
       },
       setId() {
         return parseInt(this.$route.params.setId, 10)
+      },
+      withTemplate() {
+        if (this.module.service_template_id) {
+          return true
+        }
+        return false
       }
     },
     mounted() {
@@ -106,10 +132,11 @@
     },
     methods: {
       handleAddHost() {
-        this.dialog.component = HostSelector.name
+        this.dialog.component = HostSelector
         this.dialog.props = {
           exist: this.hosts,
-          exclude: [this.hostId]
+          moduleId: this.moduleId,
+          withTemplate: this.withTemplate
         }
         this.dialog.show = true
       },
@@ -132,23 +159,25 @@
       async handleConfirm() {
         try {
           const serviceInstanceTables = this.$refs.serviceInstanceTable
-          await this.$store.dispatch('serviceInstance/createProcServiceInstanceWithRaw', {
-            params: {
-              name: this.module.bk_module_name,
-              bk_biz_id: this.bizId,
-              bk_module_id: this.moduleId,
-              instances: serviceInstanceTables.map((table) => {
-                const { instance } = this.hosts.find(data => data.host.bk_host_id === table.id)
-                return {
-                  bk_host_id: table.id,
-                  service_instance_name: instance.name || '',
-                  processes: table.processList.map(item => ({
-                    process_info: item
-                  }))
-                }
-              })
-            }
-          })
+
+          const params = {
+            name: this.module.bk_module_name,
+            bk_biz_id: this.bizId,
+            bk_module_id: this.moduleId,
+            instances: serviceInstanceTables.filter(table => table.processList?.length).map((table) => {
+              const { instance } = this.hosts.find(data => data.host.bk_host_id === table.id)
+              return {
+                bk_host_id: table.id,
+                service_instance_name: instance.name || '',
+                processes: table.processList.map(item => ({
+                  process_info: item
+                }))
+              }
+            })
+          }
+
+          await this.$store.dispatch('serviceInstance/createProcServiceInstanceWithRaw', { params })
+
           this.$success(this.$t('克隆成功'))
           this.handleBackToModule()
         } catch (e) {
@@ -177,6 +206,14 @@
       },
       handleBackToModule() {
         this.$routerActions.back()
+      },
+      handleChangeProcess() {
+        this.$nextTick(() => {
+          const serviceInstanceTables = this.$refs.serviceInstanceTable
+          if (serviceInstanceTables) {
+            this.hasProcess = serviceInstanceTables.some(instanceTable => instanceTable?.processList?.length)
+          }
+        })
       },
       resizeHandler() {
         this.$nextTick(() => {

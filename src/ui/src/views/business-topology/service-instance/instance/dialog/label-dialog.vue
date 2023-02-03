@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-dialog class="bk-dialog-no-padding edit-label-dialog"
     v-model="isShow"
@@ -12,7 +24,9 @@
       :default-labels="labels">
     </label-dialog-content>
     <div class="edit-label-dialog-footer" slot="footer">
-      <bk-button theme="primary" @click.stop="handleSubmit">{{$t('确定')}}</bk-button>
+      <bk-button theme="primary" :loading="$loading(Object.values(request))" @click.stop="handleSubmit">
+        {{$t('确定')}}
+      </bk-button>
       <bk-button theme="default" class="ml5" @click.stop="close">{{$t('取消')}}</bk-button>
     </div>
   </bk-dialog>
@@ -33,8 +47,7 @@
       return {
         isShow: false,
         request: {
-          delete: Symbol('delete'),
-          create: Symbol('create')
+          update: Symbol('update')
         }
       }
     },
@@ -62,45 +75,23 @@
             return false
           }
           const list = labelComp.submitList
-          const { removeKeysList } = labelComp
-          const { originList } = labelComp
-          const hasChange = JSON.stringify(labelComp.list) !== JSON.stringify(originList)
 
-          const request = []
-          if (removeKeysList.length) {
-            request.push(this.$store.dispatch('instanceLabel/deleteInstanceLabel', {
-              config: {
-                data: {
-                  bk_biz_id: this.bizId,
-                  instance_ids: [this.serviceInstance.id],
-                  keys: removeKeysList
-                },
-                requestId: this.request.delete
-              }
-            }))
-          }
-
-          if (list.length && hasChange) {
-            const labelSet = {}
-            list.forEach((label) => {
-              labelSet[label.key] = label.value
-            })
-            request.push(this.$store.dispatch('instanceLabel/createInstanceLabel', {
-              params: {
-                bk_biz_id: this.bizId,
-                instance_ids: [this.serviceInstance.id],
-                labels: labelSet
-              },
-              config: {
-                requestId: this.request.create
-              }
-            }))
-          }
-          if (request.length) {
-            await Promise.all(request)
-            this.updateCallback && this.updateCallback(list)
-            this.$success(this.$t('保存成功'))
-          }
+          const labelSet = {}
+          list.forEach((label) => {
+            labelSet[label.key] = label.value
+          })
+          await this.$store.dispatch('instanceLabel/updateInstanceLabel', {
+            params: {
+              bk_biz_id: this.bizId,
+              instance_ids: [this.serviceInstance.id],
+              labels: labelSet
+            },
+            config: {
+              requestId: this.request.update
+            }
+          })
+          this.updateCallback && this.updateCallback(list)
+          this.$success(this.$t('保存成功'))
           this.isShow = false
         } catch (error) {
           console.error(error)

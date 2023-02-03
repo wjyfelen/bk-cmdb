@@ -61,6 +61,7 @@ func (a *Authorize) calculatePolicy(
 	}
 }
 
+// calculateAnyPolicy TODO
 // returns true when having policy of any resource of the action
 func (a *Authorize) calculateAnyPolicy(
 	ctx context.Context,
@@ -73,7 +74,7 @@ func (a *Authorize) calculateAnyPolicy(
 	return true, nil
 }
 
-// calculateFieldValue is to calculate the authorize status for attribute.
+// authFieldValue is to calculate the authorize status for attribute.
 func (a *Authorize) authFieldValue(ctx context.Context, p *operator.Policy, rscMap map[string]*types.Resource) (bool, error) {
 	// must be a FieldValue type
 	fv, can := p.Element.(*operator.FieldValue)
@@ -104,13 +105,13 @@ func (a *Authorize) authFieldValue(ctx context.Context, p *operator.Policy, rscM
 		// compatible for cases when resources to be authorized hasn't put its paths in attributes
 		if len(authPath) == 0 {
 			// compatible for cases when resources to be authorized hasn't put all of its paths in attributes
-			return a.authResourceAttribute(ctx, p.Operator, []*operator.FieldValue{fv}, authRsc)
+			return a.authResourceAttribute(ctx, p.Operator, []*operator.Policy{p}, authRsc)
 		}
 
 		return a.authWithPath(p, fv, authPath)
 
 	default:
-		return a.authResourceAttribute(ctx, p.Operator, []*operator.FieldValue{fv}, authRsc)
+		return a.authResourceAttribute(ctx, p.Operator, []*operator.Policy{p}, authRsc)
 	}
 }
 
@@ -131,7 +132,7 @@ func (a *Authorize) authContent(ctx context.Context, p *operator.Policy, rscMap 
 	}
 
 	// prepare for attribute match calculate
-	allAttributes := make([]*operator.FieldValue, 0)
+	allAttrPolicies := make([]*operator.Policy, 0)
 	var resource string
 
 	results := make([]bool, 0)
@@ -192,7 +193,7 @@ func (a *Authorize) authContent(ctx context.Context, p *operator.Policy, rscMap 
 
 				// compatible for cases when resources to be authorized hasn't put its paths in attributes
 				if len(authPath) == 0 {
-					authorized, err = a.authResourceAttribute(ctx, policy.Operator, []*operator.FieldValue{fv}, authRsc)
+					authorized, err = a.authResourceAttribute(ctx, policy.Operator, []*operator.Policy{policy}, authRsc)
 				} else {
 					authorized, err = a.calculateAuthPath(policy, fv, authPath)
 				}
@@ -202,15 +203,13 @@ func (a *Authorize) authContent(ctx context.Context, p *operator.Policy, rscMap 
 				}
 
 			default:
-
-				if policy.Operator != operator.Equal {
-					// TODO: confirm this logic with iam.
-					// Normally, we need attribute policy should all be "eq" operator.
+				// other attributes only support operator: 'eq', 'in'
+				if policy.Operator != operator.Equal && policy.Operator != operator.In {
 					return false, fmt.Errorf("unsupported operator %s with attribute auth", policy.Operator)
 				}
 
 				// record these attribute for later calculate.
-				allAttributes = append(allAttributes, fv)
+				allAttrPolicies = append(allAttrPolicies, policy)
 
 				// initialize and validate the resource, can not be empty and should be all the same.
 				if len(resource) == 0 {
@@ -245,10 +244,10 @@ func (a *Authorize) authContent(ctx context.Context, p *operator.Policy, rscMap 
 		results = append(results, authorized)
 	}
 
-	if len(allAttributes) != 0 {
+	if len(allAttrPolicies) != 0 {
 		// we have an authorized with attribute policy.
 		// get the instance with these attribute
-		yes, err := a.authResourceAttribute(ctx, p.Operator, allAttributes, rscMap[resource])
+		yes, err := a.authResourceAttribute(ctx, p.Operator, allAttrPolicies, rscMap[resource])
 		if err != nil {
 			return false, err
 		}
@@ -279,6 +278,7 @@ func (a *Authorize) authContent(ctx context.Context, p *operator.Policy, rscMap 
 	}
 }
 
+// authWithPath TODO
 // if a user has a path based auth policy, then we need to check if the user's path is matched with policy's path or
 // not, if one of use's path is matched, then user is authorized.
 func (a *Authorize) authWithPath(p *operator.Policy, fv *operator.FieldValue, authPath []string) (bool, error) {
@@ -303,21 +303,29 @@ func (a *Authorize) authWithPath(p *operator.Policy, fv *operator.FieldValue, au
 	return false, nil
 }
 
+// authResourceAttribute TODO
 // if a user have a attribute based auth policy, then we need to use the filter constructed by the policy to filter
 // out the resources. Then check the resource id is in or not in it. if yes, user is authorized.
-func (a *Authorize) authResourceAttribute(ctx context.Context, op operator.OperType, fv []*operator.FieldValue,
+func (a *Authorize) authResourceAttribute(ctx context.Context, op operator.OperType, attrPolicies []*operator.Policy,
 	rsc *types.Resource) (bool, error) {
 
 	listOpts := &types.ListWithAttributes{
-		Operator:   op,
-		IDList:     []string{rsc.ID},
-		Attributes: fv,
-		Type:       rsc.Type,
+		Operator:     op,
+		AttrPolicies: attrPolicies,
+		Type:         rsc.Type,
+	}
+
+	// in some cases, the resource id can be empty
+	// eg: when a user has a policy on host's attribute, the action and resources is like following:
+	// {"action":{"id":"edit_biz_host"},
+	// "resources":[{"system":"bk_cmdb","type":"host","id":"","attribute":{"_bk_iam_path_":["/biz,2/"]}}]}
+	if rsc.ID != "" {
+		listOpts.IDList = []string{rsc.ID}
 	}
 
 	idList, err := a.fetcher.ListInstancesWithAttributes(ctx, listOpts)
 	if err != nil {
-		js, _ := json.Marshal(fv)
+		js, _ := json.Marshal(listOpts)
 		return false, fmt.Errorf("fetch instance %s with filter: %s failed, err: %s", rsc.ID, string(js), err)
 	}
 
@@ -336,6 +344,7 @@ func (a *Authorize) authResourceAttribute(ctx context.Context, op operator.OperT
 	return false, nil
 }
 
+// calculateAuthPath TODO
 // if a user has a path based auth policy, then we need to check if the user's path is matched with policy's path or
 // not, if one of use's path is matched, then user is authorized.
 func (a *Authorize) calculateAuthPath(p *operator.Policy, fv *operator.FieldValue, authPath []string) (bool, error) {

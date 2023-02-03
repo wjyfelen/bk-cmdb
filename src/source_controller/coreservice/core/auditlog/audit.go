@@ -37,6 +37,7 @@ func New() core.AuditOperation {
 	return &auditManager{}
 }
 
+// CreateAuditLog TODO
 func (m *auditManager) CreateAuditLog(kit *rest.Kit, logs ...metadata.AuditLog) error {
 	logRows := make([]metadata.AuditLog, 0)
 
@@ -53,6 +54,10 @@ func (m *auditManager) CreateAuditLog(kit *rest.Kit, logs ...metadata.AuditLog) 
 
 		if log.OperateFrom == "" {
 			log.OperateFrom = metadata.FromUser
+		}
+		// ResourceName is assigned index, length must be less than 1024, so resourceName only save NameFieldMaxLength.
+		if len(log.ResourceName) > common.NameFieldMaxLength {
+			log.ResourceName = log.ResourceName[:common.NameFieldMaxLength]
 		}
 		log.SupplierAccount = kit.SupplierAccount
 		log.User = kit.User
@@ -74,6 +79,7 @@ func (m *auditManager) CreateAuditLog(kit *rest.Kit, logs ...metadata.AuditLog) 
 	return mongodb.Client().Table(common.BKTableNameAuditLog).Insert(kit.Ctx, logRows)
 }
 
+// SearchAuditLog TODO
 func (m *auditManager) SearchAuditLog(kit *rest.Kit, param metadata.QueryCondition) ([]metadata.AuditLog, uint64, error) {
 	condition := param.Condition
 	condition = util.SetQueryOwner(condition, kit.SupplierAccount)

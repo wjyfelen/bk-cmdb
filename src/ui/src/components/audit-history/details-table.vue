@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="details-layout">
     <div class="details-info">
@@ -122,7 +134,7 @@
         return `${actionName}${this.details.resource_name}`
       },
       modelId() {
-        return this.details.operation_detail.bk_obj_id
+        return this.details?.operation_detail?.bk_obj_id
       },
       modelName() {
         const model = this.$store.getters['objectModelClassify/getModelById'](this.modelId)
@@ -160,11 +172,11 @@
           if (!this.modelId) {
             return false
           }
-          this.properties = await this.$store.dispatch('objectModelProperty/searchObjectAttribute', {
-            params: {
-              bk_obj_id: this.modelId
-            }
-          })
+          const params = { bk_obj_id: this.modelId }
+          if (this.details.bk_biz_id) {
+            params.bk_biz_id = this.details.bk_biz_id
+          }
+          this.properties = await this.$store.dispatch('objectModelProperty/searchObjectAttribute', { params })
         } catch (error) {
           this.properties = []
           console.error(error)
@@ -182,8 +194,8 @@
         this.list = [{
           field: this.$t('关联关系'),
           type: 'topology',
-          before: this.getTopoPath(this.details.operation_detail.pre_data),
-          after: this.getTopoPath(this.details.operation_detail.cur_data)
+          before: this.getTopoPath(this.details?.operation_detail?.pre_data),
+          after: this.getTopoPath(this.details?.operation_detail?.cur_data)
         }]
         this.diffList = [...this.list]
       },
@@ -198,7 +210,7 @@
         return paths.join('<br>')
       },
       setNormalList() {
-        const operationDetails = this.details.operation_detail.details || {}
+        const operationDetails = this.details?.operation_detail?.details || {}
         const before = operationDetails.pre_data || {}
         const update = operationDetails.update_fields || {}
         const after = Object.assign(operationDetails.cur_data || {}, before, update)
@@ -270,5 +282,11 @@
     }
     .details-toggle {
         text-align: right;
+    }
+
+    [lang="en"] {
+      .details-info .info-group .info-label {
+        width: 160px;
+      }
     }
 </style>

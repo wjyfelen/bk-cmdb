@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <cmdb-sticky-layout class="form-layout">
     <slot name="prepend"></slot>
@@ -21,7 +33,7 @@
                     <i class="property-name-tooltips icon-cc-tips"
                       v-if="property['placeholder']"
                       v-bk-tooltips="{
-                        trigger: 'click',
+                        trigger: 'mouseenter',
                         content: htmlEncode(property['placeholder'])
                       }">
                     </i>
@@ -40,7 +52,7 @@
                         :data-vv-as="property['bk_property_name']"
                         :placeholder="getPlaceholder(property)"
                         :auto-select="false"
-                        v-bind="$attrs"
+                        v-bind="{ ...$attrs, ...$tools.getValidateEvents(property) }"
                         v-validate="getValidateRules(property)"
                         v-model.trim="values[property['bk_property_id']]">
                       </component>
@@ -58,6 +70,7 @@
         </div>
       </template>
     </div>
+    <slot name="append"></slot>
     <div class="form-options" slot="footer" slot-scope="{ sticky }"
       v-if="showOptions"
       :class="{ sticky: sticky }">
@@ -66,12 +79,13 @@
           <bk-button slot-scope="{ disabled }"
             class="button-save"
             theme="primary"
-            :loading="$loading()"
+            :loading="submitting || validating"
             :disabled="disabled || (type !== 'create' && !hasChange)"
             @click="handleSave">
             {{type === 'create' ? $t('提交') : $t('保存')}}
           </bk-button>
         </cmdb-auth>
+        <slot name="side-options"></slot>
         <bk-button class="button-cancel" @click="handleCancel">{{$t('取消')}}</bk-button>
       </slot>
       <slot name="extra-options"></slot>
@@ -126,12 +140,17 @@
         default: () => []
       },
       customValidator: Function,
-      isMainLine: Boolean
+      isMainLine: Boolean,
+      submitting: {
+        type: Boolean,
+        default: false
+      }
     },
     data() {
       return {
         values: {},
-        refrenceValues: {}
+        refrenceValues: {},
+        validating: false
       }
     },
     computed: {
@@ -185,15 +204,6 @@
       },
       isRequired(property) {
         return property.isrequired
-        // 后台无对应逻辑，前端屏蔽唯一校验配置中为空必须校验的字段设置为必填的逻辑
-        // if (property.isrequired) {
-        //     return true
-        // }
-        // const unique = this.objectUnique.find(unique => unique.must_check)
-        // if (unique) {
-        //     return unique.keys.some(key => key.key_id === property.id)
-        // }
-        // return false
       },
       htmlEncode(placeholder) {
         let temp = document.createElement('div')
@@ -212,9 +222,9 @@
           rules.required = true
         }
 
-        if (this.isMainLine && ['bk_set_name', 'bk_module_name', 'bk_inst_name'].includes(property.bk_property_id)) {
+        if (this.isMainLine && ['bk_biz_name', 'bk_set_name', 'bk_module_name', 'bk_inst_name'].includes(property.bk_property_id)) {
           rules.businessTopoInstNames = true
-          rules.length = 32
+          rules.length = 256
           rules.singlechar = false
         }
 
@@ -225,7 +235,8 @@
         if (typeof this.customValidator === 'function') {
           validatePromise.push(this.customValidator())
         }
-        const results = await Promise.all(validatePromise)
+        this.validating = true
+        const results = await Promise.all(validatePromise).finally(() =>  this.validating = false)
         const isValid = results.every(result => result)
         if (isValid) {
           this.$emit(
@@ -344,10 +355,10 @@
     .form-options {
         width: 100%;
         padding: 10px 32px;
-        background-color: #fff;
         font-size: 0;
         &.sticky {
             border-top: 1px solid $cmdbBorderColor;
+            background-color: #fff;
         }
         .button-save {
             min-width: 76px;

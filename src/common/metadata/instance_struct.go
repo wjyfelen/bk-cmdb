@@ -12,26 +12,42 @@
 
 package metadata
 
+// ResponseModuleInstance TODO
 //  只有模块的企业版本部分属性，使用前请注意
 type ResponseModuleInstance struct {
 	BaseResp `json:",inline"`
 	Data     ModuleInstanceData `json:"data"`
 }
 
+// ModuleInstanceData TODO
 //  只有模块的企业版本部分属性，使用前请注意
 type ModuleInstanceData struct {
 	Count int          `json:"count"`
 	Info  []ModuleInst `json:"info"`
 }
 
+// ResponseSetInstance TODO
 //  只有集群的企业版本部分属性，使用前请注意
 type ResponseSetInstance struct {
 	BaseResp `json:",inline"`
 	Data     SetInstanceData `json:"data"`
 }
 
+// SetInstanceData TODO
 //  只有集群的企业版本部分属性，使用前请注意
 type SetInstanceData struct {
 	Count int       `json:"count"`
 	Info  []SetInst `json:"info"`
+}
+
+// BizSetInstanceResponse 业务集查询接口响应，只有业务集的企业版本部分属性，使用前请注意
+type BizSetInstanceResponse struct {
+	BaseResp `json:",inline"`
+	Data     BizSetInstanceData `json:"data"`
+}
+
+// BizSetInstanceData 业务集查询接口响应数据，只有业务集的企业版本部分属性，使用前请注意
+type BizSetInstanceData struct {
+	Count int          `json:"count"`
+	Info  []BizSetInst `json:"info"`
 }

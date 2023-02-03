@@ -27,6 +27,7 @@ import (
 	hutil "configcenter/src/scene_server/host_server/util"
 )
 
+// GetDefaultAppIDWithSupplier TODO
 func (lgc *Logics) GetDefaultAppIDWithSupplier(kit *rest.Kit) (int64, errors.CCError) {
 	cond := hutil.NewOperation().WithDefaultField(int64(common.DefaultAppFlag)).Data()
 	appDetails, err := lgc.GetAppDetails(kit, common.BKAppIDField, cond)
@@ -42,6 +43,7 @@ func (lgc *Logics) GetDefaultAppIDWithSupplier(kit *rest.Kit) (int64, errors.CCE
 	return id, nil
 }
 
+// GetDefaultAppID TODO
 func (lgc *Logics) GetDefaultAppID(kit *rest.Kit) (int64, errors.CCError) {
 	cond := hutil.NewOperation().WithDefaultField(int64(common.DefaultAppFlag)).Data()
 	appDetails, err := lgc.GetAppDetails(kit, common.BKAppIDField, cond)
@@ -57,7 +59,10 @@ func (lgc *Logics) GetDefaultAppID(kit *rest.Kit) (int64, errors.CCError) {
 	return id, nil
 }
 
-func (lgc *Logics) GetAppDetails(kit *rest.Kit, fields string, condition map[string]interface{}) (types.MapStr, errors.CCError) {
+// GetAppDetails search biz details
+func (lgc *Logics) GetAppDetails(kit *rest.Kit, fields string, condition map[string]interface{}) (types.MapStr,
+	errors.CCError) {
+
 	fields = fields + "," + common.BkSupplierAccount
 	input := &metadata.QueryCondition{
 		Condition: condition,
@@ -68,20 +73,17 @@ func (lgc *Logics) GetAppDetails(kit *rest.Kit, fields string, condition map[str
 		blog.Errorf("GetAppDetail http do error, err:%s, input:%+v, rid:%s", err.Error(), condition, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("GetAppDetail http response error, err code:%d, err msg:%s, input:%+v, rid:%s", result.Code, result.ErrMsg, condition, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
 
-	for idx, biz := range result.Data.Info {
+	for idx, biz := range result.Info {
 		if kit.SupplierAccount == biz[common.BkSupplierAccount].(string) {
-			return result.Data.Info[idx], nil
+			return result.Info[idx], nil
 		}
 	}
 
 	return nil, errors.New(common.CCErrCommBizNotFoundError, "find resource pool biz failed")
 }
 
+// IsHostExistInApp TODO
 func (lgc *Logics) IsHostExistInApp(kit *rest.Kit, appID, hostID int64) (bool, errors.CCErrorCoder) {
 	conf := metadata.ModuleHostConfigParams{
 		ApplicationID: appID,
@@ -109,6 +111,7 @@ func (lgc *Logics) IsHostExistInApp(kit *rest.Kit, appID, hostID int64) (bool, e
 	return true, nil
 }
 
+// GetSingleApp TODO
 func (lgc *Logics) GetSingleApp(kit *rest.Kit, cond mapstr.MapStr) (mapstr.MapStr, errors.CCError) {
 	cond.Set(common.BKDataStatusField, mapstr.MapStr{common.BKDBNE: common.DataStatusDisabled})
 	query := &metadata.QueryCondition{
@@ -121,17 +124,14 @@ func (lgc *Logics) GetSingleApp(kit *rest.Kit, cond mapstr.MapStr) (mapstr.MapSt
 		blog.Errorf("GetSingleApp http do error, err:%s, input:%+v, rid:%s", err.Error(), query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("GetSingleApp http response error, err code:%d, err msg:%s, input:%+v, rid:%s", result.Code, result.ErrMsg, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
 
-	if len(result.Data.Info) == 0 {
+	if len(result.Info) == 0 {
 		return nil, nil
 	}
-	return result.Data.Info[0], nil
+	return result.Info[0], nil
 }
 
+// GetAppIDByCond TODO
 func (lgc *Logics) GetAppIDByCond(kit *rest.Kit, cond metadata.ConditionWithTime) (
 	[]int64, errors.CCError) {
 
@@ -155,17 +155,15 @@ func (lgc *Logics) GetAppIDByCond(kit *rest.Kit, cond metadata.ConditionWithTime
 		blog.Errorf("GetAppIDByCond http do error, err:%s, input:%+v, rid:%s", err.Error(), query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("GetAppIDByCond http response error, err code:%d, err msg:%s, input:%+v, rid:%s", result.Code, result.ErrMsg, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
 
 	appIDs := make([]int64, 0)
-	for _, info := range result.Data.Info {
+	for _, info := range result.Info {
 		id, err := info.Int64(common.BKAppIDField)
 		if err != nil {
-			blog.ErrorJSON("GetAppIDByCond failed, convert bk_biz_id to int error, inst:%s  input:%s, err:%s, rid:%s", info, query, err.Error(), kit.Rid)
-			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDApp, common.BKAppIDField, "int", err.Error())
+			blog.ErrorJSON("GetAppIDByCond failed, convert bk_biz_id to int error, inst:%s  input:%s, err:%s, "+
+				"rid:%s", info, query, err.Error(), kit.Rid)
+			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDApp,
+				common.BKAppIDField, "int", err.Error())
 		}
 		appIDs = append(appIDs, id)
 	}
@@ -173,7 +171,9 @@ func (lgc *Logics) GetAppIDByCond(kit *rest.Kit, cond metadata.ConditionWithTime
 	return appIDs, nil
 }
 
-func (lgc *Logics) GetAppMapByCond(kit *rest.Kit, fields []string, cond mapstr.MapStr) (map[int64]types.MapStr, errors.CCError) {
+// GetAppMapByCond search biz map by condition
+func (lgc *Logics) GetAppMapByCond(kit *rest.Kit, fields []string, cond mapstr.MapStr) (map[int64]types.MapStr,
+	errors.CCError) {
 
 	if cond == nil {
 		cond = mapstr.New()
@@ -190,16 +190,15 @@ func (lgc *Logics) GetAppMapByCond(kit *rest.Kit, fields []string, cond mapstr.M
 		blog.Errorf("GetAppMapByCond http do error, err:%s, input:%+v, rid:%s", err.Error(), query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("GetAppMapByCond http response error, err code:%d, err msg:%s, input:%+v, rid:%s", result.Code, result.ErrMsg, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
+
 	appMap := make(map[int64]types.MapStr)
-	for _, info := range result.Data.Info {
+	for _, info := range result.Info {
 		id, err := info.Int64(common.BKAppIDField)
 		if err != nil {
-			blog.Errorf("GetAppMapByCond http response format error,convert bk_biz_id to int error, err:%s, inst:%+v  input:%+v, rid:%s", err.Error(), info, query, kit.Rid)
-			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDApp, common.BKAppIDField, "int", err.Error())
+			blog.Errorf("GetAppMapByCond http response format error,convert bk_biz_id to int error, err:%s, "+
+				"inst:%+v  input:%+v, rid:%s", err.Error(), info, query, kit.Rid)
+			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDApp,
+				common.BKAppIDField, "int", err.Error())
 		}
 		appMap[id] = info
 	}
@@ -207,6 +206,7 @@ func (lgc *Logics) GetAppMapByCond(kit *rest.Kit, fields []string, cond mapstr.M
 	return appMap, nil
 }
 
+// ExistInnerModule TODO
 func (lgc *Logics) ExistInnerModule(kit *rest.Kit, moduleIDArr []int64) (bool, errors.CCErrorCoder) {
 	input := &metadata.QueryCondition{
 		Condition: mapstr.MapStr{
@@ -218,16 +218,13 @@ func (lgc *Logics) ExistInnerModule(kit *rest.Kit, moduleIDArr []int64) (bool, e
 			},
 		},
 	}
-	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDModule, input)
+	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDModule,
+		input)
 	if err != nil {
 		blog.Errorf("ExistInnerModule http do error, err:%s, input:%+v, rid:%s", err.Error(), input, kit.Rid)
 		return false, kit.CCError.CCError(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("ExistInnerModule http response error, err code:%d, err msg:%s, input:%+v, rid:%s", result.Code, result.ErrMsg, input, kit.Rid)
-		return false, result.CCError()
-	}
 
-	exist := result.Data.Count > 0
+	exist := result.Count > 0
 	return exist, nil
 }

@@ -12,8 +12,10 @@
 
 package meta
 
+// ResourceType TODO
 type ResourceType string
 
+// String 用于打印
 func (r ResourceType) String() string {
 	return string(r)
 }
@@ -22,6 +24,7 @@ func (r ResourceType) String() string {
 // 两者之间有映射关系，详情见 ConvertResourceType
 const (
 	Business                 ResourceType = "business"
+	BizSet                   ResourceType = "bizSet"
 	Model                    ResourceType = "model"
 	ModelModule              ResourceType = "modelModule"
 	ModelSet                 ResourceType = "modelSet"
@@ -31,8 +34,6 @@ const (
 	MainlineInstance         ResourceType = "mainlineInstance"
 	AssociationType          ResourceType = "associationType"
 	ModelAssociation         ResourceType = "modelAssociation"
-	ModelInstanceAssociation ResourceType = "modelInstanceAssociation"
-	ModelInstance            ResourceType = "modelInstance"
 	ModelInstanceTopology    ResourceType = "modelInstanceTopology"
 	ModelTopology            ResourceType = "modelTopology"
 	ModelClassification      ResourceType = "modelClassification"
@@ -49,7 +50,6 @@ const (
 	HostInstance             ResourceType = "hostInstance"
 	NetDataCollector         ResourceType = "netDataCollector"
 	DynamicGrouping          ResourceType = "dynamicGrouping" // 动态分组
-	EventPushing             ResourceType = "eventPushing"
 	EventWatch               ResourceType = "eventWatch"
 	CloudAreaInstance        ResourceType = "plat"
 	AuditLog                 ResourceType = "auditlog"   // 操作审计
@@ -67,12 +67,23 @@ const (
 )
 
 const (
-	NetCollector = "netCollector"
-	NetDevice    = "netDevice"
-	NetProperty  = "netProperty"
-	NetReport    = "netReport"
+	// CMDBSysInstTypePrefix TODO
+	// CMDB侧资源的通用模型实例前缀标识
+	CMDBSysInstTypePrefix = "comobj_"
 )
 
+const (
+	// NetCollector TODO
+	NetCollector = "netCollector"
+	// NetDevice TODO
+	NetDevice = "netDevice"
+	// NetProperty TODO
+	NetProperty = "netProperty"
+	// NetReport TODO
+	NetReport = "netReport"
+)
+
+// ResourceDescribe TODO
 type ResourceDescribe struct {
 	Type    ResourceType
 	Actions []Action

@@ -1,14 +1,26 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
-  <div class="table" v-show="instances.length" v-bkloading="{ isLoading: $loading(propertyRequest, instanceRequest) }">
-    <div class="table-info clearfix">
-      <div class="info-title fl" @click="expanded = !expanded">
+  <div class="table" v-bkloading="{ isLoading: $loading(propertyRequest, instanceRequest) }">
+    <div class="table-info clearfix" @click="expanded = !expanded">
+      <div class="info-title fl">
         <i class="icon bk-icon icon-right-shape"
           :class="{ 'is-open': expanded }">
         </i>
         <span class="title-text">{{title}}</span>
-        <span class="title-count">({{instances.length}})</span>
+        <span class="title-count">({{associationInstances.length}})</span>
       </div>
-      <div class="info-pagination fr" v-show="pagination.count">
+      <div class="info-pagination fr" v-show="pagination.count" @click.stop>
         <span class="pagination-info">{{getPaginationInfo()}}</span>
         <span class="pagination-toggle">
           <i class="pagination-icon bk-icon icon-cc-arrow-down left"
@@ -25,22 +37,25 @@
     <bk-table class="association-table"
       v-show="expanded"
       :data="list"
-      :max-height="462">
-      <bk-table-column v-for="column in header"
+      :max-height="462"
+      :row-style="{ cursor: 'pointer' }"
+      @row-click="handleShowDetails">
+      <bk-table-column v-for="(column, index) in header"
         :key="column.id"
         :prop="column.id"
         :label="column.name"
+        :class-name="index === 0 ? 'is-highlight' : ''"
         show-overflow-tooltip>
         <template slot-scope="{ row }">{{row[column.id] | formatter(column.property)}}</template>
       </bk-table-column>
-      <bk-table-column :label="$t('操作')">
+      <bk-table-column v-if="!readonly" :label="$t('操作')">
         <template slot-scope="{ row }">
           <cmdb-auth :auth="HOST_AUTH.U_HOST">
             <bk-button slot-scope="{ disabled }"
               text
               theme="primary"
               :disabled="disabled"
-              @click="showTips($event, row)">
+              @click.stop="showTips($event, row)">
               {{$t('取消关联')}}
             </bk-button>
           </cmdb-auth>
@@ -59,11 +74,15 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex'
   import authMixin from '../mixin-auth'
+  import instanceService from '@/service/instance/instance'
+  import { readonlyMixin } from '../mixin-readonly'
+  import businessSetService from '@/service/business-set/index.js'
+  import { BUILTIN_MODELS, BUILTIN_MODEL_PROPERTY_KEYS } from '@/dictionary/model-constants.js'
+
   export default {
     name: 'cmdb-host-association-list-table',
-    mixins: [authMixin],
+    mixins: [authMixin, readonlyMixin],
     props: {
       type: {
         type: String,
@@ -75,6 +94,10 @@
       },
       associationType: {
         type: Object,
+        required: true
+      },
+      associationInstances: {
+        type: Array,
         required: true
       }
     },
@@ -106,10 +129,6 @@
       }
     },
     computed: {
-      ...mapGetters('hostDetails', [
-        'sourceInstances',
-        'targetInstances'
-      ]),
       hostId() {
         return parseInt(this.$route.params.id, 10)
       },
@@ -135,21 +154,25 @@
         return `get_${this.id}_association_list_table_instances`
       },
       page() {
+        // 每次in当前页的id查询，因此page参数每次都是0-size
         return {
           limit: this.pagination.size,
-          start: (this.pagination.current - 1) * this.pagination.size
+          start: 0
         }
       },
       totalPage() {
         return Math.ceil(this.pagination.count / this.pagination.size)
       },
-      instances() {
-        const topology = this.type === 'source' ? this.targetInstances : this.sourceInstances
-        const data = topology.find(data => data.bk_obj_id === this.id) || {}
-        return data.children || []
+      isSource() {
+        return this.type === 'source'
       },
       instanceIds() {
-        return this.instances.map(instance => instance.bk_inst_id)
+        // eslint-disable-next-line max-len
+        return this.associationInstances.map(instance => (this.isSource ? instance.bk_asst_inst_id : instance.bk_inst_id))
+      },
+      currentPageInstanceIds() {
+        const start = (this.pagination.current - 1) * this.pagination.size
+        return this.instanceIds.slice(start, start + this.pagination.size)
       },
       header() {
         const headerProperties = this.$tools.getDefaultHeaderProperties(this.properties)
@@ -165,18 +188,14 @@
       }
     },
     watch: {
-      instances() {
-        if (this.expanded) {
-          this.getData()
-        }
+      associationInstances(associationInstances) {
+        associationInstances.length && this.expanded && this.getData()
       },
       expandAll(expanded) {
         this.expanded = expanded
       },
       expanded(expanded) {
-        if (expanded) {
-          this.getData()
-        }
+        expanded && this.getData()
       }
     },
     methods: {
@@ -218,19 +237,36 @@
             })
           } else {
             switch (this.id) {
-              case 'host':
+              case BUILTIN_MODELS.HOST:
                 promise = this.getHostInstances(config)
                 break
-              case 'biz':
+              case BUILTIN_MODELS.BUSINESS:
                 promise = this.getBusinessInstances(config)
+                break
+              case BUILTIN_MODELS.BUSINESS_SET:
+                promise = this.getBusinessSetInstances(config)
                 break
               default:
                 promise = this.getModelInstances(config)
             }
           }
           const data = await promise
-          this.list = data.info
-          this.pagination.count = data.count
+
+          const dataListKeys = {
+            [BUILTIN_MODELS.BUSINESS_SET]: 'list'
+          }
+          const dataListKey = dataListKeys[this.id] || 'info'
+
+          this.list = data[dataListKey]
+
+          // 此处总数需要使用总实例数，而非data.count因使用in当前页的id查询data.count只是当前页的条数
+          this.pagination.count = this.associationInstances?.length
+
+          // 删除一整页后自动回退到上一页
+          if (this.pagination.count && !data[dataListKey].length) {
+            this.pagination.current -= 1
+            this.getInstances()
+          }
         } catch (e) {
           console.error(e)
           this.list = []
@@ -242,7 +278,7 @@
         const hostCondition = {
           field: 'bk_host_id',
           operator: '$in',
-          value: this.instanceIds
+          value: this.currentPageInstanceIds
         }
         const condition = models.map(model => ({
           bk_obj_id: model,
@@ -274,7 +310,7 @@
           params: {
             condition: {
               bk_biz_id: {
-                $in: this.instanceIds
+                $in: this.currentPageInstanceIds
               }
             },
             fields: [],
@@ -286,58 +322,53 @@
           config
         })
       },
+      getBusinessSetInstances(config) {
+        const params = {
+          fields: [],
+          bk_biz_set_filter: {
+            condition: 'AND',
+            rules: [{ field: BUILTIN_MODEL_PROPERTY_KEYS[BUILTIN_MODELS.BUSINESS_SET].ID, operator: 'in', value: this.currentPageInstanceIds }]
+          },
+          page: this.page
+        }
+
+        return businessSetService.find(params, config)
+      },
       getModelInstances(config) {
-        return this.$store.dispatch('objectCommonInst/searchInst', {
-          objId: this.id,
+        return instanceService.find({
+          bk_obj_id: this.id,
           params: {
-            fields: {},
-            condition: {
-              [this.id]: [{
-                field: 'bk_inst_id',
-                operator: '$in',
-                value: this.instanceIds
-              }]
-            },
+            fields: [],
             page: {
               ...this.page,
               sort: 'bk_inst_id'
+            },
+            conditions: {
+              condition: 'AND',
+              rules: [{
+                field: 'bk_inst_id',
+                operator: 'in',
+                value: this.currentPageInstanceIds
+              }]
             }
           },
           config
-        }).then((data) => {
-          data = data || {
-            count: 0,
-            info: []
-          }
-          return data
         })
       },
       async cancelAssociation() {
-        const { item } = this.confirm
-        const keyMap = {
-          host: 'bk_host_id',
-          biz: 'bk_biz_id'
-        }
-        const idKey = keyMap[this.id] || 'bk_inst_id'
         try {
-          const associationInstance = this.instances.find(instance => instance.bk_inst_id === item[idKey])
+          const asstInstance = this.associationInstances.find((instance) => {
+            const key = this.isSource ? 'bk_asst_inst_id' : 'bk_inst_id'
+            return instance[key] === this.confirm.id
+          })
           await this.$store.dispatch('objectAssociation/deleteInstAssociation', {
-            id: associationInstance.asso_id,
-            config: {
-              data: {}
-            }
+            id: asstInstance.id,
+            objId: 'host',
+            config: { data: {} }
           })
-          this.$store.commit('hostDetails/deleteAssociation', {
-            type: this.type,
-            model: this.id,
-            association: associationInstance
-          })
-          this.$nextTick(() => {
-            this.pagination.current = 1
-            this.getInstances()
-          })
-          this.$success(this.$t('取消关联成功'))
           this.hideTips()
+          this.$success(this.$t('取消关联成功'))
+          this.$emit('delete-association', asstInstance.id)
         } catch (e) {
           console.error(e)
         }
@@ -361,9 +392,17 @@
       hideTips() {
         this.confirm.instance && this.confirm.instance.hide()
       },
+      getRowInstId(item) {
+        const specialModel = ['host', 'biz', 'set', 'module']
+        const mapping = {
+          [BUILTIN_MODELS.BUSINESS_SET]: BUILTIN_MODEL_PROPERTY_KEYS[BUILTIN_MODELS.BUSINESS_SET].ID
+        }
+        specialModel.forEach(key => (mapping[key] = `bk_${key}_id`))
+        return item[mapping[this.id] || 'bk_inst_id']
+      },
       showTips(event, item) {
         this.confirm.item = item
-        this.confirm.id = item.bk_inst_id
+        this.confirm.id = this.getRowInstId(item)
         this.confirm.instance = this.$bkPopover(event.target, {
           content: this.$refs.confirmTips,
           theme: 'light',
@@ -381,6 +420,24 @@
         this.confirm.show = true
         this.$nextTick(() => {
           this.confirm.instance.show()
+        })
+      },
+      async handleShowDetails(row) {
+        const showInstanceDetails = await import('@/components/instance/details')
+        const nameMapping = {
+          host: 'bk_host_innerip',
+          biz: 'bk_biz_name',
+          [BUILTIN_MODELS.BUSINESS_SET]: [BUILTIN_MODEL_PROPERTY_KEYS[BUILTIN_MODELS.BUSINESS_SET].NAME]
+        }
+        const idMapping = {
+          host: 'bk_host_id',
+          biz: 'bk_biz_id',
+          [BUILTIN_MODELS.BUSINESS_SET]: [BUILTIN_MODEL_PROPERTY_KEYS[BUILTIN_MODELS.BUSINESS_SET].ID]
+        }
+        showInstanceDetails.default({
+          bk_obj_id: this.id,
+          bk_inst_id: row[idMapping[this.id] || 'bk_inst_id'],
+          title: `${this.model.bk_obj_name}-${row[nameMapping[this.id] || 'bk_inst_name']}`
         })
       }
     }

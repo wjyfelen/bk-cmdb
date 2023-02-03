@@ -19,6 +19,7 @@ import (
 	"configcenter/src/common/mapstr"
 )
 
+// SearchLimit TODO
 // Deprecated: SearchLimit sub condition
 type SearchLimit struct {
 	Offset int64 `json:"start" field:"start"`
@@ -29,6 +30,14 @@ type SearchLimit struct {
 type SearchSort struct {
 	IsDsc bool   `json:"is_dsc"`
 	Field string `json:"field"`
+}
+
+// SearchModuleCondition search module condition
+type SearchModuleCondition struct {
+	Condition map[string]interface{} `json:"condition"`
+	Page      BasePage               `json:"page"`
+	Fields    []string               `json:"fields,omitempty"`
+	SetID     int64                  `json:"bk_set_id"`
 }
 
 // QueryCondition the common query condition definition
@@ -58,6 +67,7 @@ type QueryResult struct {
 	Info  []mapstr.MapStr `json:"info"`
 }
 
+// QueryConditionResult TODO
 type QueryConditionResult ResponseInstData
 
 // SearchSortParse SearchSort parse interface
@@ -74,10 +84,12 @@ type searchSortParse struct {
 	data []SearchSort
 }
 
+// NewSearchSortParse TODO
 func NewSearchSortParse() SearchSortParse {
 	return &searchSortParse{}
 }
 
+// String 用于打印
 //  String convert string sort to cc SearchSort struct array
 func (ss *searchSortParse) String(sort string) SearchSortParse {
 	if sort == "" {
@@ -98,6 +110,7 @@ func (ss *searchSortParse) String(sort string) SearchSortParse {
 	return ss
 }
 
+// Field TODO
 //  Field   cc SearchSort struct array
 func (ss *searchSortParse) Field(field string, isDesc bool) SearchSortParse {
 
@@ -109,6 +122,7 @@ func (ss *searchSortParse) Field(field string, isDesc bool) SearchSortParse {
 	return ss
 }
 
+// Set TODO
 func (ss *searchSortParse) Set(ssArr []SearchSort) SearchSortParse {
 	ss.data = append(ss.data, ssArr...)
 	return ss
@@ -119,6 +133,7 @@ func (ss *searchSortParse) ToSearchSortArr() []SearchSort {
 	return ss.data
 }
 
+// ToMongo TODO
 // searchSortParse cc SearchSort struct to mongodb sort filed
 func (ss *searchSortParse) ToMongo() string {
 	var orderByArr []string

@@ -10,16 +10,17 @@
  * limitations under the License.
  */
 
+// Package cache TODO
 package cache
 
 import (
 	"fmt"
 
 	"configcenter/src/apimachinery/discovery"
-	"configcenter/src/source_controller/cacheservice/cache/business"
 	"configcenter/src/source_controller/cacheservice/cache/host"
-	"configcenter/src/source_controller/cacheservice/cache/topo_tree"
+	"configcenter/src/source_controller/cacheservice/cache/mainline"
 	"configcenter/src/source_controller/cacheservice/cache/topology"
+	"configcenter/src/source_controller/cacheservice/cache/topotree"
 	"configcenter/src/source_controller/cacheservice/event/watch"
 	"configcenter/src/storage/dal"
 	"configcenter/src/storage/driver/mongodb"
@@ -28,10 +29,11 @@ import (
 	"configcenter/src/storage/stream"
 )
 
+// NewCache TODO
 func NewCache(reflector reflector.Interface, loopW stream.LoopInterface, isMaster discovery.ServiceManageInterface,
 	watchDB dal.DB) (*ClientSet, error) {
 
-	if err := business.NewCache(reflector); err != nil {
+	if err := mainline.NewMainlineCache(loopW); err != nil {
 		return nil, fmt.Errorf("new business cache failed, err: %v", err)
 	}
 
@@ -44,23 +46,24 @@ func NewCache(reflector reflector.Interface, loopW stream.LoopInterface, isMaste
 		return nil, err
 	}
 
-	bizClient := business.NewClient()
+	mainlineClient := mainline.NewMainlineClient()
 	hostClient := host.NewClient()
 
 	cache := &ClientSet{
-		Tree:     topo_tree.NewTopologyTree(bizClient),
+		Tree:     topotree.NewTopologyTree(mainlineClient),
 		Host:     hostClient,
-		Business: bizClient,
+		Business: mainlineClient,
 		Topology: topo,
 		Event:    watch.NewClient(watchDB, mongodb.Client(), redis.Client()),
 	}
 	return cache, nil
 }
 
+// ClientSet TODO
 type ClientSet struct {
-	Tree     *topo_tree.TopologyTree
+	Tree     *topotree.TopologyTree
 	Topology *topology.Topology
 	Host     *host.Client
-	Business *business.Client
+	Business *mainline.Client
 	Event    *watch.Client
 }

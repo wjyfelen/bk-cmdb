@@ -19,9 +19,11 @@ import (
 	"configcenter/src/common/blog"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/metadata"
+	"configcenter/src/common/util"
 	"configcenter/src/storage/driver/mongodb"
 )
 
+// CreateServiceTemplate TODO
 func (s *coreService) CreateServiceTemplate(ctx *rest.Contexts) {
 	template := metadata.ServiceTemplate{}
 	if err := ctx.DecodeInto(&template); err != nil {
@@ -38,6 +40,7 @@ func (s *coreService) CreateServiceTemplate(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// GetServiceTemplate TODO
 func (s *coreService) GetServiceTemplate(ctx *rest.Contexts) {
 	serviceTemplateIDStr := ctx.Request.PathParameter(common.BKServiceTemplateIDField)
 	if len(serviceTemplateIDStr) == 0 {
@@ -62,6 +65,7 @@ func (s *coreService) GetServiceTemplate(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// GetServiceTemplateWithStatistics TODO
 func (s *coreService) GetServiceTemplateWithStatistics(ctx *rest.Contexts) {
 	serviceTemplateIDStr := ctx.Request.PathParameter(common.BKServiceTemplateIDField)
 	if len(serviceTemplateIDStr) == 0 {
@@ -113,6 +117,7 @@ func (s *coreService) GetServiceTemplateWithStatistics(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// ListServiceTemplateDetail TODO
 func (s *coreService) ListServiceTemplateDetail(ctx *rest.Contexts) {
 	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
 	if len(bizIDStr) == 0 {
@@ -193,6 +198,7 @@ func (s *coreService) ListServiceTemplateDetail(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// ListServiceTemplates TODO
 func (s *coreService) ListServiceTemplates(ctx *rest.Contexts) {
 	// filter parameter
 	fp := metadata.ListServiceTemplateOption{}
@@ -211,6 +217,7 @@ func (s *coreService) ListServiceTemplates(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// UpdateServiceTemplate TODO
 func (s *coreService) UpdateServiceTemplate(ctx *rest.Contexts) {
 	serviceTemplateIDStr := ctx.Request.PathParameter(common.BKServiceTemplateIDField)
 	if len(serviceTemplateIDStr) == 0 {
@@ -242,6 +249,40 @@ func (s *coreService) UpdateServiceTemplate(ctx *rest.Contexts) {
 	ctx.RespEntity(result)
 }
 
+// UpdateBatchServiceTemplates batch update service template data based on specified conditions.
+func (s *coreService) UpdateBatchServiceTemplates(ctx *rest.Contexts) {
+
+	kit := ctx.Kit
+	option := new(metadata.UpdateOption)
+	if err := ctx.DecodeInto(option); err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
+	if len(option.Data) == 0 {
+		blog.Errorf("update batch service template failed, path parameter data empty, rid: %s", kit.Rid)
+		ctx.RespAutoError(kit.CCError.CCErrorf(common.CCErrCommParamsNeedSet, "data"))
+		return
+	}
+	// there must be a business ID in the condition.
+	if !util.IsNumeric(option.Condition[common.BKAppIDField]) {
+		blog.Errorf("batch update service template failed, %s is empty, rid: %s", common.BKAppIDField, kit.Rid)
+		ctx.RespAutoError(kit.CCError.CCErrorf(common.CCErrCommParamsNeedSet, common.BKAppIDField))
+		return
+	}
+
+	// do update
+	if err := mongodb.Client().Table(common.BKTableNameServiceTemplate).Update(kit.Ctx, option.Condition,
+		option.Data); nil != err {
+		blog.Errorf("batch update service template failed, table: %s, filter: %+v, data: %+v, err: %+v, rid: %s",
+			common.BKTableNameServiceTemplate, option.Condition, option.Data, err, kit.Rid)
+		ctx.RespAutoError(err)
+		return
+	}
+
+	ctx.RespEntity(nil)
+}
+
+// DeleteServiceTemplate TODO
 func (s *coreService) DeleteServiceTemplate(ctx *rest.Contexts) {
 	serviceTemplateIDStr := ctx.Request.PathParameter(common.BKServiceTemplateIDField)
 	if len(serviceTemplateIDStr) == 0 {

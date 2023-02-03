@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -22,10 +23,14 @@ import (
 	"configcenter/src/common/errors"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/rdapi"
+	"configcenter/src/common/webservice/restfulservice"
 	"configcenter/src/scene_server/cloud_server/logics"
-	"github.com/emicklei/go-restful"
+	"configcenter/src/thirdparty/logplatform/opentelemetry"
+
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Service TODO
 type Service struct {
 	*backbone.Engine
 	ctx     context.Context
@@ -35,20 +40,24 @@ type Service struct {
 	authorizer ac.AuthorizeInterface
 }
 
+// NewService TODO
 func NewService(ctx context.Context) *Service {
 	return &Service{
 		ctx: ctx,
 	}
 }
 
+// SetEncryptor TODO
 func (s *Service) SetEncryptor(cryptor cryptor.Cryptor) {
 	s.cryptor = cryptor
 }
 
+// SetAuthorizer TODO
 func (s *Service) SetAuthorizer(authorizer ac.AuthorizeInterface) {
 	s.authorizer = authorizer
 }
 
+// WebService TODO
 func (s *Service) WebService() *restful.Container {
 
 	api := new(restful.WebService)
@@ -62,11 +71,16 @@ func (s *Service) WebService() *restful.Container {
 
 	s.initRoute(api)
 	container := restful.NewContainer()
+
+	opentelemetry.AddOtlpFilter(container)
+
 	container.Add(api)
 
-	healthzAPI := new(restful.WebService).Produces(restful.MIME_JSON)
-	healthzAPI.Route(healthzAPI.GET("/healthz").To(s.Healthz))
-	container.Add(healthzAPI)
+	// common api
+	commonAPI := new(restful.WebService).Produces(restful.MIME_JSON)
+	commonAPI.Route(commonAPI.GET("/healthz").To(s.Healthz))
+	commonAPI.Route(commonAPI.GET("/version").To(restfulservice.Version))
+	container.Add(commonAPI)
 
 	return container
 }

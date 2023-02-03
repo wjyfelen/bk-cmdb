@@ -1,19 +1,34 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="template-layout">
     <cmdb-tips class="mb10" tips-key="showSetTips">
       <i18n path="集群模板功能提示" class="tips-text">
-        <a class="tips-link" href="javascript:void(0)" @click="handleGoBusinessTopo" place="topo">
-          {{$t('业务拓扑')}}
-        </a>
-        <a class="tips-link" href="javascript:void(0)" @click="handleGoServiceTemplate" place="template">
-          {{$t('服务模板')}}
-        </a>
+        <template #topo>
+          <a class="tips-link" href="javascript:void(0)" @click="handleGoBusinessTopo">
+            {{$t('业务拓扑')}}
+          </a></template>
+        <template #template>
+          <a class="tips-link" href="javascript:void(0)" @click="handleGoServiceTemplate">
+            {{$t('服务模板')}}
+          </a>
+        </template>
       </i18n>
     </cmdb-tips>
     <div class="options clearfix">
       <div class="fl">
         <cmdb-auth class="fl" :auth="{ type: $OPERATION.C_SET_TEMPLATE, relation: [bizId] }">
-          <bk-button slot-scope="{ disabled }"
+          <bk-button slot-scope="{ disabled }" v-test-id="'create'"
             theme="primary"
             :disabled="disabled"
             @click="handleCreate">
@@ -26,13 +41,14 @@
           :placeholder="$t('请输入xx', { name: $t('模板名称') })"
           clearable
           right-icon="icon-search"
-          v-model="searchName"
+          v-model.trim="searchName"
           @enter="handleFilterTemplate"
           @clear="handleClearFilter">
         </bk-input>
       </div>
     </div>
-    <bk-table class="template-table" v-bkloading="{ isLoading: $loading(request.getSetTemplates) }"
+    <bk-table class="template-table" v-test-id.businessSetTemplate="'templateList'"
+      v-bkloading="{ isLoading: $loading(request.getSetTemplates) }"
       :data="list"
       :row-style="{ cursor: 'pointer' }"
       @row-click="handleRowClick"
@@ -53,16 +69,14 @@
       </bk-table-column>
       <bk-table-column :label="$t('操作')" width="180">
         <template slot-scope="{ row }">
-          <!-- 与查询详情编辑有重合暂去掉 -->
-          <!-- <cmdb-auth :auth="{ type: $OPERATION.U_SET_TEMPLATE, relation: [bizId, row.id] }">
-                        <bk-button slot-scope="{ disabled }"
-                            text
-                            :disabled="disabled"
-                            @click="handleEdit(row)"
-                        >
-                            {{$t('编辑')}}
-                        </bk-button>
-                    </cmdb-auth> -->
+          <cmdb-auth class="mr10" :auth="{ type: $OPERATION.U_SET_TEMPLATE, relation: [bizId, row.id] }">
+            <bk-button slot-scope="{ disabled }"
+              text
+              :disabled="disabled"
+              @click="handleEdit(row)">
+              {{$t('编辑')}}
+            </bk-button>
+          </cmdb-auth>
           <span class="text-primary"
             style="color: #dcdee5 !important; cursor: not-allowed;"
             v-if="row.set_instance_count"
@@ -70,11 +84,10 @@
             {{$t('删除')}}
           </span>
           <cmdb-auth :auth="{ type: $OPERATION.D_SET_TEMPLATE, relation: [bizId, row.id] }" v-else>
-            <bk-button slot-scope="{ disabled }"
+            <bk-button slot-scope="{ disabled }" v-test-id="'delTemplate'"
               text
               :disabled="disabled"
-              @click="handleDelete(row)"
-            >
+              @click="handleDelete(row)">
               {{$t('删除')}}
             </bk-button>
           </cmdb-auth>
@@ -92,7 +105,14 @@
 
 <script>
   import { mapGetters } from 'vuex'
-  import { MENU_BUSINESS_HOST_AND_SERVICE, MENU_BUSINESS_SERVICE_TEMPLATE } from '@/dictionary/menu-symbol'
+  import {
+    MENU_BUSINESS_HOST_AND_SERVICE,
+    MENU_BUSINESS_SERVICE_TEMPLATE,
+    MENU_BUSINESS_SET_TEMPLATE_CREATE,
+    MENU_BUSINESS_SET_TEMPLATE_DETAILS,
+    MENU_BUSINESS_SET_TEMPLATE_EDIT
+  } from '@/dictionary/menu-symbol'
+
   export default {
     data() {
       return {
@@ -167,23 +187,7 @@
       },
       handleCreate() {
         this.$routerActions.redirect({
-          name: 'setTemplateConfig',
-          params: {
-            mode: 'create'
-          },
-          history: true
-        })
-      },
-      handleEdit(row) {
-        this.$routerActions.redirect({
-          name: 'setTemplateConfig',
-          params: {
-            mode: 'view',
-            templateId: row.id
-          },
-          query: {
-            edit: 1
-          },
+          name: MENU_BUSINESS_SET_TEMPLATE_CREATE,
           history: true
         })
       },
@@ -222,14 +226,22 @@
       handleSelectable(row) {
         return !row.set_instance_count
       },
+      handleEdit(row) {
+        this.$routerActions.redirect({
+          name: MENU_BUSINESS_SET_TEMPLATE_EDIT,
+          params: {
+            templateId: row.id
+          },
+          history: true
+        })
+      },
       handleRowClick(row, event, column) {
         if (!column.property) {
           return false
         }
         this.$routerActions.redirect({
-          name: 'setTemplateConfig',
+          name: MENU_BUSINESS_SET_TEMPLATE_DETAILS,
           params: {
-            mode: 'view',
             templateId: row.id
           },
           history: true

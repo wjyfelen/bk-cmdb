@@ -43,17 +43,15 @@ func (lgc *Logics) SearchObjectAttributes(kit *rest.Kit, bizID int64, objectID s
 
 	result, err := lgc.CoreAPI.CoreService().Model().ReadModelAttr(kit.Ctx, kit.Header, objectID, query)
 	if err != nil {
-		blog.Errorf("search object attributes failed, err: %+v, objID: %s, input: %+v, rid: %s", err, objectID, query, kit.Rid)
+		blog.Errorf("search object attributes failed, err: %+v, objID: %s, input: %+v, rid: %s", err, objectID,
+			query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("search object attributes failed, errcode: %d, errmsg: %s, objID: %s, input: %+v, rid: %s",
-			result.Code, result.ErrMsg, objectID, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
-	return result.Data.Info, nil
+
+	return result.Info, nil
 }
 
+// GetTopoIDByName TODO
 func (lgc *Logics) GetTopoIDByName(kit *rest.Kit, c *meta.HostToAppModule) (int64, int64, int64, errors.CCError) {
 	if "" == c.AppName || "" == c.SetName || "" == c.ModuleName {
 		return 0, 0, 0, nil
@@ -118,90 +116,93 @@ func (lgc *Logics) GetTopoIDByName(kit *rest.Kit, c *meta.HostToAppModule) (int6
 	return appID, setID, moduleID, nil
 }
 
-func (lgc *Logics) GetSetIDByObjectCond(kit *rest.Kit, appID int64, objectCond []meta.ConditionItem) ([]int64, errors.CCError) {
-	objectIDArr := make([]int64, 0)
-	condition := make([]meta.ConditionItem, 0)
+// GetSetIDByObjectCond get set ids by mainline node conditions
+func (lgc *Logics) GetSetIDByObjectCond(kit *rest.Kit, appID int64, objectCond []meta.ConditionItem) ([]int64,
+	errors.CCError) {
 
-	instItem := meta.ConditionItem{}
+	objectIDArr := make([]int64, 0)
+
+	// parse mainline object condition to get inst ids filter, only allows condition of 'bk_inst_id $eq value' form
 	var hasInstID bool
 	for _, i := range objectCond {
 		if i.Field != common.BKInstIDField {
 			continue
 		}
+		if i.Operator != common.BKDBEQ {
+			continue
+		}
+
 		value, err := util.GetInt64ByInterface(i.Value)
-		if nil != err {
+		if err != nil {
 			return nil, err
 		}
-		hasInstID = true
-		instItem.Field = common.BKInstParentStr
-		instItem.Operator = i.Operator
-		instItem.Value = i.Value
-
 		objectIDArr = append(objectIDArr, value)
+
+		hasInstID = true
 	}
-	condition = append(condition, instItem)
+
 	if !hasInstID {
 		blog.Errorf("mainline miss bk_inst_id parameters. input:%#v, rid:%s", objectCond, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrHostSearchNeedObjectInstIDErr)
 	}
 
-	nodeFaultItem := meta.ConditionItem{}
-	nodeFaultItem.Field = common.BKDefaultField
-	nodeFaultItem.Operator = common.BKDBNE
-	nodeFaultItem.Value = common.DefaultResSetFlag
-
-	appIDItem := meta.ConditionItem{
-		Field:    common.BKAppIDField,
-		Operator: common.BKDBEQ,
-		Value:    appID,
-	}
-	condition = append(condition, appIDItem)
-	condition = append(condition, nodeFaultItem)
-
-	topoRoot, err := lgc.CoreAPI.CoreService().Mainline().SearchMainlineInstanceTopo(kit.Ctx, kit.Header, appID, false)
+	// get inst ids corresponding object to ids map and mainline child to parent map
+	instObjMap, err := lgc.CoreAPI.CoreService().Instance().GetInstanceObjectMapping(kit.Ctx, kit.Header, objectIDArr)
 	if err != nil {
-		return nil, kit.CCError.Error(common.CCErrTopoMainlineSelectFailed)
+		blog.Errorf("get instance mappings %v failed, err: %v, rid: %s", objectIDArr, err, kit.Rid)
+		return nil, err
 	}
 
-	for {
-		sSetIDArr, err := lgc.GetSetIDByCond(kit, meta.ConditionWithTime{Condition: condition})
+	objInstIDMap := make(map[string]int64)
+	for _, mapping := range instObjMap {
+		// returns no set ids if more than one inst id equal condition is set for one object
+		if _, exists := objInstIDMap[mapping.ObjectID]; exists {
+			return make([]int64, 0), nil
+		}
+		objInstIDMap[mapping.ObjectID] = mapping.ID
+	}
+
+	mainlineMap, ccErr := lgc.searchMainlineRelationMap(kit)
+	if err != nil {
+		blog.Errorf("get mainline association failed, err: %v, rid: %s", err, kit.Rid)
+		return nil, ccErr
+	}
+
+	// loop from the first mainline object under biz to set, filters out the set ids under the mainline instances
+	filter := make(map[string]interface{})
+	for object := mainlineMap[common.BKInnerObjIDApp]; ; object = mainlineMap[object] {
+		instID, exists := objInstIDMap[object]
+		if len(filter) == 0 && !exists {
+			continue
+		}
+
+		filter[common.BKAppIDField] = appID
+
+		if exists {
+			filter[common.BKInstIDField] = instID
+		}
+
+		filteredIDs, err := lgc.getInstIDsByCond(kit, object, filter)
 		if err != nil {
+			blog.Errorf("get object[%s] inst ids failed, cond: %v, err: %v, rid: %s", object, filter, err, kit.Rid)
 			return nil, err
 		}
 
-		if 0 != len(sSetIDArr) {
-			return sSetIDArr, nil
+		if len(filteredIDs) == 0 {
+			return make([]int64, 0), nil
 		}
 
-		sObjectIDArr := make([]int64, 0)
-		for _, id := range objectIDArr {
-			path := topoRoot.TraversalFindNode(common.BKInnerObjIDObject, id)
-			if len(path) == 0 {
-				continue
-			}
-			node := path[0]
-			for _, childNode := range node.Children {
-				sObjectIDArr = append(sObjectIDArr, childNode.InstanceID)
-			}
-		}
-		objectIDArr = sObjectIDArr
-		if 0 == len(sObjectIDArr) {
-			return []int64{}, nil
+		if object == common.BKInnerObjIDSet {
+			return filteredIDs, nil
 		}
 
-		conc := meta.ConditionItem{
-			Field:    common.BKInstParentStr,
-			Operator: common.BKDBIN,
-			Value:    sObjectIDArr,
+		filter = map[string]interface{}{
+			common.BKParentIDField: mapstr.MapStr{common.BKDBIN: filteredIDs},
 		}
-		condition = make([]meta.ConditionItem, 0)
-		condition = append(condition, conc)
-		condition = append(condition, appIDItem)
-		condition = append(condition, nodeFaultItem)
 	}
-
 }
 
+// getObjectByParentID TODO
 // deprecated, please use CoreAPI.CoreService().Mainline().SearchMainlineInstanceTopo instead
 func (lgc *Logics) getObjectByParentID(kit *rest.Kit, valArr []int64) ([]int64, errors.CCError) {
 	instIDArr := make([]int64, 0)
@@ -212,26 +213,27 @@ func (lgc *Logics) getObjectByParentID(kit *rest.Kit, valArr []int64) ([]int64, 
 	query := &meta.QueryCondition{
 		Condition: sCond,
 	}
-	// TODO common.BKInnerObjIDObject is not a valid value to search mainline topo instance, it will act as bk_obj_id=object condition
-	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDObject, query)
+	// TODO common.BKInnerObjIDObject is not a valid value to search mainline topo instance,
+	// it will act as bk_obj_id=object condition
+	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, common.BKInnerObjIDObject,
+		query)
 	if err != nil {
-		blog.Errorf("getObjectByParentID http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(), common.BKInnerObjIDObject, query, kit.Rid)
+		blog.Errorf("getObjectByParentID http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(),
+			common.BKInnerObjIDObject, query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("getObjectByParentID http response error, err code:%d, err msg:%s,objID:%s,input:%+v,rid:%s", result.Code, result.ErrMsg, common.BKInnerObjIDObject, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
 
-	if result.Data.Count == 0 {
+	if result.Count == 0 {
 		return instIDArr, nil
 	}
 
-	for _, info := range result.Data.Info {
+	for _, info := range result.Info {
 		id, err := info.Int64(common.BKInstIDField)
 		if err != nil {
-			blog.Errorf("getObjectByParentID failed, get int64 `bk_inst_id` field failed, instance: %+v, input: %+v, err: %+v, rid:%s", info, query, err, kit.Rid)
-			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDObject, common.BKInstIDField, "int", err.Error())
+			blog.Errorf("getObjectByParentID failed, get int64 `bk_inst_id` field failed, instance: %+v, input: %+v, "+
+				"err: %+v, rid:%s", info, query, err, kit.Rid)
+			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, common.BKInnerObjIDObject,
+				common.BKInstIDField, "int", err.Error())
 		}
 		instIDArr = append(instIDArr, id)
 	}
@@ -239,7 +241,9 @@ func (lgc *Logics) getObjectByParentID(kit *rest.Kit, valArr []int64) ([]int64, 
 	return instIDArr, nil
 }
 
-func (lgc *Logics) GetObjectInstByCond(kit *rest.Kit, objID string, cond []meta.ConditionItem) ([]int64, errors.CCError) {
+// GetObjectInstByCond search object instance by condition
+func (lgc *Logics) GetObjectInstByCond(kit *rest.Kit, objID string, cond []meta.ConditionItem) ([]int64,
+	errors.CCError) {
 	instIDArr := make([]int64, 0)
 	condc := make(map[string]interface{})
 	if err := parse.ParseCommonParams(cond, condc); err != nil {
@@ -263,22 +267,20 @@ func (lgc *Logics) GetObjectInstByCond(kit *rest.Kit, objID string, cond []meta.
 	}
 	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(kit.Ctx, kit.Header, objType, query)
 	if err != nil {
-		blog.Errorf("GetObjectInstByCond http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(), objID, query, kit.Rid)
+		blog.Errorf("GetObjectInstByCond http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(), objID, query,
+			kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("GetObjectInstByCond http response error, err code:%d, err msg:%s,objID:%s,input:%+v,rid:%s", result.Code, result.ErrMsg, objID, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
-	}
 
-	if result.Data.Count == 0 {
+	if result.Count == 0 {
 		return instIDArr, nil
 	}
 
-	for _, info := range result.Data.Info {
+	for _, info := range result.Info {
 		id, err := info.Int64(outField)
 		if err != nil {
-			blog.Errorf("getObjectByParentID convert %s %s to integer error, inst info:%+v, input:%+v,rid:%s", objID, outField, info, query, kit.Rid)
+			blog.Errorf("getObjectByParentID convert %s %s to integer error, inst info:%+v, input:%+v,rid:%s", objID,
+				outField, info, query, kit.Rid)
 			return nil, kit.CCError.Errorf(common.CCErrCommInstFieldConvertFail, objID, outField, "int", err.Error())
 		}
 		instIDArr = append(instIDArr, id)
@@ -287,25 +289,24 @@ func (lgc *Logics) GetObjectInstByCond(kit *rest.Kit, objID string, cond []meta.
 	return instIDArr, nil
 }
 
+// GetHostIDByInstID TODO
 func (lgc *Logics) GetHostIDByInstID(kit *rest.Kit, asstObjId string, instIDArr []int64) ([]int64, errors.CCError) {
 	cond := hutil.NewOperation().WithObjID(common.BKInnerObjIDHost).
 		WithAssoObjID(asstObjId).WithAssoInstID(map[string]interface{}{common.BKDBIN: instIDArr}).Data()
 
-	query := &meta.QueryCondition{
-		Condition: cond,
+	query := &meta.InstAsstQueryCondition{
+		Cond:  meta.QueryCondition{Condition: cond},
+		ObjID: common.BKInnerObjIDHost,
 	}
 	result, err := lgc.CoreAPI.CoreService().Association().ReadInstAssociation(kit.Ctx, kit.Header, query)
 	if err != nil {
-		blog.Errorf("GetHostIDByInstID http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(), common.BKTableNameInstAsst, query, kit.Rid)
+		blog.Errorf("GetHostIDByInstID http do error, err:%s,objID:%s,input:%+v,rid:%s", err.Error(),
+			common.BKTableNameInstAsst, query, kit.Rid)
 		return nil, kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
-	}
-	if !result.Result {
-		blog.Errorf("GetHostIDByInstID http response error, err code:%d, err msg:%s,objID:%s,input:%+v,rid:%s", result.Code, result.ErrMsg, common.BKTableNameInstAsst, query, kit.Rid)
-		return nil, kit.CCError.New(result.Code, result.ErrMsg)
 	}
 
 	hostIDs := make([]int64, 0)
-	for _, val := range result.Data.Info {
+	for _, val := range result.Info {
 		hostIDs = append(hostIDs, val.InstID)
 	}
 

@@ -22,6 +22,7 @@ import (
 	"configcenter/src/storage/stream/types"
 )
 
+// NewLoopWatch TODO
 func NewLoopWatch(streamW *event.Event, isMaster discovery.ServiceManageInterface) (*LoopsWatch, error) {
 	loops := &LoopsWatch{
 		streamWatch: streamW,
@@ -31,6 +32,7 @@ func NewLoopWatch(streamW *event.Event, isMaster discovery.ServiceManageInterfac
 	return loops, nil
 }
 
+// LoopsWatch TODO
 type LoopsWatch struct {
 	streamWatch *event.Event
 	isMaster    discovery.ServiceManageInterface
@@ -147,6 +149,11 @@ func (lw *LoopsWatch) watchRetry(cancel context.CancelFunc,
 		ctx := context.Background()
 
 		select {
+		case <-opts.StopNotifier:
+			cancel()
+			blog.Warnf("received stop %s loop watch job notify, stopping now.", opts.Name)
+			return
+
 		// wait for another retry
 		case <-retrySignal:
 			// wait for a well and then do the retry work.
@@ -266,6 +273,11 @@ func (lw *LoopsWatch) tryLoopWithBatch(ctxWithCancel context.Context,
 					// ticks, but no events received, loop next round to get events.
 					continue
 				}
+
+			case <-opts.StopNotifier:
+				ticker.Stop()
+				blog.Warnf("received stop %s loop watch job notify, stopping now.", opts.Name)
+				return
 			}
 
 			// break the for loop to handle event for now.
@@ -336,6 +348,11 @@ func (lw *LoopsWatch) tryLoopWithOne(ctxWithCancel context.Context,
 			blog.Warnf("%s job, received cancel loop watch %s signal, exit loop, exit loop", opts.Name,
 				opts.WatchOpt.Collection)
 			return
+
+		case <-opts.StopNotifier:
+			blog.Warnf("received stop %s loop watch job notify, stopping now.", opts.Name)
+			return
+
 		default:
 		}
 
@@ -349,7 +366,7 @@ func (lw *LoopsWatch) tryLoopWithOne(ctxWithCancel context.Context,
 		}
 
 		if !loop {
-			blog.Infof("%s job, received %s event, but not master, skip. details: %s, rid: %s",
+			blog.Infof("%s job, received %s %s event, but not master, skip. details: %s, rid: %s",
 				opts.Name, opts.WatchOpt.Collection, one.OperationType, one.String(), one.ID())
 			continue
 		}
@@ -446,6 +463,7 @@ type retryHandler struct {
 	maxRetryCnt int
 }
 
+// canStillRetry TODO
 // check if this event can still retry
 func (r *retryHandler) canStillRetry() bool {
 	r.retryCounter += 1

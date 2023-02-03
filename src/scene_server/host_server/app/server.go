@@ -19,7 +19,9 @@ import (
 	"time"
 
 	"configcenter/src/ac/extensions"
+	"configcenter/src/ac/iam"
 	"configcenter/src/common"
+	"configcenter/src/common/auth"
 	"configcenter/src/common/backbone"
 	cc "configcenter/src/common/backbone/configcenter"
 	"configcenter/src/common/blog"
@@ -29,9 +31,10 @@ import (
 	hostsvc "configcenter/src/scene_server/host_server/service"
 	"configcenter/src/storage/dal/redis"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Run TODO
 func Run(ctx context.Context, cancel context.CancelFunc, op *options.ServerOption) error {
 	svrInfo, err := types.NewServerInfo(op.ServConf)
 	if err != nil {
@@ -79,7 +82,23 @@ func Run(ctx context.Context, cancel context.CancelFunc, op *options.ServerOptio
 		return fmt.Errorf("new redis client failed, err: %s", err.Error())
 	}
 
-	authManager := extensions.NewAuthManager(engine.CoreAPI)
+	hostSrv.Config.Auth, err = iam.ParseConfigFromKV("authServer", nil)
+	if err != nil {
+		blog.Warnf("parse auth center config failed: %v", err)
+	}
+
+	iamCli := new(iam.IAM)
+	if auth.EnableAuthorize() {
+		blog.Info("enable auth center access")
+		iamCli, err = iam.NewIAM(hostSrv.Config.Auth, engine.Metric().Registry())
+		if err != nil {
+			return fmt.Errorf("new iam client failed: %v", err)
+		}
+	} else {
+		blog.Infof("disable auth center access")
+	}
+	authManager := extensions.NewAuthManager(engine.CoreAPI, iamCli)
+
 	service.AuthManager = authManager
 	service.Engine = engine
 	service.Config = hostSrv.Config
@@ -100,12 +119,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, op *options.ServerOptio
 	return nil
 }
 
+// HostServer TODO
 type HostServer struct {
 	Core    *backbone.Engine
 	Config  *options.Config
 	Service *hostsvc.Service
 }
 
+// WebService TODO
 func (h *HostServer) WebService() *restful.Container {
 	return h.Service.WebService()
 }

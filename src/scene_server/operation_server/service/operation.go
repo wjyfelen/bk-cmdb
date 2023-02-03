@@ -20,6 +20,7 @@ import (
 	"configcenter/src/common/util"
 )
 
+// CreateOperationChart TODO
 func (o *OperationServer) CreateOperationChart(ctx *rest.Contexts) {
 	chartInfo := new(metadata.ChartConfig)
 	if err := ctx.DecodeInto(chartInfo); err != nil {
@@ -80,6 +81,7 @@ func (o *OperationServer) CreateOperationChart(ctx *rest.Contexts) {
 	id = configID
 }
 
+// DeleteOperationChart TODO
 func (o *OperationServer) DeleteOperationChart(ctx *rest.Contexts) {
 	id := ctx.Request.PathParameter("id")
 	_, err := o.Engine.CoreAPI.CoreService().Operation().DeleteOperationChart(ctx.Kit.Ctx, ctx.Kit.Header, id)
@@ -91,6 +93,7 @@ func (o *OperationServer) DeleteOperationChart(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 }
 
+// SearchOperationChart TODO
 func (o *OperationServer) SearchOperationChart(ctx *rest.Contexts) {
 	opt := make(map[string]interface{})
 
@@ -104,6 +107,7 @@ func (o *OperationServer) SearchOperationChart(ctx *rest.Contexts) {
 	ctx.RespEntity(result.Data)
 }
 
+// UpdateOperationChart TODO
 func (o *OperationServer) UpdateOperationChart(ctx *rest.Contexts) {
 	opt := mapstr.MapStr{}
 	if err := ctx.DecodeInto(&opt); err != nil {
@@ -119,6 +123,7 @@ func (o *OperationServer) UpdateOperationChart(ctx *rest.Contexts) {
 	ctx.RespEntity(opt["config_id"])
 }
 
+// SearchChartData search data of chart
 func (o *OperationServer) SearchChartData(ctx *rest.Contexts) {
 	srvData := o.newSrvComm(ctx.Kit.Header)
 	inputParams := mapstr.MapStr{}
@@ -129,7 +134,8 @@ func (o *OperationServer) SearchChartData(ctx *rest.Contexts) {
 	ctx.SetReadPreference(common.SecondaryPreferredMode)
 	chart, err := o.CoreAPI.CoreService().Operation().SearchChartCommon(ctx.Kit.Ctx, ctx.Kit.Header, inputParams)
 	if err != nil {
-		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, err: %v, cond: %v, rid: %v", err, inputParams, ctx.Kit.Rid)
+		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, err: %v, cond: %v, "+
+			"rid: %v", err, inputParams, ctx.Kit.Rid)
 		return
 	}
 
@@ -144,7 +150,8 @@ func (o *OperationServer) SearchChartData(ctx *rest.Contexts) {
 	if util.InStrArr(innerChart, chart.Data.Info.ReportType) {
 		data, err := srvData.lgc.InnerChartData(ctx.Kit, chart.Data.Info)
 		if err != nil {
-			ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, cond: %v, err: %v, rid: %v", chart.Data.Info, err, ctx.Kit.Rid)
+			ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, cond: %v, err: %v, "+
+				"rid: %v", chart.Data.Info, err, ctx.Kit.Rid)
 			return
 		}
 		ctx.RespEntity(data)
@@ -157,22 +164,25 @@ func (o *OperationServer) SearchChartData(ctx *rest.Contexts) {
 	query := metadata.QueryCondition{Condition: cond}
 	models, err := o.CoreAPI.CoreService().Model().ReadModel(ctx.Kit.Ctx, ctx.Kit.Header, &query)
 	if err != nil {
-		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, err: %v, rid: %v", err, ctx.Kit.Rid)
+		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, err: %v, rid: %v", err,
+			ctx.Kit.Rid)
 		return
 	}
-	if models.Data.Count <= 0 {
+	if models.Count <= 0 {
 		ctx.RespEntity(nil)
 		return
 	}
 
 	result, err := o.CoreAPI.CoreService().Operation().SearchChartData(ctx.Kit.Ctx, ctx.Kit.Header, chart.Data.Info)
 	if err != nil {
-		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, cond: %v, err: %v, rid: %v", chart.Data.Info, err, ctx.Kit.Rid)
+		ctx.RespErrorCodeOnly(common.CCErrOperationGetChartDataFail, "search chart data fail, cond: %v, err: %v, "+
+			"rid: %v", chart.Data.Info, err, ctx.Kit.Rid)
 		return
 	}
 	ctx.RespEntity(result.Data)
 }
 
+// UpdateChartPosition TODO
 func (o *OperationServer) UpdateChartPosition(ctx *rest.Contexts) {
 	opt := metadata.ChartPosition{}
 	if err := ctx.DecodeInto(&opt); err != nil {

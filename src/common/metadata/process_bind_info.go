@@ -1,3 +1,4 @@
+// Package metadata TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.,
  * Copyright (C) 2017,-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,6 +18,7 @@ import (
 	"fmt"
 
 	"configcenter/src/common"
+	"configcenter/src/thirdparty/hooks/process"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -131,6 +133,7 @@ type stdProcBindInfo struct {
 
 /*** ProcPropertyBindInfo 依赖的方法  ****/
 
+// Validate TODO
 func (pbi *ProcPropertyBindInfo) Validate() (string, error) {
 	maxRowID := int64(0)
 	for idx, property := range pbi.Value {
@@ -145,10 +148,12 @@ func (pbi *ProcPropertyBindInfo) Validate() (string, error) {
 		if err := property.Std.IP.Validate(); err != nil {
 			return fmt.Sprintf("%s[%d].%s", common.BKProcBindInfo, idx, common.BKIP), err
 		}
-		if err := property.Std.Port.Validate(); err != nil {
+		port := (*PropertyPortValue)(property.Std.Port.Value)
+
+		if err := port.Validate(); err != nil {
 			return fmt.Sprintf("%s[%d].%s", common.BKProcBindInfo, idx, common.BKPort), err
 		}
-		if err := property.Std.Protocol.Validate(); err != nil {
+		if err := property.Std.Protocol.Value.Validate(); err != nil {
 			return fmt.Sprintf("%s[%d].%s", common.BKProcBindInfo, idx, common.BKProtocol), err
 		}
 		if err := property.Std.Enable.Validate(); err != nil {
@@ -170,6 +175,7 @@ func (pbi *ProcPropertyBindInfo) Validate() (string, error) {
 	return "", nil
 }
 
+// ExtractChangeInfoBindInfo TODO
 func (pbi *ProcPropertyBindInfo) ExtractChangeInfoBindInfo(i *Process, host map[string]interface{}) ([]ProcBindInfo,
 	bool, bool, error) {
 	var changed, isNamePortChanged bool
@@ -192,9 +198,19 @@ func (pbi *ProcPropertyBindInfo) ExtractChangeInfoBindInfo(i *Process, host map[
 		inputProcBindInfo.Std.TemplateRowID = row.Std.RowID
 
 		if !exists || IsAsDefaultValue(row.Std.IP.AsDefaultValue) {
-			if row.Std.IP.Value != nil || inputProcBindInfo.Std.IP != nil {
-				if row.Std.IP.Value == nil || len(*row.Std.IP.Value) == 0 {
-					return nil, false, false, errors.New("process template bind ip is not set or is empty")
+			if row.Std.IP.Value == nil {
+				if err := process.ValidateProcessBindIPEmptyHook(); err != nil {
+					return nil, false, false, err
+				}
+				if inputProcBindInfo.Std.IP != nil {
+					inputProcBindInfo.Std.IP = nil
+				}
+				changed = true
+			} else {
+				if len(*row.Std.IP.Value) == 0 {
+					if err := process.ValidateProcessBindIPEmptyHook(); err != nil {
+						return nil, false, false, err
+					}
 				}
 
 				ip, err := row.Std.IP.Value.IP(host)
@@ -278,6 +294,7 @@ func (pbi *ProcPropertyBindInfo) ExtractChangeInfoBindInfo(i *Process, host map[
 
 }
 
+// ExtractInstanceUpdateData TODO
 func (pbi *ProcPropertyBindInfo) ExtractInstanceUpdateData(input *Process, host map[string]interface{}) ([]ProcBindInfo,
 	error) {
 	updateData, _, err := pbi.changeInstanceBindInfo(input.BindInfo, host, true)
@@ -332,7 +349,9 @@ func (pbi *ProcPropertyBindInfo) changeInstanceBindInfo(bindInfoArr []ProcBindIn
 		// 处理标准字段，对于更新操作，仅更新锁定的字段，对于新增进程模板绑定信息的操作，使用默认值新增进程的绑定信息
 		if !exists || IsAsDefaultValue(row.Std.IP.AsDefaultValue) == true {
 			if row.Std.IP.Value == nil || len(*row.Std.IP.Value) == 0 {
-				return nil, false, errors.New("process template bind ip is not set or is empty")
+				if err := process.ValidateProcessBindIPEmptyHook(); err != nil {
+					return nil, false, err
+				}
 			}
 
 			ip, err := row.Std.IP.Value.IP(host)
@@ -479,6 +498,7 @@ func cloneProcBindInfoArr(procBindInfoArr []ProcBindInfo) (newData []ProcBindInf
 	return
 }
 
+// DiffWithProcessTemplate TODO
 // Compare 对比模板和实例数据，发现数据是否变化
 func (pbi *ProcPropertyBindInfo) DiffWithProcessTemplate(procBindInfoArr []ProcBindInfo, host map[string]interface{},
 	needDetail bool) (newBindInfoArr []ProcBindInfo, change bool, err error) {
@@ -507,7 +527,9 @@ func (pbi ProcPropertyBindInfo) NewProcBindInfo(host map[string]interface{}) ([]
 
 		/*** 处理标准字段 ***/
 		if row.Std.IP.Value == nil || len(*row.Std.IP.Value) == 0 {
-			return nil, errors.New("process bind info ip is not set or is empty")
+			if err := process.ValidateProcessBindIPEmptyHook(); err != nil {
+				return nil, err
+			}
 		}
 		ip, err := row.Std.IP.Value.IP(host)
 		if err != nil {
@@ -552,6 +574,7 @@ func allFieldValIsNil(extra map[string]interface{}) bool {
 
 /*** ProcPropertyBindInfoValue 依赖的方法  ****/
 
+// UnmarshalJSON TODO
 func (pbi *ProcPropertyBindInfoValue) UnmarshalJSON(data []byte) error {
 	err := defaultPropertyBindInfoHandle.UJSON(data, pbi)
 	if err != nil {
@@ -560,6 +583,7 @@ func (pbi *ProcPropertyBindInfoValue) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalBSON TODO
 func (pbi *ProcPropertyBindInfoValue) UnmarshalBSON(data []byte) error {
 	err := defaultPropertyBindInfoHandle.UBSON(data, pbi)
 	if err != nil {
@@ -568,6 +592,7 @@ func (pbi *ProcPropertyBindInfoValue) UnmarshalBSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON TODO
 func (pbi ProcPropertyBindInfoValue) MarshalJSON() ([]byte, error) {
 	stdData := pbi.Std.toKV()
 	if pbi.extra != nil {
@@ -576,6 +601,7 @@ func (pbi ProcPropertyBindInfoValue) MarshalJSON() ([]byte, error) {
 	return json.Marshal(stdData)
 }
 
+// MarshalBSON TODO
 func (pbi ProcPropertyBindInfoValue) MarshalBSON() ([]byte, error) {
 
 	stdData := pbi.Std.toKV()
@@ -585,14 +611,17 @@ func (pbi ProcPropertyBindInfoValue) MarshalBSON() ([]byte, error) {
 	return bson.Marshal(stdData)
 }
 
+// Validate TODO
 func (pbi *ProcPropertyBindInfoValue) Validate() (string, error) {
 	if err := pbi.Std.IP.Validate(); err != nil {
 		return common.BKIP, err
 	}
-	if err := pbi.Std.Port.Validate(); err != nil {
+
+	port := (*PropertyPortValue)(pbi.Std.Port.Value)
+	if err := port.Validate(); err != nil {
 		return common.BKPort, err
 	}
-	if err := pbi.Std.Protocol.Validate(); err != nil {
+	if err := pbi.Std.Protocol.Value.Validate(); err != nil {
 		return common.BKProtocol, err
 	}
 	if err := pbi.Std.Enable.Validate(); err != nil {
@@ -630,6 +659,7 @@ func (pbi stdProcPropertyBindInfoValue) toKV() map[string]interface{} {
 
 /*** ProcBindInfo 依赖的方法  ****/
 
+// UnmarshalJSON TODO
 func (pbi *ProcBindInfo) UnmarshalJSON(data []byte) error {
 	err := defaultProcBindInfoHandle.UJSON(data, pbi)
 	if err != nil {
@@ -638,6 +668,7 @@ func (pbi *ProcBindInfo) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalBSON TODO
 func (pbi *ProcBindInfo) UnmarshalBSON(data []byte) error {
 	err := defaultProcBindInfoHandle.UBSON(data, pbi)
 	if err != nil {
@@ -646,6 +677,7 @@ func (pbi *ProcBindInfo) UnmarshalBSON(data []byte) error {
 	return nil
 }
 
+// MarshalJSON TODO
 func (pbi ProcBindInfo) MarshalJSON() ([]byte, error) {
 	stdData := pbi.toKV()
 	if pbi.extra != nil {
@@ -654,6 +686,7 @@ func (pbi ProcBindInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(stdData)
 }
 
+// MarshalBSON TODO
 func (pbi ProcBindInfo) MarshalBSON() ([]byte, error) {
 
 	stdData := pbi.toKV()
@@ -663,6 +696,7 @@ func (pbi ProcBindInfo) MarshalBSON() ([]byte, error) {
 	return bson.Marshal(stdData)
 }
 
+// Value TODO
 func (pbi ProcBindInfo) Value() map[string]interface{} {
 	stdData := pbi.toKV()
 	if pbi.extra != nil {
@@ -722,6 +756,7 @@ type openVersionPropertyBindInfo struct {
 type processPropertyBindInfo struct {
 }
 
+// UJSON TODO
 func (ov *openVersionProcBindInfo) UJSON(data []byte, bindInfo *ProcBindInfo) error {
 	if data == nil || len(data) == 0 {
 		return nil
@@ -735,6 +770,7 @@ func (ov *openVersionProcBindInfo) UJSON(data []byte, bindInfo *ProcBindInfo) er
 	return nil
 }
 
+// UBSON TODO
 func (ov *openVersionProcBindInfo) UBSON(data []byte, bindInfo *ProcBindInfo) error {
 	if data == nil || len(data) == 0 {
 		return nil
@@ -746,6 +782,7 @@ func (ov *openVersionProcBindInfo) UBSON(data []byte, bindInfo *ProcBindInfo) er
 	return err
 }
 
+// UJSON TODO
 func (ov *openVersionPropertyBindInfo) UJSON(data []byte, bindInfo *ProcPropertyBindInfoValue) error {
 	if data == nil || len(data) == 0 {
 		return nil
@@ -770,6 +807,7 @@ func (ov *openVersionPropertyBindInfo) UJSON(data []byte, bindInfo *ProcProperty
 	return nil
 }
 
+// UBSON TODO
 func (ov *openVersionPropertyBindInfo) UBSON(data []byte, bindInfo *ProcPropertyBindInfoValue) error {
 	if data == nil || len(data) == 0 {
 		return nil
@@ -798,16 +836,19 @@ func (ov *openVersionPropertyBindInfo) UBSON(data []byte, bindInfo *ProcProperty
 
 /*** 非标准属性需要实现的方法 ***/
 
+// Validate TODO
 func (ppbi *processPropertyBindInfo) Validate() (string, error) {
 	// 公开版没有需要校验的额外字段
 	return "", nil
 }
 
+// ExtractChangeInfoBindInfo TODO
 func (ppbi *processPropertyBindInfo) ExtractChangeInfoBindInfo(i *ProcBindInfo) (map[string]interface{}, bool, bool) {
 	// 公开版没有需要校验的额外字段
 	return nil, false, false
 }
 
+// ExtractInstanceUpdateData TODO
 func (ppbi *processPropertyBindInfo) ExtractInstanceUpdateData(extra map[string]interface{}) map[string]interface{} {
 	// 公开版没有需要校验的额外字段
 	return nil

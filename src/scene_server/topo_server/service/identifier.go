@@ -18,6 +18,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// SearchIdentifier TODO
 func (s *Service) SearchIdentifier(ctx *rest.Contexts) {
 	param := new(metadata.SearchIdentifierParam)
 	if err := ctx.DecodeInto(&param); err != nil {
@@ -29,7 +30,7 @@ func (s *Service) SearchIdentifier(ctx *rest.Contexts) {
 		return
 	}
 	ctx.SetReadPreference(common.SecondaryPreferredMode)
-	retVal, err := s.Core.IdentifierOperation().SearchIdentifier(ctx.Kit, ctx.Request.PathParameter("obj_type"), param)
+	retVal, err := s.Logics.IdentifierOperation().SearchIdentifier(ctx.Kit, param)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return

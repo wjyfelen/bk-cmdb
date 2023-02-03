@@ -26,6 +26,7 @@ import (
 	"configcenter/src/storage/dal/types"
 
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/x/mongo/driver/uuid"
 )
 
@@ -136,16 +137,16 @@ func TestIndex(t *testing.T) {
 	createIndexes := map[string]types.Index{
 		"test_one": types.Index{
 			Name: "test_one",
-			Keys: map[string]int32{"a": 1, "b": 1},
+			Keys: bson.D{{"a", 1}, {"b", 1}},
 		},
 		"test_backgroud": types.Index{
 			Name:       "test_backgroud",
-			Keys:       map[string]int32{"aa": 1, "bb": -1},
+			Keys:       bson.D{{"aa", 1}, {"bb", -1}},
 			Background: true,
 		},
 		"test_unique": types.Index{
 			Name:   "test_unique",
-			Keys:   map[string]int32{"aa": 1, "bb": 1},
+			Keys:   bson.D{{"aa", 1}, {"bb", 1}},
 			Unique: true,
 		},
 	}
@@ -755,7 +756,7 @@ func TestColumn(t *testing.T) {
 		return
 	}
 
-	err = table.RenameColumn(ctx, "rename_col", "rename_col_after")
+	err = table.RenameColumn(ctx, nil, "rename_col", "rename_col_after")
 	require.NoError(t, err)
 
 	cnt, err = table.Find(map[string]string{"rename_col_after": "rename_col1"}).Count(ctx)
@@ -946,8 +947,8 @@ func TestConvInterface(t *testing.T) {
 				"sub_aa":  "ptr",
 			},
 			"tag_test": "11",
-			//"sub_int":  (8888888),
-			//"sub_aa":   "inline",
+			// "sub_int":  (8888888),
+			// "sub_aa":   "inline",
 			"struct_arr": []SubStruct{
 
 				SubStruct{
@@ -1021,7 +1022,7 @@ func TestConvInterface(t *testing.T) {
 		Struct     SubStruct   `bson:"struct" json:"struct"`
 		TagTest    interface{} `bson:"tag_test" json:"tag_test"`
 		StructPtr  *SubStruct  `bson:"struct_ptr" json:"struct_ptr"`
-		//*SubStruct
+		// *SubStruct
 		StructArr []SubStruct `bson:"struct_arr" json:"struct_arr"`
 	}
 
@@ -1372,12 +1373,12 @@ func TestDistinct(t *testing.T) {
 			"type":   "int",
 		},
 		map[string]interface{}{
-			"string":  "bb",
-			"type": "string",
+			"string": "bb",
+			"type":   "string",
 		},
 		map[string]interface{}{
-			"string":  "aa",
-			"type": "string",
+			"string": "aa",
+			"type":   "string",
 		},
 		map[string]interface{}{
 			"bool": true,
@@ -1399,50 +1400,50 @@ func TestDistinct(t *testing.T) {
 	var ret []interface{}
 	ret, dbErr = table.Distinct(context.TODO(), "int64", map[string]string{"type": "int"})
 	require.NoError(t, err, "find distinct int64 error")
-	if true{
+	if true {
 		// 测试转化后的结果与预期是否相同.
-		results,err := util.SliceInterfaceToInt64(ret)
-		require.NoError(t, err,"convert to []int64 error")
-		require.Equal(t,[]int64{64, 164},results)
+		results, err := util.SliceInterfaceToInt64(ret)
+		require.NoError(t, err, "convert to []int64 error")
+		require.Equal(t, []int64{64, 164}, results)
 	}
 
 	// distinct int 字段, db数据为int,返回的结构都是int64.
 	ret, dbErr = table.Distinct(context.TODO(), "int", map[string]string{"type": "int"})
 	require.NoError(t, dbErr, "find distinct int error")
-	if true{
+	if true {
 		// 测试转化后的结果与预期是否相同.
-		results,err := util.SliceInterfaceToInt64(ret)
-		require.NoError(t, err,"convert to []int64 error")
-		require.Equal(t,[]int64{0, 100},results)
+		results, err := util.SliceInterfaceToInt64(ret)
+		require.NoError(t, err, "convert to []int64 error")
+		require.Equal(t, []int64{0, 100}, results)
 	}
 
 	// distinct uint 字段, db数据为uint,返回的结构都是int64.
 	ret, dbErr = table.Distinct(context.TODO(), "uint", map[string]string{"type": "int"})
 	require.NoError(t, dbErr, "find distinct uint error")
-	if true{
+	if true {
 		// 测试转化后的结果与预期是否相同.
-		results,err := util.SliceInterfaceToInt64(ret)
-		require.NoError(t, err,"convert to []int64 error")
-		require.Equal(t,[]int64{0, 100},results)
+		results, err := util.SliceInterfaceToInt64(ret)
+		require.NoError(t, err, "convert to []int64 error")
+		require.Equal(t, []int64{0, 100}, results)
 	}
 
 	// distinct string 字段, db数据为string,返回的结构都是string.
 	ret, dbErr = table.Distinct(context.TODO(), "string", map[string]string{"type": "string"})
 	require.NoError(t, dbErr, "find distinct string error")
-	if true{
+	if true {
 		// 测试转化后的结果与预期是否相同.
-		results,err := util.SliceInterfaceToString(ret)
-		require.NoError(t, err,"convert to []string error")
-		require.Equal(t,[]string{"aa", "bb"},results)
+		results, err := util.SliceInterfaceToString(ret)
+		require.NoError(t, err, "convert to []string error")
+		require.Equal(t, []string{"aa", "bb"}, results)
 	}
 
 	// distinct bool 字段， db数据为bool,返回的结构都是bool.
 	ret, dbErr = table.Distinct(context.TODO(), "bool", map[string]string{"type": "bool"})
 	require.NoError(t, dbErr, "find distinct bool error")
-	if true{
+	if true {
 		// 测试转化后的结果与预期是否相同.
-		results,err := util.SliceInterfaceToBool(ret)
-		require.NoError(t, err,"convert to []bool error")
-		require.Equal(t,[]bool{false,true},results)
+		results, err := util.SliceInterfaceToBool(ret)
+		require.NoError(t, err, "convert to []bool error")
+		require.Equal(t, []bool{false, true}, results)
 	}
 }

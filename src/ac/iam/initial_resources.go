@@ -12,6 +12,8 @@
 
 package iam
 
+import "configcenter/src/common/metadata"
+
 var (
 	businessParent = Parent{
 		SystemID:   SystemIDCMDB,
@@ -19,18 +21,22 @@ var (
 	}
 )
 
+// ResourceTypeIDMap TODO
 var ResourceTypeIDMap = map[TypeID]string{
-	Business:                  "业务",
-	BusinessForHostTrans:      "业务主机",
-	SysCloudArea:              "云区域",
-	SysResourcePoolDirectory:  "主机池目录",
-	SysHostRscPoolDirectory:   "主机池主机",
-	SysModelGroup:             "模型分组",
-	SysInstanceModel:          "实例模型",
-	SysModel:                  "模型",
-	SysInstance:               "实例",
+	Business:                 "业务",
+	BizSet:                   "业务集",
+	BusinessForHostTrans:     "业务主机",
+	SysCloudArea:             "云区域",
+	SysResourcePoolDirectory: "主机池目录",
+	SysHostRscPoolDirectory:  "主机池主机",
+	SysModelGroup:            "模型分组",
+	SysInstanceModel:         "实例模型",
+	SysModel:                 "模型",
+	SysModelEvent:            "模型列表",
+	MainlineModelEvent:       "资源事件",
+	InstAsstEvent:            "实例关联事件",
+	// SysInstance:               "实例",
 	SysAssociationType:        "关联类型",
-	SysEventPushing:           "事件订阅",
 	SysOperationStatistic:     "运营统计",
 	SysAuditLog:               "操作审计",
 	SysCloudAccount:           "云账户",
@@ -48,7 +54,20 @@ var ResourceTypeIDMap = map[TypeID]string{
 }
 
 // GenerateResourceTypes generate all the resource types registered to IAM.
-func GenerateResourceTypes() []ResourceType {
+func GenerateResourceTypes(models []metadata.Object) []ResourceType {
+	resourceTypeList := make([]ResourceType, 0)
+
+	// add public and business resources
+	resourceTypeList = append(resourceTypeList, GenerateStaticResourceTypes()...)
+
+	// add dynamic resources
+	resourceTypeList = append(resourceTypeList, genDynamicResourceTypes(models)...)
+
+	return resourceTypeList
+}
+
+// GenerateStaticResourceTypes TODO
+func GenerateStaticResourceTypes() []ResourceType {
 	resourceTypeList := make([]ResourceType, 0)
 
 	// add public resources
@@ -56,14 +75,13 @@ func GenerateResourceTypes() []ResourceType {
 
 	// add business resources
 	resourceTypeList = append(resourceTypeList, genBusinessResources()...)
-
 	return resourceTypeList
 }
 
 // GetResourceParentMap generate resource types' mapping to parents.
 func GetResourceParentMap() map[TypeID][]TypeID {
 	resourceParentMap := make(map[TypeID][]TypeID, 0)
-	for _, resourceType := range GenerateResourceTypes() {
+	for _, resourceType := range GenerateStaticResourceTypes() {
 		for _, parent := range resourceType.Parents {
 			resourceParentMap[resourceType.ID] = append(resourceParentMap[resourceType.ID], parent.ResourceID)
 		}
@@ -81,7 +99,7 @@ func genBusinessResources() []ResourceType {
 			DescriptionEn: "hosts under a business or in resource pool",
 			Parents: []Parent{{
 				SystemID: SystemIDCMDB,
-				//ResourceID: Module,
+				// ResourceID: Module,
 				ResourceID: Business,
 			}, {
 				SystemID:   SystemIDCMDB,
@@ -189,7 +207,7 @@ func genBusinessResources() []ResourceType {
 			Version: 1,
 		},
 		// only for host topology usage, not related to actions
-		//{
+		// {
 		//	ID:            Set,
 		//	Name:          ResourceTypeIDMap[Set],
 		//	NameEn:        "Set",
@@ -200,8 +218,8 @@ func genBusinessResources() []ResourceType {
 		//		Path: "/auth/v3/find/resource",
 		//	},
 		//	Version: 1,
-		//},
-		//{
+		// },
+		// {
 		//	ID:            Module,
 		//	Name:          ResourceTypeIDMap[Module],
 		//	NameEn:        "Module",
@@ -215,12 +233,24 @@ func genBusinessResources() []ResourceType {
 		//		Path: "/auth/v3/find/resource",
 		//	},
 		//	Version: 1,
-		//},
+		// },
 	}
 }
 
 func genPublicResources() []ResourceType {
 	return []ResourceType{
+		{
+			ID:            BizSet,
+			Name:          ResourceTypeIDMap[BizSet],
+			NameEn:        "Business Set",
+			Description:   "业务集",
+			DescriptionEn: "business set",
+			Parents:       nil,
+			ProviderConfig: ResourceConfig{
+				Path: "/auth/v3/find/resource",
+			},
+			Version: 1,
+		},
 		{
 			ID:            Business,
 			Name:          ResourceTypeIDMap[Business],
@@ -318,38 +348,11 @@ func genPublicResources() []ResourceType {
 			Version: 1,
 		},
 		{
-			ID:            SysInstance,
-			Name:          ResourceTypeIDMap[SysInstance],
-			NameEn:        "Instance",
-			Description:   "模型实例",
-			DescriptionEn: "model instance",
-			Parents: []Parent{{
-				SystemID:   SystemIDCMDB,
-				ResourceID: SysModel,
-			}},
-			ProviderConfig: ResourceConfig{
-				Path: "/auth/v3/find/resource",
-			},
-			Version: 1,
-		},
-		{
 			ID:            SysAssociationType,
 			Name:          ResourceTypeIDMap[SysAssociationType],
 			NameEn:        "Association Type",
 			Description:   "关联类型是模型关联关系的分类",
 			DescriptionEn: "association type is the classification of model association",
-			Parents:       nil,
-			ProviderConfig: ResourceConfig{
-				Path: "/auth/v3/find/resource",
-			},
-			Version: 1,
-		},
-		{
-			ID:            SysEventPushing,
-			Name:          ResourceTypeIDMap[SysEventPushing],
-			NameEn:        "Event Subscription",
-			Description:   "当配置发生变化时推送事件",
-			DescriptionEn: "push event when configuration changes",
 			Parents:       nil,
 			ProviderConfig: ResourceConfig{
 				Path: "/auth/v3/find/resource",
@@ -410,6 +413,42 @@ func genPublicResources() []ResourceType {
 			NameEn:        "Event Listen",
 			Description:   "事件监听",
 			DescriptionEn: "event watch",
+			Parents:       nil,
+			ProviderConfig: ResourceConfig{
+				Path: "/auth/v3/find/resource",
+			},
+			Version: 1,
+		},
+		{
+			ID:            SysModelEvent,
+			Name:          ResourceTypeIDMap[SysModelEvent],
+			NameEn:        "Model List",
+			Description:   "模型列表",
+			DescriptionEn: "model list",
+			Parents:       nil,
+			ProviderConfig: ResourceConfig{
+				Path: "/auth/v3/find/resource",
+			},
+			Version: 1,
+		},
+		{
+			ID:            MainlineModelEvent,
+			Name:          ResourceTypeIDMap[MainlineModelEvent],
+			NameEn:        "Resource Event",
+			Description:   "资源事件",
+			DescriptionEn: "resource event",
+			Parents:       nil,
+			ProviderConfig: ResourceConfig{
+				Path: "/auth/v3/find/resource",
+			},
+			Version: 1,
+		},
+		{
+			ID:            InstAsstEvent,
+			Name:          ResourceTypeIDMap[InstAsstEvent],
+			NameEn:        "Instance Association Event",
+			Description:   "实例关联事件",
+			DescriptionEn: "instance association event",
 			Parents:       nil,
 			ProviderConfig: ResourceConfig{
 				Path: "/auth/v3/find/resource",

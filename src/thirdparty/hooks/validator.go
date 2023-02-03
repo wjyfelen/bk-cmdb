@@ -14,8 +14,11 @@ package hooks
 
 import (
 	"configcenter/src/apimachinery"
+	"configcenter/src/common/errors"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
+	"configcenter/src/common/metadata"
+	"configcenter/src/storage/dal"
 )
 
 // IsSkipValidateHook is a hook to check if a insert or update option is need to validate or not.
@@ -39,4 +42,17 @@ func ValidateBizBsTopoHook(kit *rest.Kit, objID string, originData mapstr.MapStr
 // ValidateHostBsInfoHook is a hook to check if host bk_bs_info field is valid or not
 func ValidateHostBsInfoHook(kit *rest.Kit, objID string, data mapstr.MapStr) error {
 	return nil
+}
+
+// ValidHostTransferHook is a hook to check if host transfer parameter is valid or not
+func ValidHostTransferHook(kit *rest.Kit, db dal.DB, crossBizTransfer bool, srcBizIDs []int64,
+	destBizID int64) errors.CCErrorCoder {
+
+	return nil
+}
+
+// ValidBizSetPropertyHook is a hook to check if a specific property id is valid or not
+func ValidBizSetPropertyHook(kit *rest.Kit, fieldInfo *metadata.BizSetScopeParamsInfo, info metadata.Attribute,
+	propertyID interface{}) (bool, error) {
+	return false, nil
 }

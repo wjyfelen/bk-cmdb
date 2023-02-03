@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-table v-if="!process.pending"
     ref="expandListTable"
@@ -7,7 +19,7 @@
     :header-cell-style="{ backgroundColor: '#fff' }"
     v-bind="dynamicProps"
     @selection-change="handleSelectionChange">
-    <bk-table-column type="selection" fixed></bk-table-column>
+    <bk-table-column v-if="!readonly" type="selection" fixed></bk-table-column>
     <bk-table-column :label="$t('所属实例')" prop="service_instance_name" min-width="150" fixed show-overflow-tooltip>
       <template slot-scope="{ row }">
         <span class="instance-name" @click.stop="handleView(row)">{{row.service_instance_name}}</span>
@@ -30,10 +42,10 @@
         </process-bind-info-value>
       </template>
     </bk-table-column>
-    <bk-table-column :label="$t('操作')" width="150" fixed="right" :resizable="false">
+    <bk-table-column v-if="!readonly" :label="$t('操作')" width="150" fixed="right" :resizable="false">
       <template slot-scope="{ row }">
         <cmdb-auth class="mr10" :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }">
-          <bk-button slot-scope="{ disabled }"
+          <bk-button slot-scope="{ disabled }" v-test-id="'edit'"
             theme="primary" text
             :disabled="disabled"
             @click="handleEdit(row)">
@@ -42,12 +54,17 @@
         </cmdb-auth>
         <cmdb-auth :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
           v-if="!row.relation.process_template_id">
-          <bk-button slot-scope="{ disabled }"
-            theme="primary" text
-            :disabled="disabled"
-            @click="handleDelete(row)">
-            {{$t('删除')}}
-          </bk-button>
+          <bk-popconfirm trigger="click" slot-scope="{ disabled }"
+            ext-popover-cls="del-confirm"
+            :content="$t('确定删除该进程')"
+            confirm-loading
+            @confirm="handleDelete(row)">
+            <bk-button v-test-id="'del'"
+              theme="primary" text
+              :disabled="disabled">
+              {{$t('删除')}}
+            </bk-button>
+          </bk-popconfirm>
         </cmdb-auth>
       </template>
     </bk-table-column>
@@ -59,6 +76,7 @@
   import { processTableHeader } from '@/dictionary/table-header'
   import { mapGetters } from 'vuex'
   import Bus from '../common/bus'
+  import RootBus from '@/utils/bus'
   import Form from '@/components/service/form/form.js'
   import ProcessBindInfoValue from '@/components/service/process-bind-info-value'
   import RouterQuery from '@/router/query'
@@ -67,7 +85,22 @@
       ProcessBindInfoValue
     },
     props: {
-      process: Object
+      process: Object,
+      /**
+       * 是否只读
+       */
+      readonly: {
+        type: Boolean,
+        default: false
+      },
+      /**
+       * 列表请求方法
+       */
+      listRequest: {
+        type: Function,
+        default: null,
+        required: true
+      }
     },
     data() {
       return {
@@ -85,7 +118,10 @@
     computed: {
       ...mapGetters(['supplierAccount']),
       ...mapGetters('businessHost', ['selectedNode']),
-      ...mapGetters('objectBiz', ['bizId']),
+      bizId() {
+        const { objectBiz, bizSet } = this.$store.state
+        return objectBiz.bizId || bizSet.bizId
+      },
       serviceTemplateId() {
         return this.selectedNode && this.selectedNode.data.service_template_id
       },
@@ -121,18 +157,17 @@
       },
       async getList() {
         try {
-          const { info } = await this.$store.dispatch('serviceInstance/getProcessListById', {
-            params: {
-              bk_biz_id: this.bizId,
-              process_ids: this.process.process_ids,
-              page: { limit: 999999999 }
-            },
-            config: {
-              requestId: this.request.list,
-              cancelPrevious: true
-            }
-          })
-          this.list = info
+          const reqParams = {
+            bk_biz_id: this.bizId,
+            process_ids: this.process.process_ids,
+            page: { limit: 999999999 }
+          }
+          const reqConfig = {
+            requestId: this.request.list,
+            cancelPrevious: true
+          }
+
+          this.list = await this.listRequest(reqParams, reqConfig)
         } catch (error) {
           console.error(error)
           this.list = []
@@ -204,7 +239,8 @@
           processTemplateId: row.relation.process_template_id,
           hostId: row.relation.bk_host_id,
           bizId: this.bizId,
-          submitHandler: this.editSubmitHandler
+          submitHandler: this.editSubmitHandler,
+          showOptions: !this.readonly,
         })
       },
       handleEdit(row) {
@@ -232,22 +268,17 @@
           console.error(error)
         }
       },
-      handleDelete(row) {
-        this.$bkInfo({
-          title: this.$t('确定删除该进程'),
-          confirmFn: async () => {
-            try {
-              await this.dispatchDelete([row.process_id])
-              if (this.list.length === 1) {
-                this.refreshParentList()
-              } else {
-                this.getList()
-              }
-            } catch (error) {
-              console.error(error)
-            }
+      async handleDelete(row) {
+        try {
+          await this.dispatchDelete([row.process_id])
+          if (this.list.length === 1) {
+            this.refreshParentList()
+          } else {
+            this.getList()
           }
-        })
+        } catch (error) {
+          console.error(error)
+        }
       },
       async handeBatchDelete(name) {
         if (name !== this.process.bk_process_name) {
@@ -278,6 +309,7 @@
         })
       },
       refreshParentList() {
+        RootBus.$emit('refresh-count-by-node')
         RouterQuery.set({
           _t: Date.now(),
           page: 1

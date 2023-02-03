@@ -1,9 +1,22 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-sideslider class="filter-form-sideslider"
+    v-transfer-dom
     :is-show.sync="isShow"
     :width="400"
     :show-mask="false"
-    :transfer="false"
+    :transfer="true"
     :quick-close="false"
     @hidden="handleClosed">
     <div class="filter-form-header" slot="header">
@@ -51,7 +64,7 @@
           <div class="item-content-wrapper">
             <operator-selector class="item-operator"
               v-if="!withoutOperator.includes(property.bk_property_type)"
-              :type="property.bk_property_type"
+              :property="property"
               v-model="condition[property.id].operator"
               @change="handleOperatorChange(property, ...arguments)">
             </operator-selector>
@@ -98,7 +111,7 @@
             theme="light"
             trigger="manual"
             :width="280"
-            :z-index="1002"
+            :z-index="99999"
             :tippy-options="{
               interactive: true,
               hideOnClick: false,
@@ -162,7 +175,9 @@
       focus: {
         inserted: (el) => {
           const input = el.querySelector('textarea')
-          input.focus()
+          setTimeout(() => {
+            input.focus()
+          }, 0)
         }
       }
     },
@@ -242,14 +257,25 @@
           bk_property_type: propertyType
         } = property
         const normal = `cmdb-search-${propertyType}`
+
+        // 业务名在包含与非包含操作符时使用输入联想组件
+        if (modelId === 'biz' && propertyId === 'bk_biz_name' && this.condition[property.id].operator !== '$regex') {
+          return `cmdb-search-${modelId}`
+        }
+
+        // 资源-主机下无业务
         if (!FilterStore.bizId) {
           return normal
         }
+
         const isSetName = modelId === 'set' && propertyId === 'bk_set_name'
         const isModuleName = modelId === 'module' && propertyId === 'bk_module_name'
-        if (isSetName || isModuleName) {
+
+        // 在业务视图并且非模糊查询的情况，模块与集群名称使用专属的输入联想组件，否则使用与propertyType匹配的相应组件
+        if ((isSetName || isModuleName) && this.condition[property.id].operator !== '$regex') {
           return `cmdb-search-${modelId}`
         }
+
         return normal
       },
       getBindProps(property) {
@@ -318,6 +344,7 @@
         // tag-input组件在blur时写入数据有200ms的延迟，此处等待更长时间，避免无法写入
         this.searchTimer && clearTimeout(this.searchTimer)
         this.searchTimer = setTimeout(() => {
+          FilterStore.resetPage(true)
           FilterStore.updateSelected(this.selected) // 此处会额外触发一次watch
           FilterStore.setCondition({
             condition: this.$tools.clone(this.condition),

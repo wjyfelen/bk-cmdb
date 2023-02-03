@@ -1,9 +1,22 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="history-layout">
     <div class="history-options">
       <bk-date-picker class="options-date"
         type="datetimerange"
-        :placeholder="$t('请选择xx', { name: '时间范围' })"
+        transfer
+        :placeholder="$t('请选择xx', { name: $t('时间范围') })"
         v-model="timeRange"
         @change="getHistory">
       </bk-date-picker>
@@ -22,8 +35,8 @@
         </bk-table-column>
         <bk-table-column :label="$t('操作概要')" prop="bk_summary" width="200" show-overflow-tooltip>
           <i18n slot-scope="{ row }" path="新增N台主机，更新M台主机">
-            <span class="summary-count" place="new">{{getCount(row, 'new_add')}}</span>
-            <span class="summary-count" place="update">{{getCount(row, 'update')}}</span>
+            <template #new><span class="summary-count">{{getCount(row, 'new_add')}}</span></template>
+            <template #update><span class="summary-count">{{getCount(row, 'update')}}</span></template>
           </i18n>
         </bk-table-column>
         <bk-table-column :label="$t('状态')" prop="bk_sync_status">

@@ -35,13 +35,24 @@ const (
 
 	// BKNoLimit no limit definition
 	BKNoLimit = 999999999
+	// BKMaxPageSize TODO
 	// max limit of a page
 	BKMaxPageSize = 1000
 
+	// BKMaxLimitSize max limit of a page.
+	BKMaxLimitSize = 500
+
+	// BKMaxUpdateOrCreatePageSize maximum number of updates.
+	BKMaxUpdateOrCreatePageSize = 100
+
+	// BKMaxDeletePageSize max limit of a delete page
+	BKMaxDeletePageSize = 500
+
+	// BKMaxInstanceLimit TODO
 	// max limit of instance count
 	BKMaxInstanceLimit = 500
 
-	// 一次最大操作记录数
+	// BKMaxRecordsAtOnce 一次最大操作记录数
 	BKMaxRecordsAtOnce = 2000
 
 	// BKDefaultLimit the default limit definition
@@ -50,8 +61,11 @@ const (
 	// BKAuditLogPageLimit the audit log page limit
 	BKAuditLogPageLimit = 200
 
-	// BKMaxExportRecord the limit to export
+	// BKMaxExportLimit the limit to export
 	BKMaxExportLimit = 10000
+
+	// BKMaxOnceExportLimit the limit once to export
+	BKMaxOnceExportLimit = 30000
 
 	// BKInstParentStr the inst parent name
 	BKInstParentStr = "bk_parent_id"
@@ -73,9 +87,16 @@ const (
 
 	// BKTopoBusinessLevelDefault the mainline topo level default level
 	BKTopoBusinessLevelDefault = 7
+
+	// BKMaxSyncIdentifierLimit sync identifier max value
+	BKMaxSyncIdentifierLimit = 200
 )
 
 const (
+
+	// BKInnerObjIDBizSet the inner object
+	BKInnerObjIDBizSet = "bk_biz_set_obj"
+
 	// BKInnerObjIDApp the inner object
 	BKInnerObjIDApp = "biz"
 
@@ -97,7 +118,7 @@ const (
 	// BKInnerObjIDConfigTemp the inner object
 	BKInnerObjIDConfigTemp = "config_template"
 
-	// BKInnerObjIDTempVerion the inner object
+	// BKInnerObjIDTempVersion the inner object
 	BKInnerObjIDTempVersion = "template_version"
 
 	// BKInnerObjIDPlat the inner object
@@ -127,6 +148,7 @@ const (
 )
 
 const (
+	// BKDBMULTIPLELike TODO
 	// used only for host search
 	BKDBMULTIPLELike = "$multilike"
 
@@ -205,6 +227,19 @@ const (
 
 	// BKDBSize counts and returns the total number of items in an array
 	BKDBSize = "$size"
+
+	// BKDBType selects documents where the value of the field is an instance of the specified BSON type(s).
+	// Querying by data type is useful when dealing with highly unstructured data where data types are not predictable.
+	BKDBType = "$type"
+
+	// BKDBSort the db operator
+	BKDBSort = "$sort"
+
+	// BKDBReplaceRoot the db operator
+	BKDBReplaceRoot = "$replaceRoot"
+
+	// BKDBLimit the db operator to limit return number of doc
+	BKDBLimit = "$limit"
 )
 
 const (
@@ -218,7 +253,8 @@ const (
 
 const (
 	// BKFieldID the id definition
-	BKFieldID   = "id"
+	BKFieldID = "id"
+	// BKFieldName TODO
 	BKFieldName = "name"
 
 	// BKDefaultField the default field
@@ -257,6 +293,9 @@ const (
 	// TimeTransferModel the time transferModel field
 	TimeTransferModel = "2006-01-02 15:04:05"
 
+	// TimeDayTransferModel the time transferModel field
+	TimeDayTransferModel = "2006-01-02"
+
 	// BKCloudTaskID the cloud sync task id
 	BKCloudTaskID = "bk_task_id"
 
@@ -287,12 +326,8 @@ const (
 	// BKModuleNameField the module name field
 	BKModuleNameField = "bk_module_name"
 
+	// HostApplyEnabledField TODO
 	HostApplyEnabledField = "host_apply_enabled"
-
-	// BKSubscriptionIDField the subscription id field
-	BKSubscriptionIDField = "subscription_id"
-	// BKSubscriptionNameField the subscription name field
-	BKSubscriptionNameField = "subscription_name"
 
 	// BKOSTypeField the os type field
 	BKOSTypeField = "bk_os_type"
@@ -339,7 +374,7 @@ const (
 	// BKProcIDField the proc id field
 	BKProcIDField = "bk_process_id"
 
-	// BKConfTempId is the config template id field
+	// BKConfTempIdField is the config template id field
 	BKConfTempIdField = "bk_conftemp_id"
 
 	// BKProcNameField the proc name field
@@ -348,7 +383,7 @@ const (
 	// BKTemlateIDField the process template id field
 	BKTemlateIDField = "template_id"
 
-	// BKVesionIDField the version id field
+	// BKVersionIDField the version id field
 	BKVersionIDField = "version_id"
 
 	// BKTemplateNameField the template name field
@@ -363,11 +398,13 @@ const (
 	// BKPropertyNameField the property name field
 	BKPropertyNameField = "bk_property_name"
 
+	// BKPropertyIndexField TODO
 	BKPropertyIndexField = "bk_property_index"
 
 	// BKPropertyTypeField the property type field
 	BKPropertyTypeField = "bk_property_type"
 
+	// BKPropertyGroupField TODO
 	BKPropertyGroupField = "bk_property_group"
 
 	// BKPropertyValueField the property value field
@@ -436,6 +473,9 @@ const (
 	// BKSetDescField the set desc field
 	BKSetDescField = "bk_set_desc"
 
+	// BKBizSetDescField the biz set desc field
+	BKBizSetDescField = "bk_biz_set_desc"
+
 	// BKSetCapacityField the set capacity field
 	BKSetCapacityField = "bk_capacity"
 
@@ -472,24 +512,32 @@ const (
 	// BKEnable the enable
 	BKEnable = "enable"
 
+	// BKProcessObjectName TODO
 	// the process object name
 	BKProcessObjectName = "process"
 
 	// BKProcessIDField the process id field
 	BKProcessIDField = "bk_process_id"
 
+	// BKServiceInstanceIDField TODO
 	BKServiceInstanceIDField = "service_instance_id"
+	// BKServiceTemplateIDField TODO
 	BKServiceTemplateIDField = "service_template_id"
+	// BKProcessTemplateIDField TODO
 	BKProcessTemplateIDField = "process_template_id"
+	// BKServiceCategoryIDField TODO
 	BKServiceCategoryIDField = "service_category_id"
 
-	BKSetTemplateIDField      = "set_template_id"
-	BKSetTemplateVersionField = "set_template_version"
+	// BKSetTemplateIDField TODO
+	BKSetTemplateIDField = "set_template_id"
 
+	// HostApplyRuleIDField TODO
 	HostApplyRuleIDField = "host_apply_rule_id"
 
+	// BKParentIDField TODO
 	BKParentIDField = "bk_parent_id"
-	BKRootIDField   = "bk_root_id"
+	// BKRootIDField TODO
+	BKRootIDField = "bk_root_id"
 
 	// BKProcessNameField the process name field
 	BKProcessNameField = "bk_process_name"
@@ -500,6 +548,7 @@ const (
 	// BKFuncName the function name
 	BKFuncName = "bk_func_name"
 
+	// BKStartParamRegex TODO
 	BKStartParamRegex = "bk_start_param_regex"
 
 	// BKBindIP the bind ip
@@ -511,9 +560,13 @@ const (
 	// BKIsPre the ispre field
 	BKIsPre = "ispre"
 
+	// BKObjectUniqueKeys object unique keys field
+	BKObjectUniqueKeys = "keys"
+
 	// BKIsIncrementField the isincrement field
 	BKIsIncrementField = "is_increment"
 
+	// BKIsCollapseField TODO
 	BKIsCollapseField = "is_collapse"
 
 	// BKProxyListField the proxy list field
@@ -578,55 +631,116 @@ const (
 
 	// BKIsOnlyField the isonly name field
 	BKIsOnlyField = "isonly"
-	// BKGseTaskIdField the gse taskid
+	// BKGseTaskIDField the gse taskid
 	BKGseTaskIDField = "task_id"
-	// BKTaskIdField the gse taskid
+	// BKTaskIDField the gse taskid
 	BKTaskIDField = "task_id"
 	// BKGseOpTaskIDField the gse taskid
 	BKGseOpTaskIDField = "gse_task_id"
-	BKProcPidFile      = "pid_file"
-	BKProcStartCmd     = "start_cmd"
-	BKProcStopCmd      = "stop_cmd"
-	BKProcReloadCmd    = "reload_cmd"
-	BKProcRestartCmd   = "restart_cmd"
-	BKProcTimeOut      = "timeout"
-	BKProcWorkPath     = "work_path"
-	BKProcInstNum      = "proc_num"
+	// BKProcPidFile TODO
+	BKProcPidFile = "pid_file"
+	// BKProcStartCmd TODO
+	BKProcStartCmd = "start_cmd"
+	// BKProcStopCmd TODO
+	BKProcStopCmd = "stop_cmd"
+	// BKProcReloadCmd TODO
+	BKProcReloadCmd = "reload_cmd"
+	// BKProcRestartCmd TODO
+	BKProcRestartCmd = "restart_cmd"
+	// BKProcTimeOut TODO
+	BKProcTimeOut = "timeout"
+	// BKProcWorkPath TODO
+	BKProcWorkPath = "work_path"
+	// BKProcInstNum TODO
+	BKProcInstNum = "proc_num"
 
 	// BKInstKeyField the inst key field for metric discover
 	BKInstKeyField = "bk_inst_key"
 
+	// BKDeviceIDField TODO
 	// for net collect device
-	BKDeviceIDField    = "device_id"
-	BKDeviceNameField  = "device_name"
+	BKDeviceIDField = "device_id"
+	// BKDeviceNameField TODO
+	BKDeviceNameField = "device_name"
+	// BKDeviceModelField TODO
 	BKDeviceModelField = "device_model"
-	BKVendorField      = "bk_vendor"
+	// BKVendorField TODO
+	BKVendorField = "bk_vendor"
 
+	// BKNetcollectPropertyIDField TODO
 	// for net collect property of device
 	BKNetcollectPropertyIDField = "netcollect_property_id"
-	BKOIDField                  = "oid"
-	BKPeriodField               = "period"
-	BKActionField               = "action"
-	BKProcinstanceID            = "proc_instance_id"
+	// BKOIDField TODO
+	BKOIDField = "oid"
+	// BKPeriodField TODO
+	BKPeriodField = "period"
+	// BKActionField TODO
+	BKActionField = "action"
+	// BKProcinstanceID TODO
+	BKProcinstanceID = "proc_instance_id"
 
 	// BKGseOpProcTaskDetailField gse operate process return detail
 	BKGseOpProcTaskDetailField = "detail"
-	BKGroupField               = "group"
+	// BKGroupField TODO
+	BKGroupField = "group"
 
+	// BKAttributeIDField TODO
 	BKAttributeIDField = "bk_attribute_id"
 
-	BKSubscribeID = "subscribeID"
-
-	BKTokenField       = "token"
-	BKCursorField      = "cursor"
+	// BKTokenField TODO
+	BKTokenField = "token"
+	// BKCursorField TODO
+	BKCursorField = "cursor"
+	// BKClusterTimeField TODO
 	BKClusterTimeField = "cluster_time"
-	BKEventTypeField   = "type"
+	// BKEventTypeField TODO
+	BKEventTypeField = "type"
+	// BKStartAtTimeField TODO
 	BKStartAtTimeField = "start_at_time"
+	// BKSubResourceField TODO
+	BKSubResourceField = "bk_sub_resource"
+
+	// BKBizSetIDField TODO
+	BKBizSetIDField = "bk_biz_set_id"
+	// BKBizSetNameField TODO
+	BKBizSetNameField = "bk_biz_set_name"
+	// BKBizSetScopeField TODO
+	BKBizSetScopeField = "bk_scope"
+	// BKBizSetMatchField TODO
+	BKBizSetMatchField = "match_all"
+
+	// BKHostInnerIPv6Field the host innerip field in the form of ipv6
+	BKHostInnerIPv6Field = "bk_host_innerip_v6"
+
+	// BKHostOuterIPv6Field the host outerip field in the form of ipv6
+	BKHostOuterIPv6Field = "bk_host_outerip_v6"
+
+	// BKAgentIDField the agent id field, used by agent to identify a host
+	BKAgentIDField = "bk_agent_id"
 )
 
 const (
+	// BKRequestField TODO
 	BKRequestField = "bk_request_id"
-	BKTxnIDField   = "bk_txn_id"
+	// BKTxnIDField TODO
+	BKTxnIDField = "bk_txn_id"
+)
+
+const (
+	// UserDefinedModules user define idle module key.
+	UserDefinedModules = "user_modules"
+
+	// SystemSetName user define idle module key.
+	SystemSetName = "set_name"
+
+	// SystemIdleModuleKey system idle module key.
+	SystemIdleModuleKey = "idle"
+
+	// SystemFaultModuleKey system define fault module name.
+	SystemFaultModuleKey = "fault"
+
+	// SystemRecycleModuleKey system define recycle module name.
+	SystemRecycleModuleKey = "recycle"
 )
 
 // DefaultResSetName the inner module set
@@ -673,6 +787,7 @@ const (
 // DefaultResSetFlag the default resource set flat
 const DefaultResSetFlag int = 1
 
+// DefaultFlagDefaultValue TODO
 const DefaultFlagDefaultValue int = 0
 
 // DefaultAppFlag the default app flag
@@ -681,19 +796,24 @@ const DefaultAppFlag int = 1
 // DefaultAppName the default app name
 const DefaultAppName string = "资源池"
 
+// DefaultCloudName TODO
 const DefaultCloudName string = "default area"
 
+// DefaultInstName TODO
 const DefaultInstName string = "实例名"
 
 // BKAppName the default app name
 const BKAppName string = "蓝鲸"
 
+// BKNetwork TODO
 // bk_classification_id value
 const BKNetwork = "bk_network"
 
 const (
+	// SNMPActionGet TODO
 	SNMPActionGet = "get"
 
+	// SNMPActionGetNext TODO
 	SNMPActionGetNext = "getnext"
 )
 
@@ -715,9 +835,13 @@ const (
 
 	// DefaultResSelfDefinedModuleFlag the default resource self-defined module flag
 	DefaultResSelfDefinedModuleFlag int = 4
+
+	// DefaultUserResModuleFlag the default platform self-defined module flag.
+	DefaultUserResModuleFlag int = 5
 )
 
 const (
+	// DefaultModuleType TODO
 	DefaultModuleType string = "1"
 )
 
@@ -746,6 +870,11 @@ const (
 	// FieldTypeUser the user field type
 	FieldTypeUser string = "objuser"
 
+	// FieldObject 此处只校验是否是对象。此校验是为了兼容biz_set中的bk_scope 的类型是 querybuilder，由于在 coreservice层解析出来的
+	// 是map[string]interface,所以在此处只需要校验是否是对象，对于querybuilder的合法性应该放在场景层做校验。后续如果走的是object校验，
+	// 都需要在场景层进行真正的校验
+	FieldObject string = "object"
+
 	// FieldTypeTimeZone the timezone field type
 	FieldTypeTimeZone string = "timezone"
 
@@ -770,21 +899,19 @@ const (
 	// FieldTypeUserLenChar the user char length limit
 	FieldTypeUserLenChar int = 2000
 
-	//FieldTypeStrictCharRegexp the single char regex expression
+	// FieldTypeStrictCharRegexp the single char regex expression
 	FieldTypeStrictCharRegexp string = `^[a-zA-Z]\w*$`
 
-	//FieldTypeServiceCategoryRegexp the service category regex expression
+	// FieldTypeServiceCategoryRegexp the service category regex expression
 	FieldTypeServiceCategoryRegexp string = `^([\w\p{Han}]|[:\-\(\)])+$`
 
-	//FieldTypeMainlineRegexp the mainline instance name regex expression
-	FieldTypeMainlineRegexp string = `^[^\|/:*,<>"?# ]+$`
+	// FieldTypeMainlineRegexp the mainline instance name regex expression
+	FieldTypeMainlineRegexp string = `^[^\\\|\/:\*,<>"\?#\s]+$`
 
-	//FieldTypeSingleCharRegexp the single char regex expression
-	//FieldTypeSingleCharRegexp string = `^([\w\p{Han}]|[，。？！={}|?<>~～、：＃；％＊——……＆·＄（）‘’“”\[\]『』〔〕｛｝【】￥￡♀‖〖〗《》「」:,;\."'\/\\\+\-\s#@\(\)])+$`
+	// FieldTypeSingleCharRegexp the single char regex expression
 	FieldTypeSingleCharRegexp string = `\S`
 
-	//FieldTypeLongCharRegexp the long char regex expression\
-	//FieldTypeLongCharRegexp string = `^([\w\p{Han}]|[，。？！={}|?<>~～、：＃；％＊——……＆·＄（）‘’“”\[\]『』〔〕｛｝【】￥￡♀‖〖〗《》「」:,;\."'\/\\\+\-\s#@\(\)])+$`
+	// FieldTypeLongCharRegexp the long char regex expression
 	FieldTypeLongCharRegexp string = `\S`
 )
 
@@ -801,8 +928,11 @@ const (
 	// HostAddMethodExcelIndexOffset the height of the table header
 	HostAddMethodExcelIndexOffset = 3
 
-	// HostAddMethodExcelAssociationIndexOffset
+	// HostAddMethodExcelAssociationIndexOffset TODO
 	HostAddMethodExcelAssociationIndexOffset = 2
+
+	// HostAddMethodExcelDefaultIndex 生成表格数据起始索引，第一列为字段说明
+	HostAddMethodExcelDefaultIndex = 1
 
 	/*EXCEL color AARRGGBB :
 	AA means Alpha
@@ -846,22 +976,30 @@ const (
 
 	// ExcelFirstColumnFieldName export excel first column for tips
 	ExcelFirstColumnFieldName = "field_name"
+	// ExcelFirstColumnFieldType TODO
 	ExcelFirstColumnFieldType = "field_type"
-	ExcelFirstColumnFieldID   = "field_id"
-	ExcelFirstColumnInstData  = "inst_data"
+	// ExcelFirstColumnFieldID TODO
+	ExcelFirstColumnFieldID = "field_id"
+	// ExcelFirstColumnInstData TODO
+	ExcelFirstColumnInstData = "inst_data"
 
+	// ExcelFirstColumnAssociationAttribute TODO
 	ExcelFirstColumnAssociationAttribute = "excel_association_attribute"
-	ExcelFirstColumnFieldDescription     = "excel_field_description"
+	// ExcelFirstColumnFieldDescription TODO
+	ExcelFirstColumnFieldDescription = "excel_field_description"
 
+	// ExcelCellIgnoreValue TODO
 	// the value of ignored excel cell
 	ExcelCellIgnoreValue = "--"
 )
 
+// BizSetConditionMaxDeep 业务集场景下querybuilder条件的最大深度不能超过2层
+const BizSetConditionMaxDeep = 2
 const (
 	// InputTypeExcel  data from excel
 	InputTypeExcel = "excel"
 
-	// InputTypeApiHostSync data from api for synchronize new host
+	// InputTypeApiNewHostSync data from api for synchronize new host
 	InputTypeApiNewHostSync = "api_sync_host"
 
 	// BatchHostAddMaxRow batch sync add host max row
@@ -884,7 +1022,8 @@ type KvMap map[string]interface{}
 
 const (
 	// CCSystemOperatorUserName the system user
-	CCSystemOperatorUserName  = "cc_system"
+	CCSystemOperatorUserName = "cc_system"
+	// CCSystemCollectorUserName TODO
 	CCSystemCollectorUserName = "cc_collector"
 )
 
@@ -907,6 +1046,12 @@ const (
 	EventCacheEventIDKey = BKCacheKeyV3Prefix + "event:inst_id"
 	RedisSnapKeyPrefix   = BKCacheKeyV3Prefix + "snapshot:"
 )
+const (
+	// RedisSentinelMode redis mode is sentinel
+	RedisSentinelMode = "sentinel"
+	// RedisSingleMode redis mode is single
+	RedisSingleMode = "single"
+)
 
 // api cache keys
 const (
@@ -918,28 +1063,38 @@ const (
 	BKHTTPHeaderUser = "BK_User"
 	// BKHTTPLanguage the language key word
 	BKHTTPLanguage = "HTTP_BLUEKING_LANGUAGE"
-	// BKHTTPOwnerID the owner
+	// BKHTTPOwner ID the owner
 	BKHTTPOwner = "HTTP_BK_SUPPLIER_ACCOUNT"
 	// BKHTTPOwnerID the owner id
-	BKHTTPOwnerID           = "HTTP_BLUEKING_SUPPLIER_ID"
+	BKHTTPOwnerID = "HTTP_BLUEKING_SUPPLIER_ID"
+	// BKHTTPCookieLanugageKey TODO
 	BKHTTPCookieLanugageKey = "blueking_language"
-	BKHTTPRequestAppCode    = "Bk-App-Code"
-	BKHTTPRequestRealIP     = "X-Real-Ip"
+	// BKHTTPRequestAppCode TODO
+	BKHTTPRequestAppCode = "Bk-App-Code"
+	// BKHTTPRequestRealIP TODO
+	BKHTTPRequestRealIP = "X-Real-Ip"
 
 	// BKHTTPCCRequestID cc request id cc_request_id
 	BKHTTPCCRequestID = "Cc_Request_Id"
 	// BKHTTPOtherRequestID esb request id  X-Bkapi-Request-Id
 	BKHTTPOtherRequestID = "X-Bkapi-Request-Id"
 
-	BKHTTPSecretsToken   = "BK-Secrets-Token"
+	// BKHTTPSecretsToken TODO
+	BKHTTPSecretsToken = "BK-Secrets-Token"
+	// BKHTTPSecretsProject TODO
 	BKHTTPSecretsProject = "BK-Secrets-Project"
-	BKHTTPSecretsEnv     = "BK-Secrets-Env"
+	// BKHTTPSecretsEnv TODO
+	BKHTTPSecretsEnv = "BK-Secrets-Env"
 	// BKHTTPReadReference  query db use secondary node
 	BKHTTPReadReference = "Cc_Read_Preference"
+	// BKHTTPRequestFromWeb represents if request is from web server
+	BKHTTPRequestFromWeb = "Cc_Request_From_Web"
 )
 
+// ReadPreferenceMode TODO
 type ReadPreferenceMode string
 
+// String 用于打印
 func (r ReadPreferenceMode) String() string {
 	return string(r)
 }
@@ -988,6 +1143,15 @@ const (
 	HostOSTypeEnumLinux   = "1"
 	HostOSTypeEnumWindows = "2"
 	HostOSTypeEnumAIX     = "3"
+	HostOSTypeEnumUNIX    = "4"
+	HostOSTypeEnumSolaris = "5"
+)
+
+const (
+	// MaxProcessPrio TODO
+	MaxProcessPrio = 10000
+	// MinProcessPrio TODO
+	MinProcessPrio = -100
 )
 
 // integer const
@@ -1004,8 +1168,11 @@ const (
 	MinFloat64 = -math.MaxFloat64
 )
 
+// HostCrossBizField TODO
 // flag
 const HostCrossBizField = "hostcrossbiz"
+
+// HostCrossBizValue TODO
 const HostCrossBizValue = "e76fd4d1683d163e4e7e79cef45a74c1"
 
 // config admin
@@ -1020,26 +1187,33 @@ const (
 )
 
 const (
-	// URLFilterWhiteList url filter white list not execute any filter
+	// URLFilterWhiteListSuffix url filter white list not execute any filter
 	// multiple url separated by commas
-	URLFilterWhiteListSuffix = "/healthz,/version"
+	URLFilterWhiteListSuffix = "/healthz,/version,/monitor_healthz"
 
+	// URLFilterWhiteListSepareteChar TODO
 	URLFilterWhiteListSepareteChar = ","
 )
 
+// DataStatusFlag TODO
 type DataStatusFlag string
 
 const (
+	// DataStatusDisabled TODO
 	DataStatusDisabled DataStatusFlag = "disabled"
-	DataStatusEnable   DataStatusFlag = "enable"
+	// DataStatusEnable TODO
+	DataStatusEnable DataStatusFlag = "enable"
 )
 
 const (
-	BKDataStatusField   = "bk_data_status"
+	// BKDataStatusField TODO
+	BKDataStatusField = "bk_data_status"
+	// BKDataRecoverSuffix TODO
 	BKDataRecoverSuffix = "(recover)"
 )
 
 const (
+	// Infinite TODO
 	// period default value
 	Infinite = "∞"
 )
@@ -1051,52 +1225,86 @@ const (
 )
 
 const (
+	// BKBluekingLoginPluginVersion TODO
 	// login type
-	BKBluekingLoginPluginVersion   = "blueking"
+	BKBluekingLoginPluginVersion = "blueking"
+	// BKOpenSourceLoginPluginVersion TODO
 	BKOpenSourceLoginPluginVersion = "opensource"
-	BKSkipLoginPluginVersion       = "skip-login"
+	// BKSkipLoginPluginVersion TODO
+	BKSkipLoginPluginVersion = "skip-login"
 
+	// BKNoopMonitorPlugin TODO
 	// monitor plugin type
-	BKNoopMonitorPlugin     = "noop"
+	BKNoopMonitorPlugin = "noop"
+	// BKBluekingMonitorPlugin TODO
 	BKBluekingMonitorPlugin = "blueking"
 
+	// HTTPCookieBKToken TODO
 	HTTPCookieBKToken = "bk_token"
 
-	WEBSessionUinKey           = "username"
-	WEBSessionChineseNameKey   = "chName"
-	WEBSessionPhoneKey         = "phone"
-	WEBSessionEmailKey         = "email"
-	WEBSessionRoleKey          = "role"
-	WEBSessionOwnerUinKey      = "owner_uin"
+	// WEBSessionUinKey TODO
+	WEBSessionUinKey = "username"
+	// WEBSessionChineseNameKey TODO
+	WEBSessionChineseNameKey = "chName"
+	// WEBSessionPhoneKey TODO
+	WEBSessionPhoneKey = "phone"
+	// WEBSessionEmailKey TODO
+	WEBSessionEmailKey = "email"
+	// WEBSessionRoleKey TODO
+	WEBSessionRoleKey = "role"
+	// WEBSessionOwnerUinKey TODO
+	WEBSessionOwnerUinKey = "owner_uin"
+	// WEBSessionOwnerUinListeKey TODO
 	WEBSessionOwnerUinListeKey = "owner_uin_list"
-	WEBSessionAvatarUrlKey     = "avatar_url"
+	// WEBSessionAvatarUrlKey TODO
+	WEBSessionAvatarUrlKey = "avatar_url"
+	// WEBSessionMultiSupplierKey TODO
 	WEBSessionMultiSupplierKey = "multisupplier"
 
-	LoginSystemMultiSupplierTrue  = "1"
+	// LoginSystemMultiSupplierTrue TODO
+	LoginSystemMultiSupplierTrue = "1"
+	// LoginSystemMultiSupplierFalse TODO
 	LoginSystemMultiSupplierFalse = "0"
 
+	// LogoutHTTPSchemeCookieKey TODO
 	LogoutHTTPSchemeCookieKey = "http_scheme"
-	LogoutHTTPSchemeHTTP      = "http"
-	LogoutHTTPSchemeHTTPS     = "https"
+	// LogoutHTTPSchemeHTTP TODO
+	LogoutHTTPSchemeHTTP = "http"
+	// LogoutHTTPSchemeHTTPS TODO
+	LogoutHTTPSchemeHTTPS = "https"
 )
 
+// BKStatusField TODO
 const BKStatusField = "status"
 
 const (
-	BKProcInstanceOpUser             = "proc instance user"
+	// BKProcInstanceOpUser TODO
+	BKProcInstanceOpUser = "proc instance user"
+	// BKSynchronizeDataTaskDefaultUser TODO
 	BKSynchronizeDataTaskDefaultUser = "synchronize task user"
 
+	// BKCloudSyncUser TODO
 	BKCloudSyncUser = "cloud_sync_user"
+
+	// BKIAMSyncUser TODO
+	BKIAMSyncUser = "iam_sync_user"
 )
 
 const (
-	RedisProcSrvHostInstanceRefreshModuleKey  = BKCacheKeyV3Prefix + "prochostinstancerefresh:set"
+	// RedisProcSrvHostInstanceRefreshModuleKey TODO
+	RedisProcSrvHostInstanceRefreshModuleKey = BKCacheKeyV3Prefix + "prochostinstancerefresh:set"
+	// RedisProcSrvHostInstanceAllRefreshLockKey TODO
 	RedisProcSrvHostInstanceAllRefreshLockKey = BKCacheKeyV3Prefix + "lock:prochostinstancerefresh"
-	RedisProcSrvQueryProcOPResultKey          = BKCacheKeyV3Prefix + "procsrv:query:opresult:set"
-	RedisCloudSyncInstancePendingStart        = BKCacheKeyV3Prefix + "cloudsyncinstancependingstart:list"
-	RedisCloudSyncInstanceStarted             = BKCacheKeyV3Prefix + "cloudsyncinstancestarted:list"
-	RedisCloudSyncInstancePendingStop         = BKCacheKeyV3Prefix + "cloudsyncinstancependingstop:list"
-	RedisMongoCacheSyncKey                    = BKCacheKeyV3Prefix + "mongodb:cache"
+	// RedisProcSrvQueryProcOPResultKey TODO
+	RedisProcSrvQueryProcOPResultKey = BKCacheKeyV3Prefix + "procsrv:query:opresult:set"
+	// RedisCloudSyncInstancePendingStart TODO
+	RedisCloudSyncInstancePendingStart = BKCacheKeyV3Prefix + "cloudsyncinstancependingstart:list"
+	// RedisCloudSyncInstanceStarted TODO
+	RedisCloudSyncInstanceStarted = BKCacheKeyV3Prefix + "cloudsyncinstancestarted:list"
+	// RedisCloudSyncInstancePendingStop TODO
+	RedisCloudSyncInstancePendingStop = BKCacheKeyV3Prefix + "cloudsyncinstancependingstop:list"
+	// RedisMongoCacheSyncKey TODO
+	RedisMongoCacheSyncKey = BKCacheKeyV3Prefix + "mongodb:cache"
 )
 
 // association fields
@@ -1124,6 +1332,7 @@ const (
 )
 
 const (
+	// BKBizDefault TODO
 	BKBizDefault = "bizdefault"
 )
 
@@ -1144,79 +1353,126 @@ const (
 
 	/* synchronize model description classify*/
 
-	// SynchronizeModelTypeClassification synchroneize model classification
+	// SynchronizeModelTypeClassification synchronize model classification
 	SynchronizeModelTypeClassification = "model_classification"
-	// SynchronizeModelTypeAttribute synchroneize model attribute
+	// SynchronizeModelTypeAttribute synchronize model attribute
 	SynchronizeModelTypeAttribute = "model_attribute"
-	// SynchronizeModelTypeAttributeGroup synchroneize model attribute group
+	// SynchronizeModelTypeAttributeGroup synchronize model attribute group
 	SynchronizeModelTypeAttributeGroup = "model_atrribute_group"
-	// SynchronizeModelTypeBase synchroneize model attribute
+	// SynchronizeModelTypeBase synchronize model attribute
 	SynchronizeModelTypeBase = "model"
 
-	/* synchronize instance assoication sign*/
+	/* synchronize instance association sign*/
 
 	// SynchronizeAssociationTypeModelHost synchroneize model ggroup
 	SynchronizeAssociationTypeModelHost = "module_host"
 )
 
 const (
+	// AttributePlaceHolderMaxLength TODO
 	AttributePlaceHolderMaxLength = 2000
-	AttributeOptionMaxLength      = 2000
-	AttributeIDMaxLength          = 128
-	AttributeNameMaxLength        = 128
-	AttributeUnitMaxLength        = 20
+	// AttributeOptionMaxLength TODO
+	AttributeOptionMaxLength = 2000
+	// AttributeIDMaxLength TODO
+	AttributeIDMaxLength = 128
+	// AttributeNameMaxLength TODO
+	AttributeNameMaxLength = 128
+	// AttributeUnitMaxLength TODO
+	AttributeUnitMaxLength = 20
+	// AttributeOptionValueMaxLength TODO
 	AttributeOptionValueMaxLength = 128
+	// AttributeOptionArrayMaxLength TODO
 	AttributeOptionArrayMaxLength = 200
-	ServiceCategoryMaxLength      = 128
+	// ServiceCategoryMaxLength TODO
+	ServiceCategoryMaxLength = 128
 )
 
 const (
-	NameFieldMaxLength         = 256
-	MainlineNameFieldMaxLength = 32
+	// NameFieldMaxLength TODO
+	NameFieldMaxLength = 256
+	// MainlineNameFieldMaxLength TODO
+	MainlineNameFieldMaxLength = 256
 
-	// 用于表示还未设置服务模板的情况，比如没有绑定服务模板
+	// ServiceTemplateIDNotSet 用于表示还未设置服务模板的情况，比如没有绑定服务模板
 	ServiceTemplateIDNotSet = 0
-	SetTemplateIDNotSet     = 0
+	// SetTemplateIDNotSet TODO
+	SetTemplateIDNotSet = 0
 
+	// MetadataLabelBiz TODO
 	MetadataLabelBiz = "metadata.label.bk_biz_id"
 
+	// DefaultServiceCategoryName TODO
 	DefaultServiceCategoryName = "Default"
 )
 
 const (
-	ContextRequestIDField    = "request_id"
-	ContextRequestUserField  = "request_user"
+	// ContextRequestIDField TODO
+	ContextRequestIDField = "request_id"
+	// ContextRequestUserField TODO
+	ContextRequestUserField = "request_user"
+	// ContextRequestOwnerField TODO
 	ContextRequestOwnerField = "request_owner"
 )
 
 const (
-	OperationCustom      = "custom"
-	OperationReportType  = "report_type"
-	OperationConfigID    = "config_id"
-	BizModuleHostChart   = "biz_module_host_chart"
-	HostOSChart          = "host_os_chart"
-	HostBizChart         = "host_biz_chart"
-	HostCloudChart       = "host_cloud_chart"
-	HostChangeBizChart   = "host_change_biz_chart"
-	ModelAndInstCount    = "model_and_inst_count"
-	ModelInstChart       = "model_inst_chart"
+	// OperationCustom TODO
+	OperationCustom = "custom"
+	// OperationReportType TODO
+	OperationReportType = "report_type"
+	// OperationConfigID TODO
+	OperationConfigID = "config_id"
+	// BizModuleHostChart TODO
+	BizModuleHostChart = "biz_module_host_chart"
+	// HostOSChart TODO
+	HostOSChart = "host_os_chart"
+	// HostBizChart TODO
+	HostBizChart = "host_biz_chart"
+	// HostCloudChart TODO
+	HostCloudChart = "host_cloud_chart"
+	// HostChangeBizChart TODO
+	HostChangeBizChart = "host_change_biz_chart"
+	// ModelAndInstCount TODO
+	ModelAndInstCount = "model_and_inst_count"
+	// ModelInstChart TODO
+	ModelInstChart = "model_inst_chart"
+	// ModelInstChangeChart TODO
 	ModelInstChangeChart = "model_inst_change_chart"
-	CreateObject         = "create object"
-	DeleteObject         = "delete object"
-	UpdateObject         = "update object"
+	// CreateObject TODO
+	CreateObject = "create object"
+	// DeleteObject TODO
+	DeleteObject = "delete object"
+	// UpdateObject TODO
+	UpdateObject = "update object"
+	// OperationDescription TODO
 	OperationDescription = "op_desc"
-	OptionOther          = "其他"
-	TimerPattern         = "^[\\d]+\\:[\\d]+$"
-	SyncSetTaskName      = "sync-settemplate2set"
+	// OptionOther TODO
+	OptionOther = "其他"
+	// TimerPattern TODO
+	TimerPattern = "^[\\d]+\\:[\\d]+$"
+	// BKTaskTypeField the api task type field
+	BKTaskTypeField = "task_type"
+	// SyncSetTaskFlag TODO
+	SyncSetTaskFlag = "set_template_sync"
+	// SyncModuleTaskFlag TODO
+	SyncModuleTaskFlag = "service_template_sync"
 
+	// SyncModuleHostApplyTaskFlag module dimension host auto-apply async task flag.
+	SyncModuleHostApplyTaskFlag = "module_host_apply_sync"
+	// SyncServiceTemplateHostApplyTaskFlag  service template dimension host auto-apply async task flag.
+	SyncServiceTemplateHostApplyTaskFlag = "service_template_host_apply_sync"
+
+	// BKHostState TODO
 	BKHostState = "bk_state"
 )
 
+// LanguageType TODO
 // multiple language support
 type LanguageType string
 
 const (
+	// Chinese TODO
 	Chinese LanguageType = "zh-cn"
+	// English TODO
 	English LanguageType = "en"
 )
 
@@ -1245,20 +1501,40 @@ const (
 )
 
 const (
-	BKCloudHostStatusUnknown   = "1"
-	BKCloudHostStatusStarting  = "2"
-	BKCloudHostStatusRunning   = "3"
-	BKCloudHostStatusStopping  = "4"
-	BKCloudHostStatusStopped   = "5"
+	// BKCloudHostStatusUnknown TODO
+	BKCloudHostStatusUnknown = "1"
+	// BKCloudHostStatusStarting TODO
+	BKCloudHostStatusStarting = "2"
+	// BKCloudHostStatusRunning TODO
+	BKCloudHostStatusRunning = "3"
+	// BKCloudHostStatusStopping TODO
+	BKCloudHostStatusStopping = "4"
+	// BKCloudHostStatusStopped TODO
+	BKCloudHostStatusStopped = "5"
+	// BKCloudHostStatusDestroyed TODO
 	BKCloudHostStatusDestroyed = "6"
 )
 
 const (
-	BKCloudAreaStatusNormal   = "1"
+	// BKCloudAreaStatusNormal TODO
+	BKCloudAreaStatusNormal = "1"
+	// BKCloudAreaStatusAbnormal TODO
 	BKCloudAreaStatusAbnormal = "2"
 )
 
 // configcenter
 const (
 	BKDefaultConfigCenter = "zookeeper"
+)
+
+const (
+	// CCLogicUniqueIdxNamePrefix TODO
+	CCLogicUniqueIdxNamePrefix = "bkcc_unique_"
+	// CCLogicIndexNamePrefix TODO
+	CCLogicIndexNamePrefix = "bkcc_idx_"
+)
+
+const (
+	// DefaultResBusinessSetFlag the default resource business set flag
+	DefaultResBusinessSetFlag = 1
 )

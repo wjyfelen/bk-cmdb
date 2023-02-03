@@ -28,7 +28,9 @@ import (
 	"configcenter/src/common/util"
 )
 
-func (am *AuthManager) constructHostFromSearchResult(ctx context.Context, header http.Header, rawData []mapstr.MapStr) ([]HostSimplify, error) {
+func (am *AuthManager) constructHostFromSearchResult(ctx context.Context, header http.Header, rawData []mapstr.MapStr) (
+	[]HostSimplify, error) {
+
 	rid := util.ExtractRequestIDFromContext(ctx)
 
 	hostIDs := make([]int64, 0)
@@ -53,11 +55,12 @@ func (am *AuthManager) constructHostFromSearchResult(ctx context.Context, header
 		return nil, err
 	}
 	if len(rawData) == 0 {
-		err = fmt.Errorf("get host:%+v layer failed, get host module config by host id not found, maybe hostID invalid", hostIDs)
+		err = fmt.Errorf("get host:%+v layer failed, get host module config by host id not found, "+
+			"maybe hostID invalid", hostIDs)
 		return nil, err
 	}
 	hostModuleMap := map[int64]HostSimplify{}
-	for _, cls := range hostModuleResult.Data.Info {
+	for _, cls := range hostModuleResult.Info {
 		host := HostSimplify{
 			BKAppIDField:    cls.AppID,
 			BKModuleIDField: cls.ModuleID,
@@ -79,7 +82,9 @@ func (am *AuthManager) constructHostFromSearchResult(ctx context.Context, header
 	return hosts, nil
 }
 
-func (am *AuthManager) collectHostByHostIDs(ctx context.Context, header http.Header, hostIDs ...int64) ([]HostSimplify, error) {
+func (am *AuthManager) collectHostByHostIDs(ctx context.Context, header http.Header, hostIDs ...int64) ([]HostSimplify,
+	error) {
+
 	rid := util.ExtractRequestIDFromContext(ctx)
 
 	// unique ids so that we can be aware of invalid id if query result length not equal ids's length
@@ -101,12 +106,13 @@ func (am *AuthManager) collectHostByHostIDs(ctx context.Context, header http.Hea
 			blog.V(3).Infof("get hosts by id failed, err: %+v, rid: %s", err, rid)
 			return nil, fmt.Errorf("get hosts by id failed, err: %+v", err)
 		}
-		hosts = append(hosts, result.Data.Info...)
-		count = result.Data.Count
+		hosts = append(hosts, result.Info...)
+		count = result.Count
 	}
 	return am.constructHostFromSearchResult(ctx, header, hosts)
 }
 
+// MakeResourcesByHosts TODO
 func (am *AuthManager) MakeResourcesByHosts(ctx context.Context, header http.Header, action meta.Action, hosts ...HostSimplify) ([]meta.ResourceAttribute, error) {
 	rid := util.ExtractRequestIDFromContext(ctx)
 
@@ -156,6 +162,7 @@ func (am *AuthManager) MakeResourcesByHosts(ctx context.Context, header http.Hea
 	return resources, nil
 }
 
+// AuthorizeByHosts TODO
 func (am *AuthManager) AuthorizeByHosts(ctx context.Context, header http.Header, action meta.Action, hosts ...HostSimplify) error {
 	if !am.Enabled() {
 		return nil
@@ -173,6 +180,7 @@ func (am *AuthManager) AuthorizeByHosts(ctx context.Context, header http.Header,
 	return am.batchAuthorize(ctx, header, resources...)
 }
 
+// GenHostBatchNoPermissionResp TODO
 func (am *AuthManager) GenHostBatchNoPermissionResp(ctx context.Context, header http.Header, action meta.Action, hostIDs []int64) (*metadata.BaseResp, error) {
 	hosts, err := am.collectHostByHostIDs(ctx, header, hostIDs...)
 	if err != nil {
@@ -239,6 +247,7 @@ func (am *AuthManager) GenHostBatchNoPermissionResp(ctx context.Context, header 
 	return &resp, nil
 }
 
+// GenEditBizHostNoPermissionResp TODO
 func (am *AuthManager) GenEditBizHostNoPermissionResp(ctx context.Context, header http.Header, hostIDs []int64) (*metadata.BaseResp, error) {
 	hosts, err := am.collectHostByHostIDs(ctx, header, hostIDs...)
 	if err != nil {
@@ -269,6 +278,7 @@ func (am *AuthManager) GenEditBizHostNoPermissionResp(ctx context.Context, heade
 	return &resp, nil
 }
 
+// AuthorizeByHostsIDs TODO
 func (am *AuthManager) AuthorizeByHostsIDs(ctx context.Context, header http.Header, action meta.Action, hostIDs ...int64) error {
 	rid := util.ExtractRequestIDFromContext(ctx)
 
@@ -290,6 +300,7 @@ func (am *AuthManager) AuthorizeByHostsIDs(ctx context.Context, header http.Head
 	return am.AuthorizeByHosts(ctx, header, action, hosts...)
 }
 
+// AuthorizeCreateHost TODO
 func (am *AuthManager) AuthorizeCreateHost(ctx context.Context, header http.Header, bizID int64) error {
 	if !am.Enabled() {
 		return nil

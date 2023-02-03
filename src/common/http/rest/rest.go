@@ -10,36 +10,42 @@
  * limitations under the License.
  */
 
+// Package rest TODO
 package rest
 
 import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"configcenter/src/common"
 	"configcenter/src/common/errors"
 	"configcenter/src/common/language"
 	"configcenter/src/common/util"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Action TODO
 type Action struct {
 	Verb    string
 	Path    string
 	Handler func(contexts *Contexts)
 }
 
+// RestfulConfig TODO
 type RestfulConfig struct {
 	RootPath string
 }
 
+// Config TODO
 type Config struct {
 	ErrorIf  errors.CCErrorIf
 	Language language.CCLanguageIf
 }
 
+// NewRestUtility TODO
 func NewRestUtility(conf Config) *RestUtility {
 	once.Do(func() {
 		initMetric()
@@ -51,11 +57,13 @@ func NewRestUtility(conf Config) *RestUtility {
 	}
 }
 
+// RestUtility TODO
 type RestUtility struct {
 	Config
 	actions []Action
 }
 
+// AddHandler TODO
 func (r *RestUtility) AddHandler(action Action) {
 	if r.actions == nil {
 		r.actions = make([]Action, 0)
@@ -78,6 +86,7 @@ func (r *RestUtility) AddHandler(action Action) {
 	r.actions = append(r.actions, action)
 }
 
+// AddToRestfulWebService TODO
 func (r *RestUtility) AddToRestfulWebService(ws *restful.WebService) {
 
 	for _, action := range r.actions {
@@ -113,6 +122,15 @@ func (r *RestUtility) wrapperAction(action Action) func(req *restful.Request, re
 		ctx = context.WithValue(ctx, common.ContextRequestIDField, rid)
 		ctx = context.WithValue(ctx, common.ContextRequestUserField, user)
 		ctx = context.WithValue(ctx, common.ContextRequestOwnerField, owner)
+
+		// time out after 2 minutes, in case long request does not terminate, skip ui requests like import
+		if header.Get(common.BKHTTPRequestFromWeb) != "true" {
+			var cancel context.CancelFunc
+			// task server has some task with 2 minutes' timeout, so we set the timeout of all servers to 2 minute
+			ctx, cancel = context.WithTimeout(ctx, time.Minute*2)
+			defer cancel()
+		}
+
 		if txnID := header.Get(common.TransactionIdHeader); len(txnID) != 0 {
 			// we got a request with transaction info, which is only useful for coreservice.
 			ctx = context.WithValue(ctx, common.TransactionIdHeader, txnID)

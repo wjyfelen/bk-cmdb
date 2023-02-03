@@ -22,6 +22,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// CreateProcessTemplateBatch TODO
 // create a process template for a service template.
 func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 	input := new(metadata.CreateProcessTemplateBatchInput)
@@ -33,6 +34,12 @@ func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 	if len(input.Processes) == 0 {
 		ctx.RespEntity([]int64{})
 		blog.Infof("no process to create, return")
+		return
+	}
+
+	if len(input.Processes) > common.BKMaxUpdateOrCreatePageSize {
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "create process template",
+			common.BKMaxUpdateOrCreatePageSize))
 		return
 	}
 
@@ -53,8 +60,7 @@ func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 
 			temp, err := ps.CoreAPI.CoreService().Process().CreateProcessTemplate(ctx.Kit.Ctx, ctx.Kit.Header, t)
 			if err != nil {
-				blog.Errorf("create process template failed, template: +%v", *t)
-
+				blog.Errorf("create process template failed, template: %+v", *t)
 				return err
 			}
 
@@ -70,10 +76,21 @@ func (ps *ProcServer) CreateProcessTemplateBatch(ctx *rest.Contexts) {
 	ctx.RespEntity(ids)
 }
 
+// DeleteProcessTemplateBatch TODO
 func (ps *ProcServer) DeleteProcessTemplateBatch(ctx *rest.Contexts) {
 	input := new(metadata.DeleteProcessTemplateBatchInput)
 	if err := ctx.DecodeInto(input); err != nil {
 		ctx.RespAutoError(err)
+		return
+	}
+
+	if len(input.ProcessTemplates) == 0 {
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsNeedSet, "process_templates"))
+		return
+	}
+	if len(input.ProcessTemplates) > common.BKMaxDeletePageSize {
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommXXExceedLimit, "delete process template",
+			common.BKMaxDeletePageSize))
 		return
 	}
 
@@ -116,6 +133,7 @@ func (ps *ProcServer) DeleteProcessTemplateBatch(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 }
 
+// UpdateProcessTemplate TODO
 func (ps *ProcServer) UpdateProcessTemplate(ctx *rest.Contexts) {
 	input := new(metadata.UpdateProcessTemplateInput)
 	if err := ctx.DecodeInto(input); err != nil {
@@ -169,6 +187,7 @@ func (ps *ProcServer) UpdateProcessTemplate(ctx *rest.Contexts) {
 	ctx.RespEntity(template)
 }
 
+// GetProcessTemplate TODO
 func (ps *ProcServer) GetProcessTemplate(ctx *rest.Contexts) {
 	input := &struct {
 		BizID int64 `json:"bk_biz_id"`
@@ -192,6 +211,7 @@ func (ps *ProcServer) GetProcessTemplate(ctx *rest.Contexts) {
 	ctx.RespEntity(template)
 }
 
+// ListProcessTemplate TODO
 func (ps *ProcServer) ListProcessTemplate(ctx *rest.Contexts) {
 
 	input := new(metadata.ListProcessTemplateWithServiceTemplateInput)

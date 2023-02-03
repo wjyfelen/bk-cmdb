@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="module-selector-layout"
     v-bkloading="{ isLoading: $loading(Object.values(request)) }">
@@ -62,6 +74,7 @@
   import { mapGetters } from 'vuex'
   import debounce from 'lodash.debounce'
   import ModuleCheckedList from './module-checked-list.vue'
+  import { sortTopoTree } from '@/utils/tools'
   export default {
     name: 'cmdb-module-selector',
     components: {
@@ -164,6 +177,7 @@
           } else {
             data = await this.getBusinessModules()
           }
+          sortTopoTree(data, 'bk_inst_name', 'child')
           this.$refs.tree.setData(data)
           this.$refs.tree.setExpanded(this.getNodeId(data[0]))
           this.setDefaultChecked()
@@ -205,7 +219,7 @@
             bk_obj_id: 'set',
             bk_obj_name: this.getModelById('set').bk_obj_name,
             default: 0,
-            child: this.$tools.sort((data.module || []), 'default').map(module => ({
+            child: data.module.map(module => ({
               bk_inst_id: module.bk_module_id,
               bk_inst_name: module.bk_module_name,
               bk_obj_id: 'module',
@@ -216,7 +230,7 @@
         }])
       },
       getBusinessModules() {
-        return this.$store.dispatch('objectMainLineModule/getInstTopoInstanceNum', {
+        return this.$store.dispatch('objectMainLineModule/getInstTopo', {
           bizId: this.bizId,
           config: {
             requestId: this.request.business

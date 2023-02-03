@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 const hex2grb = (hex) => {
   const rgb = []
   hex = hex.substr(1)
@@ -56,3 +68,16 @@ export function generateObjIcon(image, options) {
                     <circle cx="50" cy="50" r="49" fill="${options.backgroundColor}"/>
                 </svg>`
 }
+
+export function cached(fn) {
+  const cache = Object.create(null)
+  return (function cachedFn(str, ...args) {
+    const hit = cache[str]
+    return hit || (cache[str] = fn.apply(null, [str, ...args]))
+  })
+}
+
+export const camelize = cached((str, separator = '-') => {
+  const camelizeRE = new RegExp(`${separator}(\\w)`, 'g')
+  return str.replace(camelizeRE, (_, c) => (c ? c.toUpperCase() : ''))
+})

@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="history">
     <div class="history-filter">
@@ -10,7 +22,7 @@
         v-model="condition.user"
         :exclude="false"
         :multiple="false"
-        :palceholder="$t('操作账号')"
+        :placeholder="$t('操作账号')"
         @input="handlePageChange(1)">
       </cmdb-form-objuser>
     </div>
@@ -39,9 +51,12 @@
   import AuditDetails from '@/components/audit-history/details.js'
   export default {
     props: {
-      category: {
+      objId: {
         type: String,
         required: true
+      },
+      bizId: {
+        type: Number
       },
       resourceId: {
         type: [Number, String]
@@ -59,7 +74,6 @@
         condition: {
           operation_time: [today, today],
           user: '',
-          category: this.category,
           resource_id: this.resourceId,
           resource_type: this.resourceType
         },
@@ -94,7 +108,7 @@
       },
       async getHistory() {
         try {
-          const { info, count } = await this.$store.dispatch('audit/getList', {
+          const { info, count } = await this.$store.dispatch('audit/getInstList', {
             params: {
               condition: this.getUsefulConditon(),
               page: {
@@ -120,7 +134,15 @@
         }
       },
       getUsefulConditon() {
-        const usefuleCondition = {}
+        const usefuleCondition = {
+          bk_obj_id: this.objId
+        }
+
+        // 通用模型实例不传，未分配业务主机传1
+        if (!isNaN(this.bizId)) {
+          usefuleCondition.bk_biz_id = this.bizId > 0 ? this.bizId : 1
+        }
+
         Object.keys(this.condition).forEach((key) => {
           const value = this.condition[key]
           if (String(value).length) {
@@ -156,7 +178,11 @@
       },
       handleRowClick(item) {
         AuditDetails.show({
-          id: item.id
+          aduitTarget: 'instance',
+          id: item.id,
+          resourceType: this.resourceType,
+          bizId: this.bizId,
+          objId: this.objId
         })
       }
     }

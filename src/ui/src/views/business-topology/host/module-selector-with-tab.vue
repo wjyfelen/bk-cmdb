@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="module-selector-with-tab">
     <bk-tab :active.sync="tab.active" type="border-card">
@@ -35,6 +47,8 @@
   import AcrossBusinessModuleSelector from './across-business-module-selector.vue'
   import NoPermission from './no-permission.vue'
   import has from 'has'
+  import { ONE_TO_ONE } from '@/dictionary/host-transfer-type.js'
+
   export default {
     name: 'module-selector-with-tab',
     components: {
@@ -67,7 +81,7 @@
             {
               props: {
                 name: 'idle',
-                label: this.$t('转移到空闲模块'),
+                label: this.$t('转移到空闲模块', { idleSet: this.$store.state.globalConfig.config.set }),
                 visible: true
               },
               component: {
@@ -104,6 +118,7 @@
               component: {
                 name: AcrossBusinessModuleSelector.name,
                 props: {
+                  type: ONE_TO_ONE,
                   business: {},
                   confirmLoading: false
                 }

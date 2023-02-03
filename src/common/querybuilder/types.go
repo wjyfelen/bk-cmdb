@@ -20,16 +20,24 @@ import (
 	"configcenter/src/common"
 )
 
+const timeLayout = "2006-01-02"
+
+// Rule TODO
 type Rule interface {
 	GetDeep() int
-	Validate() (string, error)
+	Validate(option *RuleOption) (string, error)
 	ToMgo() (mgoFilter map[string]interface{}, errKey string, err error)
 	Match(matcher Matcher) bool
+	// MatchAny if any of the rules matches the matcher, return true
+	MatchAny(matcher Matcher) bool
+	GetField() []string
 }
 
+// Condition TODO
 // *************** define condition ************************
 type Condition string
 
+// Validate TODO
 func (c Condition) Validate() error {
 	if c == ConditionAnd || c == ConditionOr {
 		return nil
@@ -37,6 +45,7 @@ func (c Condition) Validate() error {
 	return fmt.Errorf("unexpected condition: %s", c)
 }
 
+// ToMgo TODO
 func (c Condition) ToMgo() (mgoOperator string, err error) {
 	switch c {
 	case ConditionOr:
@@ -49,54 +58,82 @@ func (c Condition) ToMgo() (mgoOperator string, err error) {
 }
 
 var (
+	// ConditionAnd TODO
 	ConditionAnd = Condition("AND")
-	ConditionOr  = Condition("OR")
+	// ConditionOr TODO
+	ConditionOr = Condition("OR")
 )
 
+// Operator TODO
 // *************** define operator ************************
 type Operator string
 
 var (
-	OperatorEqual    = Operator("equal")
+	// OperatorEqual TODO
+	OperatorEqual = Operator("equal")
+	// OperatorNotEqual TODO
 	OperatorNotEqual = Operator("not_equal")
 
+	// OperatorIn TODO
 	// set operator
-	OperatorIn    = Operator("in")
+	OperatorIn = Operator("in")
+	// OperatorNotIn TODO
 	OperatorNotIn = Operator("not_in")
 
+	// OperatorLess TODO
 	// numeric compare
-	OperatorLess           = Operator("less")
-	OperatorLessOrEqual    = Operator("less_or_equal")
-	OperatorGreater        = Operator("greater")
+	OperatorLess = Operator("less")
+	// OperatorLessOrEqual TODO
+	OperatorLessOrEqual = Operator("less_or_equal")
+	// OperatorGreater TODO
+	OperatorGreater = Operator("greater")
+	// OperatorGreaterOrEqual TODO
 	OperatorGreaterOrEqual = Operator("greater_or_equal")
 
-	// datetime operate
-	OperatorDatetimeLess           = Operator("datetime_less")
-	OperatorDatetimeLessOrEqual    = Operator("datetime_less_or_equal")
-	OperatorDatetimeGreater        = Operator("datetime_greater")
+	// OperatorDatetimeLess TODO
+	// datetime operate only use for data type
+	OperatorDatetimeLess = Operator("datetime_less")
+	// OperatorDatetimeLessOrEqual TODO
+	OperatorDatetimeLessOrEqual = Operator("datetime_less_or_equal")
+	// OperatorDatetimeGreater TODO
+	OperatorDatetimeGreater = Operator("datetime_greater")
+	// OperatorDatetimeGreaterOrEqual TODO
 	OperatorDatetimeGreaterOrEqual = Operator("datetime_greater_or_equal")
 
+	// OperatorBeginsWith TODO
 	// string operator
-	OperatorBeginsWith    = Operator("begins_with")
+	OperatorBeginsWith = Operator("begins_with")
+	// OperatorNotBeginsWith TODO
 	OperatorNotBeginsWith = Operator("not_begins_with")
-	OperatorContains      = Operator("contains")
-	OperatorNotContains   = Operator("not_contains")
-	OperatorsEndsWith     = Operator("ends_with")
-	OperatorNotEndsWith   = Operator("not_ends_with")
+	// OperatorContains TODO
+	OperatorContains = Operator("contains")
+	// OperatorNotContains TODO
+	OperatorNotContains = Operator("not_contains")
+	// OperatorsEndsWith TODO
+	OperatorsEndsWith = Operator("ends_with")
+	// OperatorNotEndsWith TODO
+	OperatorNotEndsWith = Operator("not_ends_with")
 
+	// OperatorIsEmpty TODO
 	// array operator
-	OperatorIsEmpty    = Operator("is_empty")
+	OperatorIsEmpty = Operator("is_empty")
+	// OperatorIsNotEmpty TODO
 	OperatorIsNotEmpty = Operator("is_not_empty")
 
+	// OperatorIsNull TODO
 	// null check
-	OperatorIsNull    = Operator("is_null")
+	OperatorIsNull = Operator("is_null")
+	// OperatorIsNotNull TODO
 	OperatorIsNotNull = Operator("is_not_null")
 
+	// OperatorExist TODO
 	// exist check
-	OperatorExist    = Operator("exist")
+	OperatorExist = Operator("exist")
+	// OperatorNotExist TODO
 	OperatorNotExist = Operator("not_exist")
 )
 
+// SupportOperators TODO
 var SupportOperators = map[Operator]bool{
 	OperatorEqual:    true,
 	OperatorNotEqual: true,
@@ -109,10 +146,10 @@ var SupportOperators = map[Operator]bool{
 	OperatorGreater:        true,
 	OperatorGreaterOrEqual: true,
 
-	OperatorDatetimeLess:           false,
-	OperatorDatetimeLessOrEqual:    false,
-	OperatorDatetimeGreater:        false,
-	OperatorDatetimeGreaterOrEqual: false,
+	OperatorDatetimeLess:           true,
+	OperatorDatetimeLessOrEqual:    true,
+	OperatorDatetimeGreater:        true,
+	OperatorDatetimeGreaterOrEqual: true,
 
 	OperatorBeginsWith:    true,
 	OperatorNotBeginsWith: true,
@@ -131,6 +168,7 @@ var SupportOperators = map[Operator]bool{
 	OperatorNotExist: true,
 }
 
+// Validate TODO
 func (op Operator) Validate() error {
 	if support, ok := SupportOperators[op]; !support || !ok {
 		return fmt.Errorf("unsupported operator: %s", op)
@@ -138,6 +176,7 @@ func (op Operator) Validate() error {
 	return nil
 }
 
+// AtomRule TODO
 // *************** define rule ************************
 type AtomRule struct {
 	Field    string      `json:"field"`
@@ -145,30 +184,40 @@ type AtomRule struct {
 	Value    interface{} `json:"value"`
 }
 
+// GetDeep TODO
 func (r AtomRule) GetDeep() int {
 	return int(1)
 }
 
-func (r AtomRule) Validate() (string, error) {
+// Validate TODO
+func (r AtomRule) Validate(option *RuleOption) (string, error) {
 	if err := r.Operator.Validate(); err != nil {
 		return "operator", err
 	}
 	if err := r.validateField(); err != nil {
 		return "field", err
 	}
-	if err := r.validateValue(); err != nil {
+	if err := r.validateValue(option); err != nil {
 		return "value", err
 	}
 	return "", nil
 }
 
+// Matcher TODO
 type Matcher func(r AtomRule) bool
 
+// Match TODO
 func (r AtomRule) Match(matcher Matcher) bool {
 	return matcher(r)
 }
 
+// MatchAny if any of the rules matches the matcher, return true
+func (r AtomRule) MatchAny(matcher Matcher) bool {
+	return matcher(r)
+}
+
 var (
+	// ValidFieldPattern TODO
 	// TODO: should we support dot field separator here?
 	ValidFieldPattern = regexp.MustCompile(`^[a-zA-Z0-9][\d\w\-_.]*$`)
 )
@@ -180,12 +229,14 @@ func (r AtomRule) validateField() error {
 	return nil
 }
 
-func (r AtomRule) validateValue() error {
+func (r AtomRule) validateValue(option *RuleOption) error {
 	switch r.Operator {
 	case OperatorEqual, OperatorNotEqual:
 		return validateBasicType(r.Value)
+
 	case OperatorIn, OperatorNotIn:
-		return validateSliceOfBasicType(r.Value, true)
+		return validateSliceOfBasicType(r.Value, option.NeedSameSliceElementType, option.MaxSliceElementsCount)
+
 	case OperatorLess, OperatorLessOrEqual, OperatorGreater, OperatorGreaterOrEqual:
 		return validateNumericType(r.Value)
 	case OperatorDatetimeLess, OperatorDatetimeLessOrEqual, OperatorDatetimeGreater, OperatorDatetimeGreaterOrEqual:
@@ -205,7 +256,7 @@ func (r AtomRule) validateValue() error {
 
 // ToMgo generate mongo filter from rule
 func (r AtomRule) ToMgo() (mgoFiler map[string]interface{}, key string, err error) {
-	if key, err := r.Validate(); err != nil {
+	if key, err := r.Validate(&RuleOption{NeedSameSliceElementType: true}); err != nil {
 		return nil, key, fmt.Errorf("validate failed, key: %s, err: %s", key, err)
 	}
 
@@ -244,36 +295,36 @@ func (r AtomRule) ToMgo() (mgoFiler map[string]interface{}, key string, err erro
 			common.BKDBGTE: r.Value,
 		}
 	case OperatorDatetimeLess:
-		t, err := time.Parse(time.RFC3339, r.Value.(string))
+		_, err := time.Parse(timeLayout, r.Value.(string))
 		if err != nil {
 			return nil, "value", err
 		}
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBLT: t,
+			common.BKDBLT: r.Value.(string),
 		}
 	case OperatorDatetimeLessOrEqual:
-		t, err := time.Parse(time.RFC3339, r.Value.(string))
+		_, err := time.Parse(timeLayout, r.Value.(string))
 		if err != nil {
 			return nil, "value", err
 		}
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBLTE: t,
+			common.BKDBLTE: r.Value.(string),
 		}
 	case OperatorDatetimeGreater:
-		t, err := time.Parse(time.RFC3339, r.Value.(string))
+		_, err := time.Parse(timeLayout, r.Value.(string))
 		if err != nil {
 			return nil, "value", err
 		}
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBGT: t,
+			common.BKDBGT: r.Value.(string),
 		}
 	case OperatorDatetimeGreaterOrEqual:
-		t, err := time.Parse(time.RFC3339, r.Value.(string))
+		_, err := time.Parse(timeLayout, r.Value.(string))
 		if err != nil {
 			return nil, "value", err
 		}
 		filter[r.Field] = map[string]interface{}{
-			common.BKDBGTE: t,
+			common.BKDBGTE: r.Value.(string),
 		}
 	case OperatorBeginsWith:
 		filter[r.Field] = map[string]interface{}{
@@ -332,6 +383,12 @@ func (r AtomRule) ToMgo() (mgoFiler map[string]interface{}, key string, err erro
 	return filter, "", nil
 }
 
+// GetField get rule field
+func (r AtomRule) GetField() []string {
+	return []string{r.Field}
+}
+
+// CombinedRule TODO
 // *************** define query ************************
 type CombinedRule struct {
 	Condition Condition `json:"condition"`
@@ -339,10 +396,32 @@ type CombinedRule struct {
 }
 
 var (
-	// 嵌套层级的深度按树的高度计算，查询条件最大深度为3即最多嵌套2层
+	// MaxDeep 嵌套层级的深度按树的高度计算，查询条件最大深度为3即最多嵌套2层
 	MaxDeep = 3
+
+	// DefaultMaxSliceElementsCount is max elements count of slice(array) condition value.
+	DefaultMaxSliceElementsCount = 500
+
+	// DefaultMaxConditionOrRulesCount is default max rules count of one OR combined condition.
+	DefaultMaxConditionOrRulesCount = 20
 )
 
+// RuleOption is combined condition rule validator option.
+type RuleOption struct {
+	// NeedSameSliceElementType whether need same type in one slice(array) value or not.
+	NeedSameSliceElementType bool
+
+	// MaxSliceElementsCount max slice(array) value elements count, 0 means no limit.
+	MaxSliceElementsCount int
+
+	// MaxConditionOrRulesCount max atom rules count in one OR combined condition, 0 means no limit.
+	MaxConditionOrRulesCount int
+
+	// MaxConditionAndRulesCount max atom rules count in one AND combined condition, 0 means no limit.
+	MaxConditionAndRulesCount int
+}
+
+// GetDeep TODO
 func (r CombinedRule) GetDeep() int {
 	maxChildDeep := 1
 	for _, child := range r.Rules {
@@ -354,21 +433,40 @@ func (r CombinedRule) GetDeep() int {
 	return maxChildDeep + 1
 }
 
-func (r CombinedRule) Validate() (string, error) {
+// Validate validates combined rules with the options.
+func (r CombinedRule) Validate(option *RuleOption) (string, error) {
 	if err := r.Condition.Validate(); err != nil {
 		return "condition", err
 	}
-	if r.Rules == nil || len(r.Rules) == 0 {
+
+	if len(r.Rules) == 0 {
 		return "rules", fmt.Errorf("combined rules shouldn't be empty")
 	}
+
+	// validate condition rules count.
+	if r.Condition == ConditionOr && option.MaxConditionOrRulesCount > 0 &&
+		len(r.Rules) > option.MaxConditionOrRulesCount {
+
+		return "rules", fmt.Errorf("too many rules of OR condition: %d max(%d)",
+			len(r.Rules), option.MaxConditionOrRulesCount)
+	}
+
+	if r.Condition == ConditionAnd && option.MaxConditionAndRulesCount > 0 &&
+		len(r.Rules) > option.MaxConditionAndRulesCount {
+
+		return "rules", fmt.Errorf("too many rules of AND condition: %d max(%d)",
+			len(r.Rules), option.MaxConditionAndRulesCount)
+	}
+
 	for idx, rule := range r.Rules {
-		if key, err := rule.Validate(); err != nil {
+		if key, err := rule.Validate(option); err != nil {
 			return fmt.Sprintf("rules[%d].%s", idx, key), err
 		}
 	}
 	return "", nil
 }
 
+// ToMgo TODO
 func (r CombinedRule) ToMgo() (mgoFilter map[string]interface{}, key string, err error) {
 	if err := r.Condition.Validate(); err != nil {
 		return nil, "condition", err
@@ -394,6 +492,7 @@ func (r CombinedRule) ToMgo() (mgoFilter map[string]interface{}, key string, err
 	return mgoFilter, "", nil
 }
 
+// Match TODO
 func (r CombinedRule) Match(matcher Matcher) bool {
 	if len(r.Rules) == 0 {
 		return true
@@ -417,4 +516,35 @@ func (r CombinedRule) Match(matcher Matcher) bool {
 	default:
 		panic(fmt.Sprintf("unexpected condition %s", r.Condition))
 	}
+}
+
+// MatchAny if any of the rules matches the matcher, return true
+func (r CombinedRule) MatchAny(matcher Matcher) bool {
+	if len(r.Rules) == 0 {
+		return true
+	}
+
+	for _, rule := range r.Rules {
+		if rule.MatchAny(matcher) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetField get rule field
+func (r CombinedRule) GetField() []string {
+	if len(r.Rules) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0)
+	for _, rule := range r.Rules {
+		fields := rule.GetField()
+		if len(fields) != 0 {
+			result = append(result, fields...)
+		}
+	}
+
+	return result
 }

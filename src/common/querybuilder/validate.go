@@ -23,9 +23,13 @@ import (
 )
 
 var (
+	// TypeNumeric TODO
 	TypeNumeric = "numeric"
+	// TypeBoolean TODO
 	TypeBoolean = "boolean"
-	TypeString  = "string"
+	// TypeString TODO
+	TypeString = "string"
+	// TypeUnknown TODO
 	TypeUnknown = "unknown"
 )
 
@@ -83,13 +87,13 @@ func validateDatetimeStringType(value interface{}) error {
 	if err := validateStringType(value); err != nil {
 		return err
 	}
-	if _, err := time.Parse(time.RFC3339, value.(string)); err != nil {
+	if _, err := time.Parse(timeLayout, value.(string)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func validateSliceOfBasicType(value interface{}, requireSameType bool) error {
+func validateSliceOfBasicType(value interface{}, requireSameType bool, maxElementsCount int) error {
 	if value == nil {
 		return nil
 	}
@@ -98,6 +102,7 @@ func validateSliceOfBasicType(value interface{}, requireSameType bool) error {
 	if t.Kind() != reflect.Array && t.Kind() != reflect.Slice {
 		return fmt.Errorf("unexpected value type: %s, expect array", t.Kind().String())
 	}
+
 	v := reflect.ValueOf(value)
 	for i := 0; i < v.Len(); i++ {
 		item := v.Index(i).Interface()
@@ -105,6 +110,11 @@ func validateSliceOfBasicType(value interface{}, requireSameType bool) error {
 			return err
 		}
 	}
+
+	if maxElementsCount > 0 && v.Len() > maxElementsCount {
+		return fmt.Errorf("too many elements of slice: %d max(%d)", v.Len(), maxElementsCount)
+	}
+
 	if requireSameType {
 		vTypes := make([]string, 0)
 		for i := 0; i < v.Len(); i++ {
@@ -116,5 +126,6 @@ func validateSliceOfBasicType(value interface{}, requireSameType bool) error {
 			return fmt.Errorf("slice element type not unique, types: %+v", vTypes)
 		}
 	}
+
 	return nil
 }

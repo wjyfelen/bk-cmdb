@@ -18,6 +18,7 @@ import (
 	"configcenter/src/common/selector"
 )
 
+// AddLabels TODO
 func (s *coreService) AddLabels(ctx *rest.Contexts) {
 	inputData := selector.LabelAddRequest{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -32,6 +33,7 @@ func (s *coreService) AddLabels(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 }
 
+// RemoveLabels TODO
 func (s *coreService) RemoveLabels(ctx *rest.Contexts) {
 	inputData := selector.LabelRemoveRequest{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -40,6 +42,22 @@ func (s *coreService) RemoveLabels(ctx *rest.Contexts) {
 	}
 	if err := s.core.LabelOperation().RemoveLabel(ctx.Kit, inputData.TableName, inputData.Option); err != nil {
 		blog.Errorf("RemoveLabels failed, table: %s, option: %+v, err: %s, rid: %s", inputData.TableName, inputData.Option, err.Error(), ctx.Kit.Rid)
+		ctx.RespAutoError(err)
+		return
+	}
+	ctx.RespEntity(nil)
+}
+
+// UpdateLabels update service instance tag.
+func (s *coreService) UpdateLabels(ctx *rest.Contexts) {
+	inputData := selector.LabelUpdateRequest{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+	if err := s.core.LabelOperation().UpdateLabel(ctx.Kit, inputData.TableName, inputData.Option); err != nil {
+		blog.Errorf("update labels failed, table: %s, option: %+v, err: %v, rid: %s", inputData.TableName,
+			inputData.Option, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}

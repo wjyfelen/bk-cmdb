@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="permission-main">
     <div class="permission-content">
@@ -18,7 +30,7 @@
                 v-for="(relation, index) in row.relations"
                 v-bk-overflow-tips
                 :key="index">
-                <permission-resource-name :relations="relation" />
+                <permission-resource-name :id="relation.id" :relations="relation" />
               </div>
             </div>
             <span v-else>--</span>
@@ -43,7 +55,7 @@
   </div>
 </template>
 <script>
-  import { IAM_ACTIONS, IAM_VIEWS_NAME } from '@/dictionary/iam-auth'
+  import { IAM_ACTIONS, IAM_VIEWS_NAME, IAM_VIEWS } from '@/dictionary/iam-auth'
   import PermissionResourceName from './permission-resource-name.vue'
   export default {
     components: {
@@ -82,16 +94,41 @@
         const languageIndex = this.$i18n.locale === 'en' ? 1 : 0
         this.list = this.permission.actions.map((action) => {
           const { id: actionId, related_resource_types: relatedResourceTypes = [] } = action
-          const definition = Object.values(IAM_ACTIONS).find(definition => definition.id === actionId)
+          const definition = Object.values(IAM_ACTIONS).find((definition) => {
+            if (typeof definition.id === 'function') {
+              return actionId.indexOf(definition.fixedId) > -1
+            }
+            return definition.id === actionId
+          })
           const allRelationPath = []
           relatedResourceTypes.forEach(({ instances = [] }) => {
             instances.forEach((fullPaths) => {
               // 数据格式[type, id, label]
-              // eslint-disable-next-line max-len
-              const topoPath = fullPaths.map(pathData => [pathData.type, pathData.id, IAM_VIEWS_NAME[pathData.type][languageIndex]])
+              const topoPath = []
+              fullPaths.forEach((pathData) => {
+                const isComobj = pathData.type.indexOf('comobj_') > -1
+                if (isComobj) {
+                  const [, modelId] = pathData.type.split('_')
+                  const instId = pathData.id
+                  const modelView = IAM_VIEWS.INSTANCE_MODEL
+                  const instView = IAM_VIEWS.INSTANCE
+                  const modelPath = [modelView, modelId, IAM_VIEWS_NAME[modelView][languageIndex]]
+                  const instPath = instId ? [instView, pathData.id, IAM_VIEWS_NAME[instView][languageIndex]] : null
+                  topoPath.push(modelPath)
+                  instPath && topoPath.push(instPath)
+                } else {
+                  topoPath.push([pathData.type, pathData.id, IAM_VIEWS_NAME[pathData.type][languageIndex]])
+                }
+              })
               allRelationPath.push(topoPath)
             })
           })
+          if (!allRelationPath.length && actionId.indexOf('comobj') > -1) {
+            // 兼容创建模型实例没有relatedResourceTypes的情况
+            const [,, modelId] = actionId.split('_')
+            const modelView = IAM_VIEWS.INSTANCE_MODEL
+            allRelationPath.push([[modelView, modelId, IAM_VIEWS_NAME[modelView][languageIndex]]])
+          }
           return {
             id: actionId,
             name: definition.name[languageIndex],

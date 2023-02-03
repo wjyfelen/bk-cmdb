@@ -1,3 +1,4 @@
+// Package iam TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -20,6 +21,7 @@ import (
 	"configcenter/src/thirdparty/esbserver/esbutil"
 )
 
+// GetNoAuthSkipUrl TODO
 // returns the url which can helps to launch the bk-iam when user do not have the authority to access resource(s).
 func (i *iam) GetNoAuthSkipUrl(ctx context.Context, header http.Header, p metadata.IamPermission) (string, error) {
 	resp := new(esbIamPermissionURLResp)
@@ -83,6 +85,34 @@ func (i *iam) BatchRegisterResourceCreatorAction(ctx context.Context, header htt
 	params := &esbIamInstancesParams{
 		EsbCommParams:           esbutil.GetEsbRequestParams(i.config.GetConfig(), header),
 		IamInstancesWithCreator: instances,
+	}
+
+	err := i.client.Post().
+		SubResourcef(url).
+		WithContext(ctx).
+		WithHeaders(header).
+		Body(params).
+		Do().
+		Into(&resp)
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Result || resp.Code != 0 {
+		return nil, fmt.Errorf("code: %d, message: %s", resp.Code, resp.Message)
+	}
+
+	return resp.Data, nil
+}
+
+// BatchOperateInstanceAuth batch grant or revoke iam resource instances' authorization
+func (i *iam) BatchOperateInstanceAuth(ctx context.Context, header http.Header, req *metadata.IamBatchOperateInstanceAuthReq) (
+	[]metadata.IamBatchOperateInstanceAuthRes, error) {
+
+	resp := new(esbIamBatchOperateInstanceAuthResp)
+	url := "/v2/iam/authorization/batch_instance/"
+	params := &esbIamBatchOperateInstanceAuthParams{
+		EsbCommParams:                  esbutil.GetEsbRequestParams(i.config.GetConfig(), header),
+		IamBatchOperateInstanceAuthReq: req,
 	}
 
 	err := i.client.Post().

@@ -13,7 +13,12 @@
 package metadata
 
 import (
+	"fmt"
+
+	"configcenter/src/common"
+	"configcenter/src/common/errors"
 	"configcenter/src/common/mapstr"
+	"configcenter/src/common/querybuilder"
 )
 
 const (
@@ -21,39 +26,48 @@ const (
 	AssociationFieldObjectID = "bk_obj_id"
 	// AssociationFieldAsstID the association data field bk_obj_asst_id
 	AssociationFieldAsstID = "bk_obj_asst_id"
+	// AssociationFieldSupplierAccount TODO
 	// AssociationFieldObjectAttributeID the association data field definition
-	//AssociationFieldObjectAttributeID = "bk_object_att_id"
+	// AssociationFieldObjectAttributeID = "bk_object_att_id"
 	// AssociationFieldSupplierAccount the association data field definition
 	AssociationFieldSupplierAccount = "bk_supplier_account"
-	// AssociationFieldAssociationForward the association data field definition
+	// AssociationFieldAssociationObjectID the association data field definition
 	// AssociationFieldAssociationForward = "bk_asst_forward"
 	// AssociationFieldAssociationObjectID the association data field definition
 	AssociationFieldAssociationObjectID = "bk_asst_obj_id"
-	// AssociationFieldAssociationName the association data field definition
+	// AssociationFieldAssociationId the association data field definition
 	// AssociationFieldAssociationName = "bk_asst_name"
 	// AssociationFieldAssociationId auto incr id
-	AssociationFieldAssociationId   = "id"
+	AssociationFieldAssociationId = "id"
+	// AssociationFieldAssociationKind TODO
 	AssociationFieldAssociationKind = "bk_asst_id"
 )
 
+// SearchAssociationTypeRequest TODO
 type SearchAssociationTypeRequest struct {
 	BasePage  `json:"page"`
 	Condition map[string]interface{} `json:"condition"`
 }
 
-type SearchAssociationTypeResult struct {
-	BaseResp `json:",inline"`
-	Data     struct {
-		Count int                `json:"count"`
-		Info  []*AssociationKind `json:"info"`
-	} `json:"data"`
+// SearchAssociationType struct for search association type
+type SearchAssociationType struct {
+	Count int                `json:"count"`
+	Info  []*AssociationKind `json:"info"`
 }
 
+// SearchAssociationTypeResult TODO
+type SearchAssociationTypeResult struct {
+	BaseResp `json:",inline"`
+	Data     SearchAssociationType `json:"data"`
+}
+
+// CreateAssociationTypeResult TODO
 type CreateAssociationTypeResult struct {
 	BaseResp `json:",inline"`
 	Data     RspID `json:"data"`
 }
 
+// UpdateAssociationTypeRequest TODO
 type UpdateAssociationTypeRequest struct {
 	AsstName  string `field:"bk_asst_name" json:"bk_asst_name" bson:"bk_asst_name"`
 	SrcDes    string `field:"src_des" json:"src_des" bson:"src_des"`
@@ -61,123 +75,327 @@ type UpdateAssociationTypeRequest struct {
 	Direction string `field:"direction" json:"direction" bson:"direction"`
 }
 
+// UpdateManyAssociationTypeRequest params of update many association type
+type UpdateManyAssociationTypeRequest struct {
+	Data map[int64]UpdateAssociationTypeRequest `json:"data"`
+}
+
+// UpdateAssociationTypeResult TODO
 type UpdateAssociationTypeResult struct {
 	BaseResp `json:",inline"`
 	Data     string `json:"data"`
 }
 
+// DeleteAssociationTypeResult TODO
 type DeleteAssociationTypeResult struct {
 	BaseResp `json:",inline"`
 	Data     string `json:"data"`
 }
 
+// SearchAssociationObjectRequest TODO
 type SearchAssociationObjectRequest struct {
 	Condition mapstr.MapStr `json:"condition"`
 }
 
+// SearchAssociationObjectResult TODO
 type SearchAssociationObjectResult struct {
 	BaseResp `json:",inline"`
 	Data     []*Association `json:"data"`
 }
 
+// CreateAssociationObjectResult TODO
 type CreateAssociationObjectResult struct {
 	BaseResp `json:",inline"`
 	Data     RspID `json:"data"`
 }
 
+// UpdateAssociationObjectRequest TODO
 type UpdateAssociationObjectRequest struct {
 	AsstName string `field:"bk_asst_name" json:"bk_asst_name" bson:"bk_asst_name"`
 }
 
+// UpdateAssociationObjectResult TODO
 type UpdateAssociationObjectResult struct {
 	BaseResp `json:",inline"`
 	Data     string `json:"data"`
 }
 
+// DeleteAssociationObjectResult TODO
 type DeleteAssociationObjectResult struct {
 	BaseResp `json:",inline"`
 	Data     string `json:"data"`
 }
 
+// SearchAssociationRelatedInstRequestCond TODO
 type SearchAssociationRelatedInstRequestCond struct {
 	ObjectID string `field:"bk_obj_id" json:"bk_obj_id,omitempty" bson:"bk_obj_id,omitempty"`
 	InstID   int64  `field:"bk_inst_id" json:"bk_inst_id,omitempty" bson:"bk_inst_id,omitempty"`
 }
 
+// SearchAssociationInstRequest TODO
 type SearchAssociationInstRequest struct {
 	Condition mapstr.MapStr `json:"condition"` // construct condition mapstr by condition.Condition
+	ObjID     string        `json:"bk_obj_id"`
 }
 
+// SearchAssociationRelatedInstRequest TODO
 type SearchAssociationRelatedInstRequest struct {
 	Fields    []string                                `json:"fields"`
 	Page      BasePage                                `json:"page"`
 	Condition SearchAssociationRelatedInstRequestCond `json:"condition"`
 }
 
+// SearchAssociationInstResult TODO
 type SearchAssociationInstResult struct {
 	BaseResp `json:",inline"`
 	Data     []*InstAsst `json:"data"`
 }
 
+// AsstResult model item result
+type AsstResult struct {
+	Count int           `json:"count"`
+	Info  []Association `json:"info"`
+}
+
+// SearchAsstModelResp query association model result
+type SearchAsstModelResp struct {
+	BaseResp `json:",inline"`
+	Data     AsstResult `json:"data"`
+}
+
+// SearchInstAssociationListResult the struct of list instance association result
+type SearchInstAssociationListResult struct {
+	Association struct {
+		Src []InstAsst `json:"src"`
+		Dst []InstAsst `json:"dst"`
+	} `json:"association"`
+	Inst map[string][]mapstr.MapStr `json:"instance"`
+}
+
+// InstAndAssocDetailResult search inst and association detail result
+type InstAndAssocDetailResult struct {
+	BaseResp `json:",inline"`
+	Data     InstAndAssocDetailData `json:"data"`
+}
+
+// InstAndAssocDetailData search inst and association detail return data
+type InstAndAssocDetailData struct {
+	Asst []InstAsst      `field:"association" json:"association"`
+	Src  []mapstr.MapStr `field:"src" json:"src"`
+	Dst  []mapstr.MapStr `field:"dst" json:"dst"`
+}
+
+// InstAndAssocRequest search inst and association detail request
+type InstAndAssocRequest struct {
+	Condition struct {
+		AsstFilter *querybuilder.QueryFilter `field:"asst_filter" json:"asst_filter"`
+		AsstFields []string                  `field:"asst_fields" json:"asst_fields"`
+		SrcFields  []string                  `field:"src_fields" json:"src_fields"`
+		DstFields  []string                  `field:"dst_fields" json:"dst_fields"`
+		SrcDetail  bool                      `field:"src_detail" json:"src_detail"`
+		DstDetail  bool                      `field:"dst_detail" json:"dst_detail"`
+	} `field:"condition" json:"condition"`
+	Page BasePage `field:"page" json:"page"`
+}
+
+// Validate validate InstAndAssocDetailData
+func (assoc *InstAndAssocRequest) Validate() errors.RawErrorInfo {
+
+	if assoc.Condition.AsstFilter == nil {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{"condition.asst_filter"},
+		}
+	}
+
+	filterOption := querybuilder.RuleOption{NeedSameSliceElementType: true}
+	if key, err := assoc.Condition.AsstFilter.Validate(&filterOption); err != nil {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{fmt.Sprintf("condition.asst_filter.%s", key)},
+		}
+	}
+
+	if assoc.Page.Limit > 200 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommPageLimitIsExceeded,
+		}
+	}
+
+	if assoc.Page.Limit == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"page.limit"},
+		}
+	}
+
+	return errors.RawErrorInfo{}
+}
+
+// CreateAssociationInstRequest TODO
 type CreateAssociationInstRequest struct {
 	ObjectAsstID string `field:"bk_obj_asst_id" json:"bk_obj_asst_id,omitempty" bson:"bk_obj_asst_id,omitempty"`
 	InstID       int64  `field:"bk_inst_id" json:"bk_inst_id,omitempty" bson:"bk_inst_id,omitempty"`
 	AsstInstID   int64  `field:"bk_asst_inst_id" json:"bk_asst_inst_id,omitempty" bson:"bk_asst_inst_id,omitempty"`
 }
+
+// CreateAssociationInstResult TODO
 type CreateAssociationInstResult struct {
 	BaseResp `json:",inline"`
 	Data     RspID `json:"data"`
 }
 
+// CreateManyInstAsstRequest parameter structure for creating multiple instances associations
+type CreateManyInstAsstRequest struct {
+	ObjectID     string     `field:"bk_obj_id" json:"bk_obj_id,omitempty" bson:"bk_obj_id,omitempty"`
+	AsstObjectID string     `field:"bk_asst_obj_id" json:"bk_asst_obj_id,omitempty" bson:"bk_asst_obj_id,omitempty"`
+	ObjectAsstID string     `field:"bk_obj_asst_id" json:"bk_obj_asst_id,omitempty" bson:"bk_obj_asst_id,omitempty"`
+	Details      []InstAsst `field:"details" json:"details,omitempty" bson:"details,omitempty"`
+}
+
+// Validate TODO
+func (assoc *CreateManyInstAsstRequest) Validate() errors.RawErrorInfo {
+	if len(assoc.ObjectAsstID) == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{common.AssociationObjAsstIDField},
+		}
+	}
+
+	if len(assoc.ObjectID) == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{common.BKObjIDField},
+		}
+	}
+
+	if len(assoc.AsstObjectID) == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsIsInvalid,
+			Args:    []interface{}{common.BKAsstObjIDField},
+		}
+	}
+
+	if len(assoc.Details) == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommInstDataNil,
+			Args:    []interface{}{"details"},
+		}
+	}
+
+	if len(assoc.Details) > 200 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommXXExceedLimit,
+			Args:    []interface{}{"details", 200},
+		}
+	}
+
+	// NOTE: if bk_obj_asst_id changes, the logic here needs to be modified
+	if assoc.ObjectAsstID[:len(assoc.ObjectID)] != assoc.ObjectID {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsInvalid,
+			Args:    []interface{}{common.BKObjIDField},
+		}
+	}
+
+	if assoc.ObjectAsstID[len(assoc.ObjectAsstID)-len(assoc.AsstObjectID):] != assoc.AsstObjectID {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsInvalid,
+			Args:    []interface{}{common.BKAsstObjIDField},
+		}
+	}
+
+	return errors.RawErrorInfo{}
+}
+
+// AssociationInstDetails source and target instances of associations
+type AssociationInstDetails struct {
+	InstID     int64 `field:"bk_inst_id" json:"bk_inst_id,omitempty" bson:"bk_inst_id,omitempty"`
+	AsstInstID int64 `field:"bk_asst_inst_id" json:"bk_asst_inst_id,omitempty" bson:"bk_asst_inst_id,omitempty"`
+}
+
+// CreateManyInstAsstResultDetail details of creating instance association result
+type CreateManyInstAsstResultDetail struct {
+	SuccessCreated map[int64]int64  `json:"success_created"`
+	Error          map[int64]string `json:"error_msg"`
+}
+
+// CreateManyInstAsstResult  result of creating instance association
+type CreateManyInstAsstResult struct {
+	BaseResp `json:",inline"`
+	Data     CreateManyInstAsstResultDetail `json:"data"`
+}
+
+// NewManyInstAsstResultDetail TODO
+func NewManyInstAsstResultDetail() *CreateManyInstAsstResultDetail {
+	return &CreateManyInstAsstResultDetail{
+		SuccessCreated: make(map[int64]int64, 0),
+		Error:          make(map[int64]string, 0),
+	}
+}
+
+// DeleteAssociationInstRequest TODO
 type DeleteAssociationInstRequest struct {
 	Condition mapstr.MapStr `json:"condition"`
 }
 
+// DeleteAssociationInstBatchRequest TODO
 type DeleteAssociationInstBatchRequest struct {
 	ObjectID string  `json:"bk_obj_id"`
 	ID       []int64 `json:"id"`
 }
 
+// DeleteAssociationInstResult TODO
 type DeleteAssociationInstResult struct {
 	BaseResp `json:",inline"`
 	Data     string `json:"data"`
 }
 
+// DeleteAssociationInstBatchResult TODO
 type DeleteAssociationInstBatchResult struct {
 	BaseResp `json:",inline"`
 	Data     int `json:"data"`
 }
 
+// AssociationKindIDs TODO
 type AssociationKindIDs struct {
 	// the association kind ids.
 	AsstIDs []string `json:"asst_ids"`
 }
 
+// ListAssociationsWithAssociationKindResult TODO
 type ListAssociationsWithAssociationKindResult struct {
 	BaseResp `json:",inline"`
 	Data     AssociationList `json:"data"`
 }
 
+// AssociationList TODO
 type AssociationList struct {
 	Associations []AssociationDetail `json:"associations"`
 }
 
+// AssociationDetail TODO
 type AssociationDetail struct {
 	// the ID of the association kind.
 	AssociationKindID string        `json:"bk_asst_id"`
 	Associations      []Association `json:"assts"`
 }
 
-// 关联类型
+// AssociationDirection 关联类型
 type AssociationDirection string
 
 const (
-	NoneDirection       AssociationDirection = "none"
+	// NoneDirection TODO
+	NoneDirection AssociationDirection = "none"
+	// DestinationToSource TODO
 	DestinationToSource AssociationDirection = "src_to_dest"
+	// SourceToDestination TODO
 	SourceToDestination AssociationDirection = "dest_to_src"
-	Bidirectional       AssociationDirection = "bidirectional"
+	// Bidirectional TODO
+	Bidirectional AssociationDirection = "bidirectional"
 )
 
+// AssociationKind TODO
 type AssociationKind struct {
 	ID int64 `field:"id" json:"id" bson:"id"`
 	// a unique association id created by user.
@@ -198,6 +416,7 @@ type AssociationKind struct {
 	IsPre *bool `field:"ispre" json:"ispre" bson:"ispre"`
 }
 
+// Parse TODO
 func (cli *AssociationKind) Parse(data mapstr.MapStr) (*AssociationKind, error) {
 	// TODO support parse metadata params
 	err := mapstr.SetValueToStructByTags(cli, data)
@@ -208,21 +427,35 @@ func (cli *AssociationKind) Parse(data mapstr.MapStr) (*AssociationKind, error) 
 	return cli, err
 }
 
+// ToMapStr to mapstr
+func (cli *AssociationKind) ToMapStr() mapstr.MapStr {
+	return mapstr.SetValueToMapStrByTags(cli)
+}
+
+// AssociationOnDeleteAction TODO
 type AssociationOnDeleteAction string
+
+// AssociationMapping TODO
 type AssociationMapping string
 
 const (
+	// NoAction TODO
 	// this is a default action, which is do nothing when a association between object is deleted.
 	NoAction AssociationOnDeleteAction = "none"
+	// DeleteSource TODO
 	// delete related source object instances when the association is deleted.
 	DeleteSource AssociationOnDeleteAction = "delete_src"
+	// DeleteDestinatioin TODO
 	// delete related destination object instances when the association is deleted.
 	DeleteDestinatioin AssociationOnDeleteAction = "delete_dest"
 
+	// OneToOneMapping TODO
 	// the source object can be related with only one destination object
 	OneToOneMapping AssociationMapping = "1:1"
+	// OneToManyMapping TODO
 	// the source object can be related with multiple destination objects
 	OneToManyMapping AssociationMapping = "1:n"
+	// ManyToManyMapping TODO
 	// multiple source object can be related with multiple destination objects
 	ManyToManyMapping AssociationMapping = "n:n"
 )
@@ -252,12 +485,9 @@ type Association struct {
 	// describe whether this association is a pre-defined association or not,
 	// if true, it means this association is used by cmdb itself.
 	IsPre *bool `field:"ispre" json:"ispre" bson:"ispre"`
-
-	ClassificationID string `field:"bk_classification_id" json:"-" bson:"-"`
-	ObjectIcon       string `field:"bk_obj_icon" json:"-" bson:"-"`
-	ObjectName       string `field:"bk_obj_name" json:"-" bson:"-"`
 }
 
+// CanUpdate TODO
 // return field means which filed is set but is forbidden to update.
 func (a *Association) CanUpdate() (field string, can bool) {
 	if a.ID != 0 {
@@ -294,7 +524,7 @@ func (a *Association) CanUpdate() (field string, can bool) {
 
 // Parse load the data from mapstr attribute into attribute instance
 func (cli *Association) Parse(data mapstr.MapStr) (*Association, error) {
-	//TODO support parse metadata params
+	// TODO support parse metadata params
 	err := mapstr.SetValueToStructByTags(cli, data)
 	if nil != err {
 		return nil, err
@@ -306,6 +536,15 @@ func (cli *Association) Parse(data mapstr.MapStr) (*Association, error) {
 // ToMapStr to mapstr
 func (cli *Association) ToMapStr() mapstr.MapStr {
 	return mapstr.SetValueToMapStrByTags(cli)
+}
+
+// MainlineAssociation defines the mainline association between two objects.
+type MainlineAssociation struct {
+	Association `json:",inline"`
+
+	ClassificationID string `json:"bk_classification_id,omitempty" bson:"-"`
+	ObjectIcon       string `json:"bk_obj_icon,omitempty" bson:"-"`
+	ObjectName       string `json:"bk_obj_name,omitempty" bson:"-"`
 }
 
 // InstAsst an association definition between instances.
@@ -331,6 +570,7 @@ type InstAsst struct {
 	BizID int64 `field:"bk_biz_id" json:"bk_biz_id,omitempty" bson:"bk_biz_id"`
 }
 
+// GetInstID TODO
 func (asst InstAsst) GetInstID(objID string) (instID int64, ok bool) {
 	switch objID {
 	case asst.ObjectID:
@@ -342,6 +582,7 @@ func (asst InstAsst) GetInstID(objID string) (instID int64, ok bool) {
 	}
 }
 
+// InstNameAsst TODO
 type InstNameAsst struct {
 	ID         string `json:"id"`
 	ObjID      string `json:"bk_obj_id"`
@@ -400,17 +641,15 @@ func (cli *MainlineObjectTopo) ToMapStr() mapstr.MapStr {
 
 // TopoInst 实例拓扑结构
 type TopoInst struct {
-	InstID               int64  `json:"bk_inst_id"`
-	InstName             string `json:"bk_inst_name"`
-	ObjID                string `json:"bk_obj_id"`
-	ObjName              string `json:"bk_obj_name"`
-	Default              int    `json:"default"`
-	HostCount            int64  `json:"host_count"`
-	ServiceInstanceCount int64  `json:"service_instance_count,omitempty"`
-	ServiceTemplateID    int64  `json:"service_template_id,omitempty"`
-	SetTemplateID        int64  `json:"set_template_id,omitempty"`
-	HostApplyEnabled     *bool  `json:"host_apply_enabled,omitempty"`
-	HostApplyRuleCount   *int64 `json:"host_apply_rule_count,omitempty"`
+	InstID             int64  `json:"bk_inst_id"`
+	InstName           string `json:"bk_inst_name"`
+	ObjID              string `json:"bk_obj_id"`
+	ObjName            string `json:"bk_obj_name"`
+	Default            int    `json:"default"`
+	ServiceTemplateID  int64  `json:"service_template_id,omitempty"`
+	SetTemplateID      int64  `json:"set_template_id,omitempty"`
+	HostApplyEnabled   *bool  `json:"host_apply_enabled,omitempty"`
+	HostApplyRuleCount *int64 `json:"host_apply_rule_count,omitempty"`
 }
 
 // TopoInstRst 拓扑实例
@@ -419,8 +658,29 @@ type TopoInstRst struct {
 	Child    []*TopoInstRst `json:"child"`
 }
 
+// TopoNodeHostAndSerInstCount topo节点主机/服务实例数量
+type TopoNodeHostAndSerInstCount struct {
+	ObjID                string `json:"bk_obj_id"`
+	InstID               int64  `json:"bk_inst_id"`
+	HostCount            int64  `json:"host_count"`
+	ServiceInstanceCount int64  `json:"service_instance_count"`
+}
+
+// HostAndSerInstCountOption 获取主机/服务实例查询参数结构
+type HostAndSerInstCountOption struct {
+	Condition []CountOptions `json:"condition"`
+}
+
+// CountOptions 获取主机/服务实例入参条件
+type CountOptions struct {
+	ObjID  string `json:"bk_obj_id"`
+	InstID int64  `json:"bk_inst_id"`
+}
+
+// TopoInstRstVisitor TODO
 type TopoInstRstVisitor func(tir *TopoInstRst)
 
+// DeepFirstTraverse TODO
 func (tir *TopoInstRst) DeepFirstTraverse(visitor TopoInstRstVisitor) {
 	for _, child := range tir.Child {
 		child.DeepFirstTraverse(visitor)
@@ -448,18 +708,22 @@ type ResponeImportAssociation struct {
 	Data     ResponeImportAssociationData `json:"data"`
 }
 
+// RowMsgData TODO
 type RowMsgData struct {
 	Row int    `json:"row"`
 	Msg string `json:"message"`
 }
 
+// ResponeImportAssociationData TODO
 type ResponeImportAssociationData struct {
 	ErrMsgMap []RowMsgData `json:"err_msg"`
 }
 
-// ResponeImportAssociation  import association result
+// RequestImportAssociation  import association result
 type RequestImportAssociation struct {
-	AssociationInfoMap map[int]ExcelAssocation `json:"association_info"`
+	AssociationInfoMap    map[int]ExcelAssociation `json:"association_info"`
+	AsstObjectUniqueIDMap map[string]int64         `json:"asst_object_unique_id_info"`
+	ObjectUniqueID        int64                    `json:"object_unique_id"`
 }
 
 // RequestInstAssociationObjectID 要求根据实例信息（实例的模型ID，实例ID）和模型ID（关联关系中的源，目的模型ID）, 返回关联关系的请求参数
@@ -487,16 +751,73 @@ type InstBaseInfo struct {
 	Name string `json:"bk_inst_name"`
 }
 
+// FindTopoPathRequest TODO
 type FindTopoPathRequest struct {
 	Nodes []TopoNode `json:"topo_nodes" mapstructure:"topo_nodes"`
 }
 
+// TopoPathResult TODO
 type TopoPathResult struct {
 	Nodes []NodeTopoPath `json:"nodes" mapstructure:"nodes"`
 }
 
+// NodeTopoPath TODO
 type NodeTopoPath struct {
 	BizID int64                       `json:"bk_biz_id" mapstructure:"bk_biz_id"`
 	Node  TopoNode                    `json:"topo_node" mapstructure:"topo_node"`
 	Path  []*TopoInstanceNodeSimplify `json:"topo_path" mapstructure:"topo_path"`
+}
+
+// InstAsstQueryCondition TODO
+type InstAsstQueryCondition struct {
+	Cond  QueryCondition `json:"cond"`
+	ObjID string         `json:"bk_obj_id"`
+}
+
+// InstAsstDeleteOption TODO
+type InstAsstDeleteOption struct {
+	Opt   DeleteOption `json:"opt"`
+	ObjID string       `json:"bk_obj_id"`
+}
+
+// FindAssociationByObjectAssociationIDRequest 专用接口， 为excel 导入使用
+type FindAssociationByObjectAssociationIDRequest struct {
+	ObjAsstIDArr []string `json:"bk_obj_asst_ids"`
+}
+
+// FindAssociationByObjectAssociationIDResponse 专用接口， 为excel 导入使用
+type FindAssociationByObjectAssociationIDResponse struct {
+	BaseResp
+	Data []Association `json:"data"`
+}
+
+// AssociationKindYaml yaml's field about association kind
+type AssociationKindYaml struct {
+	YamlHeader `json:",inline" yaml:",inline"`
+	AsstKind   []AssociationKind `json:"asst_kind" yaml:"asst_kind"`
+}
+
+// Validate validate total yaml of association
+func (asst *AssociationKindYaml) Validate() errors.RawErrorInfo {
+	if err := asst.YamlHeader.Validate(); err.ErrCode != 0 {
+		return err
+	}
+
+	for _, item := range asst.AsstKind {
+		if len(item.AssociationKindID) == 0 {
+			return errors.RawErrorInfo{
+				ErrCode: common.CCErrWebVerifyYamlFail,
+				Args:    []interface{}{common.AssociationKindIDField + " not found"},
+			}
+		}
+
+		if item.AssociationKindID == common.AssociationKindMainline {
+			return errors.RawErrorInfo{
+				ErrCode: common.CCErrWebVerifyYamlFail,
+				Args:    []interface{}{common.AssociationKindMainline + " forbidden operations"},
+			}
+		}
+	}
+
+	return errors.RawErrorInfo{}
 }

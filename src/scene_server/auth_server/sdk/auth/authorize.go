@@ -23,6 +23,7 @@ import (
 	"configcenter/src/scene_server/auth_server/sdk/types"
 )
 
+// Authorize TODO
 type Authorize struct {
 	// iam client
 	iam client.Interface
@@ -30,6 +31,7 @@ type Authorize struct {
 	fetcher ResourceFetcher
 }
 
+// Authorize TODO
 func (a *Authorize) Authorize(ctx context.Context, opts *types.AuthOptions) (*types.Decision, error) {
 	if err := opts.Validate(); err != nil {
 		return nil, err
@@ -57,10 +59,12 @@ func (a *Authorize) Authorize(ctx context.Context, opts *types.AuthOptions) (*ty
 	return &types.Decision{Authorized: authorized}, nil
 }
 
+// AuthorizeBatch TODO
 func (a *Authorize) AuthorizeBatch(ctx context.Context, opts *types.AuthBatchOptions) ([]*types.Decision, error) {
 	return a.authorizeBatch(ctx, opts, true)
 }
 
+// AuthorizeAnyBatch TODO
 func (a *Authorize) AuthorizeAnyBatch(ctx context.Context, opts *types.AuthBatchOptions) ([]*types.Decision, error) {
 	return a.authorizeBatch(ctx, opts, false)
 }
@@ -165,7 +169,9 @@ func (a *Authorize) listUserPolicyBatchWithCompress(ctx context.Context,
 	return allPolicies, nil
 }
 
-func (a *Authorize) ListAuthorizedInstances(ctx context.Context, opts *types.AuthOptions, resourceType types.ResourceType) ([]string, error) {
+// ListAuthorizedInstances list a user's all the authorized resource instance list with an action.
+func (a *Authorize) ListAuthorizedInstances(ctx context.Context, opts *types.AuthOptions,
+	resourceType types.ResourceType) (*types.AuthorizeList, error) {
 	// find user's policy with action
 	getOpt := types.GetPolicyOption{
 		System:  opts.System,
@@ -174,14 +180,12 @@ func (a *Authorize) ListAuthorizedInstances(ctx context.Context, opts *types.Aut
 		// do not use user's policy, so that we can get all the user's policy.
 		Resources: opts.Resources,
 	}
-
 	policy, err := a.iam.GetUserPolicy(ctx, &getOpt)
 	if err != nil {
 		return nil, err
 	}
 	if policy == nil || policy.Operator == "" {
-		return []string{}, nil
+		return &types.AuthorizeList{}, nil
 	}
-
 	return a.countPolicy(ctx, policy, resourceType)
 }

@@ -1,6 +1,19 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import store from '@/store'
 import i18n from '@/i18n'
 import isInt from 'validator/es/lib/isInt'
+import queryBuilderOperator from '@/utils/query-builder-operator'
 
 const getModelById = store.getters['objectModelClassify/getModelById']
 export function getLabel(property) {
@@ -37,6 +50,15 @@ export function getPlaceholder(property) {
   return i18n.t('请输入xx', { name: property.bk_property_name })
 }
 
+/**
+ * 获取对应字符类型的搜索操作符和初始值类型
+ * @param {object} property 业务属性模型
+ * @param {string} property.bk_property_type 业务属性类型，如 bk_biz_name
+ * @param {object} defaultData 默认操作符和值类型
+ * @param {string} defaultData.operator 默认操作符
+ * @param {string} defaultData.value 默认值
+ * @returns {object}
+ */
 export function getDefaultData(property, defaultData = { operator: '$in', value: [] }) {
   const EQ = '$eq'
   const RANGE = '$range'
@@ -55,6 +77,7 @@ export function getDefaultData(property, defaultData = { operator: '$in', value:
     list: { operator: IN, value: [] },
     organization: { operator: IN, value: [] },
   }
+
   return {
     operator: defaultData.operator,
     value: defaultData.value,
@@ -66,6 +89,8 @@ export function getOperatorSideEffect(property, operator, value) {
   let effectValue = value
   if (operator === '$range') {
     effectValue = []
+  } else if (operator === '$regex') {
+    effectValue = Array.isArray(value) ? (value[0] || '') : value
   } else {
     const defaultValue = this.getDefaultData(property).value
     const isTypeChanged = (Array.isArray(defaultValue)) !== (Array.isArray(value))
@@ -110,6 +135,8 @@ export function findPropertyByPropertyId(propertyId, properties, modelId) {
 function createTimeCondition() {
   return { oper: 'and', rules: [] }
 }
+// eslint-disable-next-line no-useless-escape
+const escapeCharRE = /([\*\.\?\+\$\^\[\]\(\)\{\}\|\\\/])/g
 export function transformCondition(condition, properties, header) {
   const conditionMap = {
     host: [],
@@ -128,7 +155,7 @@ export function transformCondition(condition, properties, header) {
   Object.keys(condition).forEach((id) => {
     const property = findProperty(id, properties)
     const { operator, value } = condition[id]
-    if (value === null || !value.toString().length) return
+    if (value === null || value === undefined || !value.toString().length) return
     // 时间类型的字段需要上升一层单独处理
     if (property.bk_property_type === 'time') {
       const [start, end] = value
@@ -155,7 +182,7 @@ export function transformCondition(condition, properties, header) {
       submitCondition.push({
         field: property.bk_property_id,
         operator,
-        value
+        value: operator === '$regex' ? value.replace(escapeCharRE, '\\$1') : value
       })
     }
   })
@@ -170,6 +197,82 @@ export function transformCondition(condition, properties, header) {
     }
     return condition
   })
+}
+
+export function transformGeneralModelCondition(condition, properties) {
+  const conditionIds = Object.keys(condition)
+  if (!conditionIds.length) {
+    return
+  }
+
+  const conditions = { condition: 'AND', rules: [] }
+  const timeCondition = { oper: 'and', rules: [] }
+
+  for (let i = 0, id; id = conditionIds[i]; i++) {
+    const property = findProperty(id, properties)
+    if (!property) {
+      continue
+    }
+
+    const { operator, value } = condition[id]
+
+    // 忽略空值
+    if (value === null || value === undefined || !value.toString().length) {
+      continue
+    }
+
+    // 时间类型参数格式特殊处理
+    if (property.bk_property_type === 'time') {
+      const [start, end] = value
+      timeCondition.rules.push({
+        field: property.bk_property_id,
+        start,
+        end
+      })
+      continue
+    }
+
+    // 日期类型参数格式特殊处理
+    if (property.bk_property_type === 'date') {
+      const [start, end] = value
+      conditions.rules.push({
+        field: property.bk_property_id,
+        operator: 'datetime_greater_or_equal',
+        value: start
+      }, {
+        field: property.bk_property_id,
+        operator: 'datetime_less_or_equal',
+        value: end
+      })
+      continue
+    }
+
+    // 操作符是区间的参数格式特殊处理
+    if (operator === '$range') {
+      const [start, end] = value
+      conditions.rules.push({
+        field: property.bk_property_id,
+        operator: queryBuilderOperator('$gte'),
+        value: start
+      }, {
+        field: property.bk_property_id,
+        operator: queryBuilderOperator('$lte'),
+        value: end
+      })
+      continue
+    }
+
+    conditions.rules.push({
+      field: property.bk_property_id,
+      operator: queryBuilderOperator(operator),
+      value: operator === '$regex' ? value.replace(escapeCharRE, '\\$1') : value
+    })
+  }
+
+  return {
+    conditions: conditions.rules.length ? conditions : undefined, // 使用 undefined 以在传递时自动忽略
+    time_condition: timeCondition.rules.length ? timeCondition : undefined
+  }
 }
 
 export function splitIP(raw) {
@@ -214,7 +317,7 @@ const operatorSymbolMap = {
   $lt: '<',
   $gte: '≥',
   $lte: '≤',
-  $regex: 'Like',
+  $regex: '~=',
   $range: '≤ ≥'
 }
 export function getOperatorSymbol(operator) {
@@ -287,5 +390,6 @@ export default {
   getDefaultIP,
   defineProperty,
   getUniqueProperties,
-  getInitialProperties
+  getInitialProperties,
+  transformGeneralModelCondition
 }

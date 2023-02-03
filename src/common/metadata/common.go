@@ -20,6 +20,7 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/errors"
 	"configcenter/src/common/mapstr"
+	"configcenter/src/common/querybuilder"
 	cctime "configcenter/src/common/time"
 	"configcenter/src/common/util"
 
@@ -28,7 +29,7 @@ import (
 
 const defaultError = "{\"result\": false, \"bk_error_code\": 1199000, \"bk_error_msg\": %s}"
 
-// RespError
+// RespError TODO
 type RespError struct {
 	// error message
 	Msg error
@@ -37,6 +38,7 @@ type RespError struct {
 	Data    interface{}
 }
 
+// Error 用于错误处理
 func (r *RespError) Error() string {
 	br := new(Response)
 	br.Code = r.ErrCode
@@ -58,6 +60,7 @@ func (r *RespError) Error() string {
 	return string(js)
 }
 
+// NewSuccessResp TODO
 // data is the data you want to return to client.
 func NewSuccessResp(data interface{}) *Response {
 	return &Response{
@@ -66,37 +69,61 @@ func NewSuccessResp(data interface{}) *Response {
 	}
 }
 
+// Response TODO
 type Response struct {
 	BaseResp `json:",inline"`
 	Data     interface{} `json:"data" mapstructure:"data"`
 }
 
+// CountResponseContent count action response content.
+type CountResponseContent struct {
+	// Count count num.
+	Count uint64 `json:"count"`
+}
+
+// CountResponse count action response.
+type CountResponse struct {
+	BaseResp `json:",inline"`
+	Data     CountResponseContent `json:"data"`
+}
+
+// BoolResponse TODO
 type BoolResponse struct {
 	BaseResp `json:",inline"`
 	Data     bool `json:"data"`
 }
 
+// Uint64Response TODO
 type Uint64Response struct {
 	BaseResp `json:",inline"`
 	Count    uint64 `json:"count"`
 }
 
+// CoreUint64Response TODO
 type CoreUint64Response struct {
 	BaseResp `json:",inline"`
 	Data     uint64 `json:"data"`
 }
 
+// ArrayResponse TODO
 type ArrayResponse struct {
 	BaseResp `json:",inline"`
 	Data     []interface{} `json:"data"`
 }
 
+// HostCountResponse host count
+type HostCountResponse struct {
+	BaseResp `json:",inline"`
+	Data     int64 `json:"data"`
+}
+
+// MapArrayResponse TODO
 type MapArrayResponse struct {
 	BaseResp `json:",inline"`
 	Data     []mapstr.MapStr `json:"data"`
 }
 
-// ResponseInstData
+// ResponseInstData TODO
 type ResponseInstData struct {
 	BaseResp `json:",inline"`
 	Data     InstDataInfo `json:"data"`
@@ -108,11 +135,13 @@ type InstDataInfo struct {
 	Info  []mapstr.MapStr `json:"info"`
 }
 
+// ResponseDataMapStr TODO
 type ResponseDataMapStr struct {
 	BaseResp `json:",inline"`
 	Data     mapstr.MapStr `json:"data"`
 }
 
+// QueryInput TODO
 type QueryInput struct {
 	Condition map[string]interface{} `json:"condition"`
 	// 非必填，只能用来查时间，且与Condition是与关系
@@ -124,12 +153,14 @@ type QueryInput struct {
 	DisableCounter bool           `json:"disable_counter,omitempty"`
 }
 
+// TimeConditionItem TODO
 type TimeConditionItem struct {
 	Field string       `json:"field" bson:"field"`
 	Start *cctime.Time `json:"start" bson:"start"`
 	End   *cctime.Time `json:"end" bson:"end"`
 }
 
+// TimeCondition TODO
 type TimeCondition struct {
 	Operator string              `json:"oper" bson:"oper"`
 	Rules    []TimeConditionItem `json:"rules" bson:"rules"`
@@ -184,6 +215,7 @@ func (tc *TimeCondition) MergeTimeCondition(condition map[string]interface{}) (m
 	return map[string]interface{}{common.BKDBAND: []map[string]interface{}{condition, timeCondition}}, nil
 }
 
+// ConditionWithTime TODO
 type ConditionWithTime struct {
 	Condition []ConditionItem `json:"condition"`
 	// 非必填，只能用来查时间，且与Condition是与关系
@@ -290,23 +322,35 @@ func (o *QueryInput) convInterfaceToTime(val interface{}) (interface{}, error) {
 
 }
 
+// CloudHostModuleParams TODO
 type CloudHostModuleParams struct {
 	ApplicationID int64        `json:"bk_biz_id"`
 	HostInfoArr   []BkHostInfo `json:"host_info"`
 	ModuleID      int64        `json:"bk_module_id"`
 }
 
+// BkHostInfo TODO
 type BkHostInfo struct {
 	IP      string `json:"bk_host_innerip"`
 	CloudID int    `json:"bk_cloud_id"`
 }
 
+// DefaultModuleHostConfigParams TODO
 type DefaultModuleHostConfigParams struct {
 	ApplicationID int64   `json:"bk_biz_id"`
 	HostIDs       []int64 `json:"bk_host_id"`
 	ModuleID      int64   `json:"bk_module_id"`
 }
 
+// Condition is common simple condition parameter struct.
+type Condition struct {
+	// Condition conditions.
+	Condition map[string]interface{} `json:"condition"`
+	// 非必填，只能用来查时间，且与Condition是与关系
+	TimeCondition *TimeCondition `json:"time_condition,omitempty"`
+}
+
+// SearchParams TODO
 // common search struct
 type SearchParams struct {
 	Condition map[string]interface{} `json:"condition"`
@@ -320,20 +364,25 @@ type PropertyGroupCondition struct {
 	Data      map[string]interface{} `json:"data"`
 }
 
+// UpdateParams TODO
 type UpdateParams struct {
 	Condition map[string]interface{} `json:"condition"`
 	Data      map[string]interface{} `json:"data"`
 }
+
+// ListHostWithoutAppResponse TODO
 type ListHostWithoutAppResponse struct {
 	BaseResp `json:",inline"`
 	Data     ListHostResult `json:"data"`
 }
 
+// SearchInstBatchOption TODO
 type SearchInstBatchOption struct {
 	IDs    []int64  `json:"bk_ids"`
 	Fields []string `json:"fields"`
 }
 
+// Validate TODO
 func (s *SearchInstBatchOption) Validate() (rawError errors.RawErrorInfo) {
 	if len(s.IDs) == 0 || len(s.IDs) > common.BKMaxInstanceLimit {
 		return errors.RawErrorInfo{
@@ -358,7 +407,165 @@ type BkBaseResp struct {
 	Message string `json:"message"`
 }
 
+// BKResponse TODO
 type BKResponse struct {
 	BkBaseResp `json:",inline"`
 	Data       interface{} `json:"data"`
+}
+
+// CommonSearchResult is common search action result.
+type CommonSearchResult struct {
+	// Info search result.
+	Info []interface{} `json:"info"`
+}
+
+// BatchCreateSetRequest batch create set request struct
+type BatchCreateSetRequest struct {
+	Sets []map[string]interface{} `json:"sets"`
+}
+
+// OneSetCreateResult create one set return result
+type OneSetCreateResult struct {
+	Index    int         `json:"index"`
+	Data     interface{} `json:"data"`
+	ErrorMsg string      `json:"error_message"`
+}
+
+// CommonSearchFilter is a common search action filter struct,
+// such like search instance or instance associations.
+// And the conditions must abide by query filter.
+type CommonSearchFilter struct {
+	// ObjectID is target model object id.
+	ObjectID string `json:"bk_obj_id"`
+
+	// Conditions is target search conditions that make up by the query filter.
+	Conditions *querybuilder.QueryFilter `json:"conditions"`
+
+	// 非必填，只能用来查时间，且与Condition是与关系
+	TimeCondition *TimeCondition `json:"time_condition,omitempty"`
+
+	// Fields indicates which fields should be returns, it's would be ignored if not exists.
+	Fields []string `json:"fields"`
+
+	// Page batch query action page.
+	Page BasePage `json:"page"`
+}
+
+// Validate validates the common search filter struct,
+// return the key and error if any one of keys is invalid.
+func (f *CommonSearchFilter) Validate() (string, error) {
+	// validates object id parameter.
+	if len(f.ObjectID) == 0 {
+		return "bk_obj_id", fmt.Errorf("empty bk_obj_id")
+	}
+
+	// validate page parameter.
+	if err := f.Page.ValidateLimit(common.BKMaxInstanceLimit); err != nil {
+		return "page.limit", err
+	}
+
+	// validate conditions parameter.
+	if f.Conditions == nil {
+		// empty conditions to match all.
+		return "", nil
+	}
+
+	option := &querybuilder.RuleOption{
+		NeedSameSliceElementType: true,
+		MaxSliceElementsCount:    querybuilder.DefaultMaxSliceElementsCount,
+		MaxConditionOrRulesCount: querybuilder.DefaultMaxConditionOrRulesCount,
+	}
+
+	if invalidKey, err := f.Conditions.Validate(option); err != nil {
+		return fmt.Sprintf("conditions.%s", invalidKey), err
+	}
+
+	if f.Conditions.GetDeep() > querybuilder.MaxDeep {
+		return "conditions.rules", fmt.Errorf("exceed max query condition deepth: %d", querybuilder.MaxDeep)
+	}
+
+	return "", nil
+}
+
+// GetConditions returns a database type conditions base on the query filter.
+func (f *CommonSearchFilter) GetConditions() (map[string]interface{}, error) {
+	if f.Conditions == nil {
+		// empty conditions to match all.
+		return map[string]interface{}{}, nil
+	}
+
+	// convert to mongo conditions.
+	mgoFilter, invalidKey, err := f.Conditions.ToMgo()
+	if err != nil {
+		return nil, fmt.Errorf("invalid key, conditions.%s, err: %s", invalidKey, err)
+	}
+
+	return mgoFilter, nil
+}
+
+// CommonCountResult is common count action result.
+type CommonCountResult struct {
+	// Count count result.
+	Count uint64 `json:"count"`
+}
+
+// CommonCountFilter is a common count action filter struct,
+// such like search instance count or instance associations count.
+// And the conditions must abide by query filter.
+type CommonCountFilter struct {
+	// ObjectID is target model object id.
+	ObjectID string `json:"bk_obj_id"`
+
+	// Conditions is target search conditions that make up by the query filter.
+	Conditions *querybuilder.QueryFilter `json:"conditions"`
+
+	// 非必填，只能用来查时间，且与Condition是与关系
+	TimeCondition *TimeCondition `json:"time_condition,omitempty"`
+}
+
+// Validate validates the common count filter struct,
+// return the key and error if any one of keys is invalid.
+func (f *CommonCountFilter) Validate() (string, error) {
+	// validates object id parameter.
+	if len(f.ObjectID) == 0 {
+		return "bk_obj_id", fmt.Errorf("empty bk_obj_id")
+	}
+
+	// validate conditions parameter.
+	if f.Conditions == nil {
+		// empty conditions to match all.
+		return "", nil
+	}
+
+	option := &querybuilder.RuleOption{
+		NeedSameSliceElementType: true,
+		MaxSliceElementsCount:    querybuilder.DefaultMaxSliceElementsCount,
+		MaxConditionOrRulesCount: querybuilder.DefaultMaxConditionOrRulesCount,
+	}
+
+	if invalidKey, err := f.Conditions.Validate(option); err != nil {
+		return fmt.Sprintf("conditions.%s", invalidKey), err
+	}
+
+	if f.Conditions.GetDeep() > querybuilder.MaxDeep {
+		return "conditions.rules", fmt.Errorf("exceed max query condition deepth: %d", querybuilder.MaxDeep)
+	}
+
+	return "", nil
+}
+
+// GetConditions returns a database type conditions base on the query filter.
+func (f *CommonCountFilter) GetConditions() (map[string]interface{}, error) {
+	if f.Conditions == nil {
+		// empty conditions to match all.
+		return map[string]interface{}{}, nil
+	}
+
+	// convert to mongo conditions.
+	mgoFilter, invalidKey, err := f.Conditions.ToMgo()
+	if err != nil {
+		return nil, fmt.Errorf("invalid key, conditions.%s, err: %s", invalidKey, err)
+	}
+
+	return mgoFilter, nil
 }

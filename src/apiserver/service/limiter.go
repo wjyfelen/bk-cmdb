@@ -27,9 +27,10 @@ import (
 	"configcenter/src/common/util"
 	"configcenter/src/common/zkclient"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Limiter TODO
 type Limiter struct {
 	zkCli        *zkclient.ZkClient
 	rules        map[string]*metadata.LimiterRule
@@ -37,6 +38,7 @@ type Limiter struct {
 	syncDuration time.Duration
 }
 
+// NewLimiter TODO
 func NewLimiter(zkCli *zkclient.ZkClient) *Limiter {
 	return &Limiter{
 		zkCli:        zkCli,

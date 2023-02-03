@@ -20,12 +20,14 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/json"
+	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/util"
 	"configcenter/src/source_controller/cacheservice/cache/tools"
 	"configcenter/src/storage/driver/redis"
 )
 
+// Client TODO
 type Client struct {
 	lock tools.RefreshingLock
 }
@@ -163,14 +165,14 @@ func (c *Client) GetHostWithInnerIP(ctx context.Context, opt *metadata.SearchHos
 	}
 }
 
-// ListHostIDsWithPage get host id list sorted with host id with forward sort.
+// ListHostsWithPage get host id list sorted with host id with forward sort.
 // this id list has a ttl life cycle, and triggered with update with user's request.
 func (c *Client) ListHostsWithPage(ctx context.Context, opt *metadata.ListHostWithPage) (int64, []string, error) {
 	rid := util.ExtractRequestIDFromContext(ctx)
 
 	if len(opt.HostIDs) != 0 {
 		// find with host id directly.
-		total, err := c.countHost(ctx, map[string]interface{}{common.BKHostIDField: map[string]interface{}{common.BKDBIN: opt.HostIDs}})
+		total, err := c.countHost(ctx, mapstr.MapStr{common.BKHostIDField: mapstr.MapStr{common.BKDBIN: opt.HostIDs}})
 		if err != nil {
 			blog.Errorf("list host with page, but count failed, err: %v, rid: %v", err, rid)
 			return 0, nil, err

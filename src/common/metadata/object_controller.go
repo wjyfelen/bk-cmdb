@@ -24,7 +24,18 @@ type RspID struct {
 // CreateResult create result
 type CreateResult struct {
 	BaseResp `json:",inline"`
-	Data     []Association `json:"data"`
+	Data     RspID `json:"data"`
+}
+
+// RspIDs response id array
+type RspIDs struct {
+	IDs []int64 `json:"ids"`
+}
+
+// CreateBatchResult create batch result
+type CreateBatchResult struct {
+	BaseResp `json:",inline"`
+	Data     RspIDs `json:"data"`
 }
 
 // UpdateResult update result
@@ -76,6 +87,13 @@ type UpdateGroupCondition struct {
 		Name       *string `field:"bk_group_name" json:"bk_group_name,omitempty"`
 		Index      *int64  `field:"bk_group_index" json:"bk_group_index,omitempty"`
 	} `json:"data"`
+}
+
+// ExchangeGroupIndex struct of object grouup ids for change object attribute group index
+type ExchangeGroupIndex struct {
+	Condition struct {
+		ID []int64 `field:"id" json:"id,omitempty"`
+	} `json:"condition"`
 }
 
 // QueryObjectAttributeWrapperResult query object attribute with association info result
@@ -155,4 +173,37 @@ type ObjClassificationObject struct {
 	Classification `bson:",inline"`
 	Objects        []Object                 `json:"bk_objects"`
 	AsstObjects    map[string][]interface{} `json:"bk_asst_objects"`
+}
+
+// GetInstanceObjectMappingsOption TODO
+type GetInstanceObjectMappingsOption struct {
+	IDs []int64 `json:"ids"`
+}
+
+// InstanceObjectMappingsResult instance id to bk_obj_id mapping result
+type InstanceObjectMappingsResult struct {
+	BaseResp `json:",inline"`
+	Data     []ObjectMapping `json:"data"`
+}
+
+// ObjectMapping TODO
+type ObjectMapping struct {
+	ID       int64  `bson:"bk_inst_id"`
+	ObjectID string `bson:"bk_obj_id"`
+	OwnerID  string `bson:"bk_supplier_account"`
+}
+
+// QueryUniqueFieldsResult 为excel 导出实例获取关联数据实例提供的接口使用的返回数据，
+// 根据唯一索引返回实例数据和唯一索引使用到的字段id 和名字的对应关系
+type QueryUniqueFieldsResult struct {
+	BaseResp `json:",inline"`
+	Data     QueryUniqueFieldsData `json:"data"`
+}
+
+// QueryUniqueFieldsData  为excel 导出实例获取关联数据实例提供的接口使用的返回数据，
+// 根据唯一索引返回实例数据和唯一索引使用到的字段id 和名字的对应关系
+type QueryUniqueFieldsData struct {
+	InstResult
+	// 唯一索引使用字段id和名字
+	UniqueAttribute map[string]string `json:"unique_attribute"`
 }

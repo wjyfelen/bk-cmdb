@@ -22,6 +22,7 @@ import (
 	"configcenter/src/storage/driver/mongodb"
 )
 
+// CreateManyModelClassification TODO
 func (s *coreService) CreateManyModelClassification(ctx *rest.Contexts) {
 	inputDatas := metadata.CreateManyModelClassifiaction{}
 	if err := ctx.DecodeInto(&inputDatas); nil != err {
@@ -31,6 +32,7 @@ func (s *coreService) CreateManyModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateManyModelClassification(ctx.Kit, inputDatas))
 }
 
+// CreateOneModelClassification TODO
 func (s *coreService) CreateOneModelClassification(ctx *rest.Contexts) {
 	inputData := metadata.CreateOneModelClassification{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -40,6 +42,7 @@ func (s *coreService) CreateOneModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateOneModelClassification(ctx.Kit, inputData))
 }
 
+// SetOneModelClassification TODO
 func (s *coreService) SetOneModelClassification(ctx *rest.Contexts) {
 	inputData := metadata.SetOneModelClassification{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -50,6 +53,7 @@ func (s *coreService) SetOneModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SetOneModelClassification(ctx.Kit, inputData))
 }
 
+// SetManyModelClassification TODO
 func (s *coreService) SetManyModelClassification(ctx *rest.Contexts) {
 	inputDatas := metadata.SetManyModelClassification{}
 	if err := ctx.DecodeInto(&inputDatas); nil != err {
@@ -59,6 +63,7 @@ func (s *coreService) SetManyModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SetManyModelClassification(ctx.Kit, inputDatas))
 }
 
+// UpdateModelClassification TODO
 func (s *coreService) UpdateModelClassification(ctx *rest.Contexts) {
 	inputData := metadata.UpdateOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -68,6 +73,7 @@ func (s *coreService) UpdateModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelClassification(ctx.Kit, inputData))
 }
 
+// DeleteModelClassification TODO
 func (s *coreService) DeleteModelClassification(ctx *rest.Contexts) {
 	inputData := metadata.DeleteOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -77,6 +83,7 @@ func (s *coreService) DeleteModelClassification(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelClassification(ctx.Kit, inputData))
 }
 
+// SearchModelClassification TODO
 func (s *coreService) SearchModelClassification(ctx *rest.Contexts) {
 	inputData := metadata.QueryCondition{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -92,20 +99,31 @@ func (s *coreService) SearchModelClassification(ctx *rest.Contexts) {
 
 	// translate language
 	lang := s.Language(ctx.Kit.Header)
+	defaultIDMap := map[string]bool{
+		metadata.ClassificationHostManageID:    true,
+		metadata.ClassificationBizTopoID:       true,
+		metadata.ClassificationOrganizationID:  true,
+		metadata.ClassificationNetworkID:       true,
+		metadata.ClassificationUncategorizedID: true,
+	}
+	nameMap := map[string]string{
+		metadata.ClassificationHostManageID:    metadata.ClassificationHostManage,
+		metadata.ClassificationBizTopoID:       metadata.ClassificationTopo,
+		metadata.ClassificationOrganizationID:  metadata.ClassificationOrganization,
+		metadata.ClassificationNetworkID:       metadata.ClassificationNet,
+		metadata.ClassificationUncategorizedID: metadata.ClassificationUncategorized,
+	}
+
 	for index := range dataResult.Info {
-		defaultClassificationMap := map[string]bool{
-			"bk_host_manage":  true,
-			"bk_biz_topo":     true,
-			"bk_organization": true,
-			"bk_network":      true,
-		}
-		if defaultClassificationMap[dataResult.Info[index].ClassificationID] {
-			dataResult.Info[index].ClassificationName = s.TranslateClassificationName(lang, &dataResult.Info[index])
+		result := dataResult.Info[index]
+		if defaultIDMap[result.ClassificationID] && result.ClassificationName == nameMap[result.ClassificationID] {
+			result.ClassificationName = s.TranslateClassificationName(lang, &result)
 		}
 	}
 	ctx.RespEntity(dataResult)
 }
 
+// CreateModel TODO
 func (s *coreService) CreateModel(ctx *rest.Contexts) {
 	inputData := metadata.CreateModel{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -115,6 +133,7 @@ func (s *coreService) CreateModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateModel(ctx.Kit, inputData))
 }
 
+// SetModel TODO
 func (s *coreService) SetModel(ctx *rest.Contexts) {
 	inputData := metadata.SetModel{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -124,6 +143,7 @@ func (s *coreService) SetModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SetModel(ctx.Kit, inputData))
 }
 
+// UpdateModel TODO
 func (s *coreService) UpdateModel(ctx *rest.Contexts) {
 	inputData := metadata.UpdateOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -133,6 +153,7 @@ func (s *coreService) UpdateModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModel(ctx.Kit, inputData))
 }
 
+// DeleteModel TODO
 func (s *coreService) DeleteModel(ctx *rest.Contexts) {
 	inputData := metadata.DeleteOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -142,6 +163,7 @@ func (s *coreService) DeleteModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModel(ctx.Kit, inputData))
 }
 
+// CascadeDeleteModel TODO
 func (s *coreService) CascadeDeleteModel(ctx *rest.Contexts) {
 	idStr := ctx.Request.PathParameter(common.BKFieldID)
 	id, err := strconv.ParseInt(idStr, 10, 64)
@@ -157,7 +179,33 @@ func (s *coreService) CascadeDeleteModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CascadeDeleteModel(ctx.Kit, id))
 }
 
+// SearchModel TODO
 func (s *coreService) SearchModel(ctx *rest.Contexts) {
+	inputData := metadata.QueryCondition{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	dataResult, err := s.core.ModelOperation().SearchModel(ctx.Kit, inputData)
+	if nil != err {
+		ctx.RespEntityWithError(dataResult, err)
+		return
+	}
+
+	// translate
+	lang := s.Language(ctx.Kit.Header)
+	for modelIdx := range dataResult.Info {
+		if needTranslateObjMap[dataResult.Info[modelIdx].ObjectID] {
+			dataResult.Info[modelIdx].ObjectName = s.TranslateObjectName(lang, &dataResult.Info[modelIdx])
+		}
+	}
+
+	ctx.RespEntity(dataResult)
+}
+
+// SearchModelWithAttribute TODO
+func (s *coreService) SearchModelWithAttribute(ctx *rest.Contexts) {
 
 	inputData := metadata.QueryCondition{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -193,6 +241,10 @@ func (s *coreService) SearchModel(ctx *rest.Contexts) {
 
 // GetModelStatistics 用于统计各个模型的实例数(Web页面展示需要)
 func (s *coreService) GetModelStatistics(ctx *rest.Contexts) {
+	// statistics data include all object model statistics.
+	statistics := []metadata.ObjectIDCount{}
+
+	// stat set count.
 	filter := map[string]interface{}{}
 	setCount, err := mongodb.Client().Table(common.BKTableNameBaseSet).Find(filter).Count(ctx.Kit.Ctx)
 	if err != nil {
@@ -200,21 +252,27 @@ func (s *coreService) GetModelStatistics(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
+	statistics = append(statistics, metadata.ObjectIDCount{ObjID: common.BKInnerObjIDSet, Count: int64(setCount)})
 
+	// stat module count.
 	moduleCount, err := mongodb.Client().Table(common.BKTableNameBaseModule).Find(filter).Count(ctx.Kit.Ctx)
 	if err != nil {
 		blog.Errorf("GetModelStatistics failed, count module model instances failed, err: %+v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
+	statistics = append(statistics, metadata.ObjectIDCount{ObjID: common.BKInnerObjIDModule, Count: int64(moduleCount)})
 
+	// stat host count.
 	hostCount, err := mongodb.Client().Table(common.BKTableNameBaseHost).Find(filter).Count(ctx.Kit.Ctx)
 	if err != nil {
 		blog.Errorf("GetModelStatistics failed, count host model instances failed, err: %+v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
+	statistics = append(statistics, metadata.ObjectIDCount{ObjID: common.BKInnerObjIDHost, Count: int64(hostCount)})
 
+	// stat biz count.
 	appFilter := map[string]interface{}{
 		common.BKDefaultField: map[string]interface{}{
 			common.BKDBNE: common.DefaultAppFlag,
@@ -229,8 +287,13 @@ func (s *coreService) GetModelStatistics(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-	// db.getCollection('cc_ObjectBase').aggregate([{$group: {_id: "$bk_obj_id", count: {$sum : 1}}}])
-	pipeline := []map[string]interface{}{
+	statistics = append(statistics, metadata.ObjectIDCount{ObjID: common.BKInnerObjIDApp, Count: int64(bizCount)})
+
+	// stat common object counts.
+	allObjects := []metadata.ObjectIDCount{}
+	commonObjects := []metadata.ObjectIDCount{}
+
+	objectFilter := []map[string]interface{}{
 		{
 			common.BKDBGroup: map[string]interface{}{
 				"_id": "$bk_obj_id",
@@ -240,32 +303,40 @@ func (s *coreService) GetModelStatistics(ctx *rest.Contexts) {
 			},
 		},
 	}
-	type AggregationItem struct {
-		ObjID string `bson:"_id" json:"bk_obj_id"`
-		Count int64  `bson:"count" json:"instance_count"`
-	}
-	aggregationItems := make([]AggregationItem, 0)
-	if err := mongodb.Client().Table(common.BKTableNameBaseInst).AggregateAll(ctx.Kit.Ctx, pipeline, &aggregationItems); err != nil {
+	err = mongodb.Client().Table(common.BKTableNameObjDes).AggregateAll(ctx.Kit.Ctx, objectFilter, &allObjects)
+	if err != nil {
+		blog.Errorf("get all object models failed, err: %+v, rid: %s", err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
-	aggregationItems = append(aggregationItems, AggregationItem{
-		ObjID: common.BKInnerObjIDHost,
-		Count: int64(hostCount),
-	}, AggregationItem{
-		ObjID: common.BKInnerObjIDSet,
-		Count: int64(setCount),
-	}, AggregationItem{
-		ObjID: common.BKInnerObjIDModule,
-		Count: int64(moduleCount),
-	}, AggregationItem{
-		ObjID: common.BKInnerObjIDApp,
-		Count: int64(bizCount),
-	})
 
-	ctx.RespEntity(aggregationItems)
+	// only stat common object models.
+	for _, object := range allObjects {
+		if metadata.IsCommon(object.ObjID) {
+			commonObjects = append(commonObjects, object)
+		}
+	}
+
+	// stat common object counts in sharding tables.
+	for _, object := range commonObjects {
+		// stat object sharding data one by one.
+		data := []metadata.ObjectIDCount{}
+
+		// sharding table name.
+		tableName := common.GetObjectInstTableName(object.ObjID, ctx.Kit.SupplierAccount)
+
+		if err := mongodb.Client().Table(tableName).AggregateAll(ctx.Kit.Ctx, objectFilter, &data); err != nil {
+			blog.Errorf("get object %s instances count failed, err: %+v, rid: %s", object.ObjID, err, ctx.Kit.Rid)
+			ctx.RespAutoError(err)
+			return
+		}
+		statistics = append(statistics, data...)
+	}
+
+	ctx.RespEntity(statistics)
 }
 
+// CreateModelAttributeGroup TODO
 func (s *coreService) CreateModelAttributeGroup(ctx *rest.Contexts) {
 	inputData := metadata.CreateModelAttributeGroup{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -276,6 +347,7 @@ func (s *coreService) CreateModelAttributeGroup(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateModelAttributeGroup(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// SetModelAttributeGroup TODO
 func (s *coreService) SetModelAttributeGroup(ctx *rest.Contexts) {
 	inputData := metadata.SetModelAttributeGroup{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -286,6 +358,7 @@ func (s *coreService) SetModelAttributeGroup(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SetModelAttributeGroup(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// UpdateModelAttributeGroup TODO
 func (s *coreService) UpdateModelAttributeGroup(ctx *rest.Contexts) {
 	inputData := metadata.UpdateOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -296,6 +369,7 @@ func (s *coreService) UpdateModelAttributeGroup(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributeGroup(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// UpdateModelAttributeGroupByCondition TODO
 func (s *coreService) UpdateModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	inputData := metadata.UpdateOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -305,6 +379,7 @@ func (s *coreService) UpdateModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributeGroupByCondition(ctx.Kit, inputData))
 }
 
+// SearchModelAttributeGroup TODO
 func (s *coreService) SearchModelAttributeGroup(ctx *rest.Contexts) {
 	inputData := metadata.QueryCondition{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -327,6 +402,7 @@ func (s *coreService) SearchModelAttributeGroup(ctx *rest.Contexts) {
 	ctx.RespEntity(dataResult)
 }
 
+// SearchModelAttributeGroupByCondition TODO
 func (s *coreService) SearchModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	inputData := metadata.QueryCondition{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -348,6 +424,7 @@ func (s *coreService) SearchModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	ctx.RespEntity(dataResult)
 }
 
+// DeleteModelAttributeGroup TODO
 func (s *coreService) DeleteModelAttributeGroup(ctx *rest.Contexts) {
 	inputData := metadata.DeleteOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -358,6 +435,7 @@ func (s *coreService) DeleteModelAttributeGroup(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelAttributeGroup(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// DeleteModelAttributeGroupByCondition TODO
 func (s *coreService) DeleteModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	inputData := metadata.DeleteOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -368,6 +446,7 @@ func (s *coreService) DeleteModelAttributeGroupByCondition(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelAttributeGroupByCondition(ctx.Kit, inputData))
 }
 
+// CreateModelAttributes TODO
 func (s *coreService) CreateModelAttributes(ctx *rest.Contexts) {
 
 	inputData := metadata.CreateModelAttributes{}
@@ -378,6 +457,7 @@ func (s *coreService) CreateModelAttributes(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateModelAttributes(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// SetModelAttributes TODO
 func (s *coreService) SetModelAttributes(ctx *rest.Contexts) {
 
 	inputData := metadata.SetModelAttributes{}
@@ -388,6 +468,7 @@ func (s *coreService) SetModelAttributes(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SetModelAttributes(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// UpdateModelAttributes TODO
 func (s *coreService) UpdateModelAttributes(ctx *rest.Contexts) {
 
 	inputData := metadata.UpdateOption{}
@@ -399,6 +480,7 @@ func (s *coreService) UpdateModelAttributes(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributes(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// UpdateModelAttributesIndex TODO
 func (s *coreService) UpdateModelAttributesIndex(ctx *rest.Contexts) {
 
 	inputData := metadata.UpdateOption{}
@@ -410,6 +492,7 @@ func (s *coreService) UpdateModelAttributesIndex(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributesIndex(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// UpdateModelAttributesByCondition TODO
 func (s *coreService) UpdateModelAttributesByCondition(ctx *rest.Contexts) {
 
 	inputData := metadata.UpdateOption{}
@@ -421,6 +504,7 @@ func (s *coreService) UpdateModelAttributesByCondition(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributesByCondition(ctx.Kit, inputData))
 }
 
+// DeleteModelAttribute TODO
 func (s *coreService) DeleteModelAttribute(ctx *rest.Contexts) {
 
 	inputData := metadata.DeleteOption{}
@@ -431,6 +515,7 @@ func (s *coreService) DeleteModelAttribute(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelAttributes(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// SearchModelAttributesByCondition TODO
 func (s *coreService) SearchModelAttributesByCondition(ctx *rest.Contexts) {
 
 	inputData := metadata.QueryCondition{}
@@ -460,6 +545,7 @@ func (s *coreService) SearchModelAttributesByCondition(ctx *rest.Contexts) {
 	ctx.RespEntity(dataResult)
 }
 
+// SearchModelAttributes TODO
 func (s *coreService) SearchModelAttributes(ctx *rest.Contexts) {
 
 	inputData := metadata.QueryCondition{}
@@ -489,6 +575,7 @@ func (s *coreService) SearchModelAttributes(ctx *rest.Contexts) {
 	ctx.RespEntity(dataResult)
 }
 
+// SearchModelAttrUnique TODO
 func (s *coreService) SearchModelAttrUnique(ctx *rest.Contexts) {
 
 	inputData := metadata.QueryCondition{}
@@ -499,6 +586,7 @@ func (s *coreService) SearchModelAttrUnique(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().SearchModelAttrUnique(ctx.Kit, inputData))
 }
 
+// CreateModelAttrUnique TODO
 func (s *coreService) CreateModelAttrUnique(ctx *rest.Contexts) {
 	inputDatas := metadata.CreateModelAttrUnique{}
 	if err := ctx.DecodeInto(&inputDatas); nil != err {
@@ -509,6 +597,7 @@ func (s *coreService) CreateModelAttrUnique(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CreateModelAttrUnique(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputDatas))
 }
 
+// UpdateModelAttrUnique TODO
 func (s *coreService) UpdateModelAttrUnique(ctx *rest.Contexts) {
 	inputDatas := metadata.UpdateModelAttrUnique{}
 	if err := ctx.DecodeInto(&inputDatas); nil != err {
@@ -523,6 +612,7 @@ func (s *coreService) UpdateModelAttrUnique(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttrUnique(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), id, inputDatas))
 }
 
+// DeleteModelAttrUnique TODO
 func (s *coreService) DeleteModelAttrUnique(ctx *rest.Contexts) {
 	id, err := strconv.ParseUint(ctx.Request.PathParameter("id"), 10, 64)
 	if err != nil {
@@ -531,4 +621,14 @@ func (s *coreService) DeleteModelAttrUnique(ctx *rest.Contexts) {
 	}
 
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelAttrUnique(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), id))
+}
+
+// CreateModelTables TODO
+func (s *coreService) CreateModelTables(ctx *rest.Contexts) {
+	inputData := metadata.CreateModelTable{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+	ctx.RespEntityWithError(nil, s.core.ModelOperation().CreateModelTables(ctx.Kit, inputData))
 }

@@ -14,6 +14,7 @@ package metadata
 
 import "configcenter/src/common/watch"
 
+// SearchHostWithInnerIPOption TODO
 type SearchHostWithInnerIPOption struct {
 	InnerIP string `json:"bk_host_innerip"`
 	CloudID int64  `json:"bk_cloud_id"`
@@ -21,12 +22,14 @@ type SearchHostWithInnerIPOption struct {
 	Fields []string `json:"fields"`
 }
 
+// SearchHostWithIDOption TODO
 type SearchHostWithIDOption struct {
 	HostID int64 `json:"bk_host_id"`
 	// only return these fields in hosts.
 	Fields []string `json:"fields"`
 }
 
+// ListWithIDOption TODO
 type ListWithIDOption struct {
 	// length range is [1,500]
 	IDs []int64 `json:"ids"`
@@ -34,12 +37,14 @@ type ListWithIDOption struct {
 	Fields []string `json:"fields"`
 }
 
+// DeleteArchive TODO
 type DeleteArchive struct {
 	Oid    string      `json:"oid" bson:"oid"`
 	Coll   string      `json:"coll" bson:"coll"`
 	Detail interface{} `json:"detail" bson:"detail"`
 }
 
+// ListHostWithPage TODO
 // list hosts with page in cache, which page info is in redis cache.
 // store in a zset.
 type ListHostWithPage struct {
@@ -52,46 +57,7 @@ type ListHostWithPage struct {
 	Page BasePage `json:"page"`
 }
 
-type GetLatestEventOption struct {
-	Resource watch.CursorType `json:"bk_resource"`
-}
-
-type SearchEventNodesOption struct {
-	Resource    watch.CursorType `json:"bk_resource"`
-	StartCursor string           `json:"start_cursor"`
-	Limit       int              `json:"limit"`
-}
-
-type SearchEventDetailsOption struct {
-	Resource watch.CursorType `json:"bk_resource"`
-	Cursors  []string         `json:"cursors"`
-}
-
-type SearchEventNodeResp struct {
-	BaseResp `json:",inline"`
-	Data     *EventNode `json:"data"`
-}
-
-type EventNode struct {
-	Node       *watch.ChainNode `json:"node"`
-	ExistsNode bool             `json:"exists_node"`
-}
-
-type EventNodes struct {
-	Nodes           []*watch.ChainNode `json:"nodes"`
-	ExistsStartNode bool               `json:"exists_start_node"`
-}
-
-type SearchEventNodesResp struct {
-	BaseResp `json:",inline"`
-	Data     *EventNodes `json:"data"`
-}
-
-type SearchEventDetailsResp struct {
-	BaseResp `json:",inline"`
-	Data     []string `json:"data"`
-}
-
+// WatchEventResp TODO
 type WatchEventResp struct {
 	BaseResp `json:",inline"`
 	Data     *watch.WatchResp `json:"data"`

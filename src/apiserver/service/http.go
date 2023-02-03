@@ -23,34 +23,41 @@ import (
 	"configcenter/src/common/blog"
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/util"
+	"configcenter/src/thirdparty/monitor"
+	"configcenter/src/thirdparty/monitor/meta"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Get TODO
 func (s *service) Get(req *restful.Request, resp *restful.Response) {
 	s.Do(req, resp)
 }
 
+// Put TODO
 func (s *service) Put(req *restful.Request, resp *restful.Response) {
 	s.Do(req, resp)
 }
 
+// Post TODO
 func (s *service) Post(req *restful.Request, resp *restful.Response) {
 	s.Do(req, resp)
 }
 
+// Delete TODO
 func (s *service) Delete(req *restful.Request, resp *restful.Response) {
 	s.Do(req, resp)
 }
 
 const maxToleranceLatencyTime = 10 * time.Second
 
+// Do TODO
 func (s *service) Do(req *restful.Request, resp *restful.Response) {
 
 	rid := util.GetHTTPCCRequestID(req.Request.Header)
 	start := time.Now()
 	url := req.Request.URL.Scheme + "://" + req.Request.URL.Host + req.Request.RequestURI
-	proxyReq, err := http.NewRequest(req.Request.Method, url, req.Request.Body)
+	proxyReq, err := http.NewRequestWithContext(req.Request.Context(), req.Request.Method, url, req.Request.Body)
 	if err != nil {
 		blog.Errorf("new proxy request[%s] failed, err: %v, rid: %s", url, err, rid)
 		if err := resp.WriteError(http.StatusInternalServerError, &metadata.RespError{
@@ -80,6 +87,18 @@ func (s *service) Do(req *restful.Request, resp *restful.Response) {
 		}
 
 		blog.Errorf("*failed do request[%s url: %s] , err: %v, rid: %s", req.Request.Method, url, err, rid)
+
+		// send alarm when http request timeout, to monitor api server request
+		if strings.Contains(err.Error(), "timeout awaiting response headers") {
+			monitor.Collect(&meta.Alarm{
+				RequestID: rid,
+				Type:      meta.HttpFatalError,
+				Detail: fmt.Sprintf("request timeout, err: %v, %s, %s, cost: %d ms", err, req.Request.Method, url,
+					time.Since(start)/time.Millisecond),
+				Dimension: map[string]string{"error_type": "request timeout"},
+				Module:    common.GetIdentification(),
+			})
+		}
 
 		if err := resp.WriteError(http.StatusInternalServerError, &metadata.RespError{
 			Msg:     fmt.Errorf("proxy request failed, %s", err.Error()),

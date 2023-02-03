@@ -189,12 +189,34 @@ func (c *awsClient) getInstances(region string, opt *ccom.InstanceOpt) ([]*metad
 		}
 		for _, reservation := range output.Reservations {
 			for _, inst := range reservation.Instances {
+				privateIP := ""
+				if inst.PrivateIpAddress != nil {
+					privateIP = *inst.PrivateIpAddress
+				}
+
+				publicIP := ""
+				if inst.PublicIpAddress != nil {
+					publicIP = *inst.PublicIpAddress
+				}
+
+				state := ""
+				if inst.State != nil {
+					if inst.State.Name != nil {
+						state = *inst.State.Name
+					}
+				}
+
+				vpcID := ""
+				if inst.VpcId != nil {
+					vpcID = *inst.VpcId
+				}
+
 				instances = append(instances, &metadata.Instance{
 					InstanceId:    *inst.InstanceId,
-					PrivateIp:     *inst.PrivateIpAddress,
-					PublicIp:      *inst.PublicIpAddress,
-					InstanceState: ccom.CovertInstState(*inst.State.Name),
-					VpcId:         *inst.VpcId,
+					PrivateIp:     privateIP,
+					PublicIp:      publicIP,
+					InstanceState: ccom.CovertInstState(state),
+					VpcId:         vpcID,
 				})
 			}
 		}
@@ -286,7 +308,7 @@ func (c *awsClient) setMaxResults(maxResults **int64, limit int64) {
 	}
 }
 
-// 获取vpc名称，没有vpc名称标签，则使用vpcid作为名称
+// getVpcName 获取vpc名称，没有vpc名称标签，则使用vpcid作为名称
 func (c *awsClient) getVpcName(vpc *ec2.Vpc) string {
 	if len(vpc.Tags) <= 0 {
 		return *vpc.VpcId

@@ -41,14 +41,13 @@ If you want to know more about the above features, please refer to the [Function
 * [Replace Community Version with This Version](docs/overview/upgrade-from-ce.md)
 
 ## Roadmap
-* [Version iteration rules (In Chinese)](docs/VERSION.md)
-* [Changelog](version.md)
+* [Changelog (In Chinese)](docs/support-file/changelog/release.md)
 
 ## Support
 - [Wiki (In Chinese)](https://github.com/Tencent/bk-cmdb/wiki) or ask for help
 - [White paper(In Chinese)](https://docs.bk.tencent.com/cmdb/)
 - [BK forum](https://bk.tencent.com/s-mart/community)
-- [BK DevOps online video tutorial(In Chinese)](https://cloud.tencent.com/developer/edu/major-100008)
+- [BK DevOps online video tutorial(In Chinese)](https://bk.tencent.com/s-mart/video/)
 - Contact us, technical exchange QQ group：305496802
 
 ## BlueKing Community
@@ -56,8 +55,6 @@ If you want to know more about the above features, please refer to the [Function
  delivery system that can easily present your R & D process to you.
 - [BK-BCS](https://github.com/Tencent/bk-bcs)：a basic container service platform which provides
  orchestration and management for micro-service business.
-- [BK-BCS-SaaS](https://github.com/Tencent/bk-bcs-saas)：a SaaS provides users with highly scalable
-, flexible and easy-to-use container products and services.
 - [BK-PaaS](https://github.com/Tencent/bk-PaaS)：an development platform that allows developers to create, develop, deploy and manage SaaS applications easily and quickly.
 - [BK-SOPS](https://github.com/Tencent/bk-sops)：an lightweight scheduling SaaS  for task flow
  scheduling and execution through a visual graphical interface. 
@@ -77,3 +74,5 @@ If you are interested in contributing, check out the [CONTRIBUTING.md], also joi
 
 ## License
 Bk-cmdb is based on the MIT license. Please refer to [LICENSE](LICENSE) for details.
+
+We undertake not to change the open source license (MIT license) applicable to the current version of the project delivered to anyone in the future.

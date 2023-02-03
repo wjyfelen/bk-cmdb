@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import has from 'has'
 const state = {
   info: {},
@@ -8,10 +20,7 @@ const state = {
     target: []
   },
   mainLine: [],
-  instances: {
-    source: [],
-    target: []
-  },
+  instances: [],
   associationTypes: [],
   expandAll: false
 }
@@ -50,8 +59,7 @@ const getters = {
   associationTypes: state => state.associationTypes,
   source: state => state.association.source,
   target: state => state.association.target,
-  sourceInstances: state => state.instances.source,
-  targetInstances: state => state.instances.target,
+  allInstances: state => state.instances,
   isBusinessHost: state => (state.info.biz || []).some(business => business.default === 0),
   properties: state => state.properties
 }
@@ -76,21 +84,14 @@ const mutations = {
     state.mainLine = mainLine
   },
   setInstances(state, data) {
-    state.instances[data.type] = data.instances
+    state.instances = data
   },
   setAssociationTypes(state, types) {
     state.associationTypes = types
   },
-  deleteAssociation(state, data) {
-    const { type } = data
-    const { model } = data
-    const target = data.association
-    const instances = state.instances[type === 'source' ? 'target' : 'source']
-    const associations = instances.find(data => data.bk_obj_id === model)
-    const index = associations.children.findIndex(association => association.asso_id === target.asso_id)
-    if (index > -1) {
-      associations.children.splice(index, 1)
-    }
+  deleteAssociation(state, id) {
+    const index = state.instances.findIndex(instance => instance.id === id)
+    index > -1 && state.instances.splice(index, 1)
   },
   toggleExpandAll(state, expandAll) {
     state.expandAll = expandAll

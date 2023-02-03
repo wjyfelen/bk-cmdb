@@ -10,10 +10,10 @@
  * limitations under the License.
  */
 
+// Package blueking TODO
 package blueking
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -41,10 +41,6 @@ func NewBKmonitor() (*bkMonitor, error) {
 
 // Report is a interface implement for bkMonitor
 func (m *bkMonitor) Report(c meta.Content) error {
-	if config.MonitorCfg.DataID == 0 {
-		blog.ErrorJSON("Report failed, config monitor.dataID is not set, detail: %s", c)
-		return errors.New("report failed, config monitor.dataID is not set")
-	}
 
 	alarm, ok := c.(*meta.Alarm)
 	if !ok {
@@ -78,7 +74,6 @@ func (m *bkMonitor) convertToReportMsg(alarm *meta.Alarm) (string, error) {
 		Dimension:   alarm.Dimension,
 		TimeStampMs: time.Now().UnixNano() / 1e6,
 	}
-
 	if one.Dimension == nil {
 		one.Dimension = make(map[string]string)
 	}
@@ -103,6 +98,7 @@ type EventData struct {
 	Data   []*EventMsg `json:"data"`
 }
 
+// EventMsg TODO
 type EventMsg struct {
 	EventName   string            `json:"event_name"`
 	EventInfo   EventInfo         `json:"event"`
@@ -111,6 +107,7 @@ type EventMsg struct {
 	TimeStampMs int64             `json:"timestamp"`
 }
 
+// EventInfo TODO
 type EventInfo struct {
 	Content string `json:"content"`
 }

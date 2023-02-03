@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="cmdb-form-process-table">
     <cmdb-form-table
@@ -13,7 +25,8 @@
         <component class="content-value"
           size="small"
           font-size="small"
-          v-validate="$tools.getValidateRules(column)"
+          v-bind="$tools.getValidateEvents(column)"
+          v-validate="getRules(rowProps, column)"
           :disabled="isLocked(rowProps)"
           :data-vv-name="column.bk_property_id"
           :data-vv-as="column.bk_property_name"
@@ -40,6 +53,8 @@
 <script>
   import ProcessFormPropertyIp from './process-form-property-ip'
   import ProcessFormAppend from './process-form-append'
+  import { MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS } from '@/dictionary/menu-symbol'
+
   export default {
     components: {
       ProcessFormPropertyIp,
@@ -97,6 +112,14 @@
         const rowState = this.lockStates[index]
         return rowState ? rowState[column.property] : false
       },
+      getRules(rowProps, property) {
+        const rules = this.$tools.getValidateRules(property)
+        rules.required = true
+        if (property.bk_property_id === 'ip') {
+          rules.required = false
+        }
+        return rules
+      },
       getComponentType(property) {
         if (property.bk_property_id === 'ip') {
           return 'process-form-property-ip'
@@ -116,7 +139,7 @@
       },
       handleRedirect() {
         this.$routerActions.redirect({
-          name: 'operationalTemplate',
+          name: MENU_BUSINESS_SERVICE_TEMPLATE_DETAILS,
           params: {
             bizId: this.form.bizId,
             templateId: this.form.serviceTemplateId
@@ -138,6 +161,7 @@
             justify-content: flex-start;
             .content-value:not(.bk-switcher) {
                 flex: 1;
+                width: calc(100% - 24px);
             }
             .content-value.bk-switcher ~ .content-lock {
                 background-color: transparent;

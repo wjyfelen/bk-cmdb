@@ -19,6 +19,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// CreateAuditLog TODO
 func (s *coreService) CreateAuditLog(ctx *rest.Contexts) {
 	inputData := new(metadata.CreateAuditLogParam)
 
@@ -36,6 +37,7 @@ func (s *coreService) CreateAuditLog(ctx *rest.Contexts) {
 	ctx.RespEntity(nil)
 }
 
+// SearchAuditLog TODO
 func (s *coreService) SearchAuditLog(ctx *rest.Contexts) {
 	inputData := metadata.QueryCondition{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
@@ -51,4 +53,9 @@ func (s *coreService) SearchAuditLog(ctx *rest.Contexts) {
 	}
 
 	ctx.RespEntityWithCount(int64(count), auditLogs)
+}
+
+// CreateAuditLogDependence is a dependence for host to create service instance audit logs for transfer operation
+func (s *coreService) CreateAuditLogDependence(kit *rest.Kit, logs ...metadata.AuditLog) error {
+	return s.core.AuditOperation().CreateAuditLog(kit, logs...)
 }

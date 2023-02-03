@@ -1,32 +1,49 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="instance-operation">
-    <cmdb-auth tag="span" class="operation-item"
+    <cmdb-auth tag="span" class="operation-item" v-test-id.businessHostAndService="'addProcess'"
       v-if="!row.service_template_id"
       :auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
       @click.native.stop
       @click="handleAddProcess">
       {{$t('添加进程')}}
     </cmdb-auth>
-    <cmdb-auth tag="span" class="operation-item"
+    <cmdb-auth tag="span" class="operation-item" v-test-id.businessHostAndService="'cloneProcess'"
       v-if="!row.service_template_id"
       :auth="{ type: $OPERATION.C_SERVICE_INSTANCE, relation: [bizId] }"
       @click.native.stop
       @click="handleClone">
       {{$t('克隆')}}
     </cmdb-auth>
-    <cmdb-auth tag="span" class="operation-item"
+    <cmdb-auth tag="span" class="operation-item" v-test-id.businessHostAndService="'delProcess'"
       :auth="{ type: $OPERATION.D_SERVICE_INSTANCE, relation: [bizId] }"
-      @click.native.stop
-      @click="handleDelete">
-      {{$t('删除')}}
+      @click.native.stop>
+      <bk-popconfirm trigger="click"
+        ext-popover-cls="del-confirm"
+        :content="$t('确定删除该服务实例')"
+        confirm-loading
+        @confirm="handleDelete">
+        {{$t('删除')}}
+      </bk-popconfirm>
     </cmdb-auth>
   </div>
 </template>
 
 <script>
   import { mapGetters } from 'vuex'
+  import Bus from '../common/bus'
   import createProcessMixin from './create-process-mixin'
-  import { MENU_BUSINESS_DELETE_SERVICE } from '@/dictionary/menu-symbol'
   export default {
     mixins: [createProcessMixin],
     props: {
@@ -53,15 +70,23 @@
           history: true
         })
       },
-      handleDelete() {
-        this.$routerActions.redirect({
-          name: MENU_BUSINESS_DELETE_SERVICE,
-          params: {
-            ids: this.row.id,
-            moduleId: this.selectedNode.data.bk_inst_id
-          },
-          history: true
-        })
+      async handleDelete() {
+        try {
+          await this.$store.dispatch('serviceInstance/deleteServiceInstance', {
+            config: {
+              data: {
+                service_instance_ids: [this.row.id],
+                bk_biz_id: this.bizId
+              }
+            }
+          })
+          this.$success(this.$t('删除成功'))
+          Bus.$emit('delete-complete')
+          return true
+        } catch (e) {
+          console.error(e)
+          return false
+        }
       }
     }
   }

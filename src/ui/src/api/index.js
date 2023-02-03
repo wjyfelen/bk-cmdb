@@ -1,11 +1,31 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import Axios from 'axios'
 import md5 from 'md5'
+import xid from 'xid-js'
 import CachedPromise from './_cached-promise'
 import RequestQueue from './_request-queue'
 // eslint-disable-next-line
 import { $error, $warn } from '@/magicbox'
 import i18n, { language } from '@/i18n'
 import has from 'has'
+
+const TRACE_CHARS = 'abcdef0123456789'
+const randomString = (length, chars) => {
+  let result = ''
+  for (let i = length; i > 0; --i) result += chars[Math.random() * chars.length | 0]
+  return result
+}
 
 // axios实例
 const axiosInstance = Axios.create({
@@ -17,7 +37,16 @@ const axiosInstance = Axios.create({
 
 // axios实例拦截器
 axiosInstance.interceptors.request.use(
-  config => config,
+  (config) => {
+    config.headers.common = {
+      ...config.headers.common,
+      // opentelementry TraceID
+      traceparent: `00-${randomString(32, TRACE_CHARS)}-${randomString(16, TRACE_CHARS)}-01`,
+      // 请求ID
+      Cc_Request_Id: `cc0000${xid.next()}`
+    }
+    return config
+  },
   error => Promise.reject(error)
 )
 
@@ -262,6 +291,10 @@ async function download(options = {}) {
   }
   try {
     const response = await promise
+    if (response.data.type.indexOf('application') === -1) {
+      const text = await new Response(response.data).text()
+      throw new Error(JSON.parse(text).bk_error_msg)
+    }
     const disposition = response.headers['content-disposition']
     const fileName = name || disposition.substring(disposition.indexOf('filename') + 9)
     const downloadUrl = window.URL.createObjectURL(new Blob([response.data], {
@@ -279,7 +312,7 @@ async function download(options = {}) {
     if (Axios.isCancel(error)) {
       return Promise.reject(error)
     }
-    $error('Download failure')
+    $error(error.message)
     return Promise.reject(error)
   }
 }

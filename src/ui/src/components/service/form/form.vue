@@ -1,5 +1,18 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-sideslider
+    :transfer="true"
     :width="800"
     :title="internalTitle"
     :is-show.sync="isShow"
@@ -10,6 +23,7 @@
         :properties="properties"
         :property-groups="propertyGroups"
         :inst="instance"
+        :show-options="showOptions"
         :show-delete="false"
         :edit-auth="{ type: $OPERATION.U_SERVICE_INSTANCE, relation: [bizId] }"
         :invisible-name-properties="invisibleNameProperties"
@@ -43,13 +57,17 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex'
+  import { mapGetters, mapState } from 'vuex'
   import {
     processPropertyRequestId,
     processPropertyGroupsRequestId
   } from './symbol'
   import RenderAppend from './process-form-append-render'
   import ProcessFormPropertyTable from './process-form-property-table'
+  import { MENU_BUSINESS_SET_TOPOLOGY } from '@/dictionary/menu-symbol'
+  import { ProcessTemplateService } from '@/service/business-set/process-template.js'
+  import router from '@/router'
+
   export default {
     components: {
       ProcessFormPropertyTable
@@ -69,6 +87,13 @@
       invisibleProperties: {
         type: Array,
         default: () => ([])
+      },
+      /**
+       * 是否展示操作按钮
+       */
+      showOptions: {
+        type: Boolean,
+        default: true
       }
     },
     provide() {
@@ -92,7 +117,11 @@
       }
     },
     computed: {
+      ...mapState('bizSet', ['bizSetId']),
       ...mapGetters(['supplierAccount']),
+      isBizSet() {
+        return router.currentRoute.name === MENU_BUSINESS_SET_TOPOLOGY
+      },
       bindInfoProperty() {
         return this.properties.find(property => property.bk_property_id === 'bind_info') || {}
       },
@@ -199,14 +228,29 @@
       },
       async getProcessTemplate() {
         try {
-          this.processTemplate = await this.$store.dispatch('processTemplate/getProcessTemplate', {
-            params: {
+          const reqParams = {
+            processTemplateId: this.processTemplateId
+          }
+          const reqConfig = {
+            cancelPrevious: true
+          }
+
+          let processTemplate = null
+
+          if (this.isBizSet) {
+            processTemplate = await ProcessTemplateService.findOne({
+              bizSetId: this.bizSetId,
               processTemplateId: this.processTemplateId
-            },
-            config: {
-              cancelPrevious: true
-            }
-          })
+            }, reqConfig)
+          } else {
+            processTemplate = await this.$store.dispatch('processTemplate/getProcessTemplate', {
+              params: reqParams,
+              config: reqConfig
+            })
+          }
+
+          this.processTemplate = processTemplate
+
           const { property } = this.processTemplate
           const bindedProperties = []
           Object.keys(property).forEach((key) => {

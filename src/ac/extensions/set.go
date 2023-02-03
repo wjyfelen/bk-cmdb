@@ -29,7 +29,9 @@ import (
  * set instance
  */
 
-func (am *AuthManager) collectSetBySetIDs(ctx context.Context, header http.Header, setIDs ...int64) ([]SetSimplify, error) {
+func (am *AuthManager) collectSetBySetIDs(ctx context.Context, header http.Header, setIDs ...int64) ([]SetSimplify,
+	error) {
+
 	rid := util.ExtractRequestIDFromContext(ctx)
 
 	cond := metadata.QueryCondition{
@@ -40,8 +42,9 @@ func (am *AuthManager) collectSetBySetIDs(ctx context.Context, header http.Heade
 		blog.V(3).Infof("get sets by id failed, err: %+v, rid: %s", err, rid)
 		return nil, fmt.Errorf("get sets by id failed, err: %+v", err)
 	}
+
 	sets := make([]SetSimplify, 0)
-	for _, cls := range result.Data.Info {
+	for _, cls := range result.Info {
 		set := SetSimplify{}
 		_, err = set.Parse(cls)
 		if err != nil {
@@ -65,6 +68,7 @@ func (am *AuthManager) extractBusinessIDFromSets(sets ...SetSimplify) (int64, er
 	return businessID, nil
 }
 
+// MakeResourcesBySet TODO
 func (am *AuthManager) MakeResourcesBySet(header http.Header, action meta.Action, businessID int64, sets ...SetSimplify) []meta.ResourceAttribute {
 	resources := make([]meta.ResourceAttribute, 0)
 	for _, set := range sets {
@@ -84,6 +88,7 @@ func (am *AuthManager) MakeResourcesBySet(header http.Header, action meta.Action
 	return resources
 }
 
+// AuthorizeBySetID TODO
 func (am *AuthManager) AuthorizeBySetID(ctx context.Context, header http.Header, action meta.Action, ids ...int64) error {
 	if !am.Enabled() {
 		return nil
@@ -103,6 +108,7 @@ func (am *AuthManager) AuthorizeBySetID(ctx context.Context, header http.Header,
 	return am.AuthorizeBySet(ctx, header, action, sets...)
 }
 
+// AuthorizeBySet TODO
 func (am *AuthManager) AuthorizeBySet(ctx context.Context, header http.Header, action meta.Action, sets ...SetSimplify) error {
 	rid := util.ExtractRequestIDFromContext(ctx)
 

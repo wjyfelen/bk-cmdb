@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -27,13 +28,16 @@ import (
 	"configcenter/src/common/rdapi"
 	"configcenter/src/common/types"
 	"configcenter/src/common/util"
+	"configcenter/src/common/webservice/restfulservice"
 	"configcenter/src/scene_server/synchronize_server/app/options"
 	"configcenter/src/scene_server/synchronize_server/logics"
 	"configcenter/src/storage/dal/redis"
+	"configcenter/src/thirdparty/logplatform/opentelemetry"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Service TODO
 type Service struct {
 	*options.Config
 	*backbone.Engine
@@ -54,6 +58,7 @@ type srvComm struct {
 	lgc           *logics.Logics
 }
 
+// SetSynchronizeServer TODO
 func (s *Service) SetSynchronizeServer(synchronizeSrv synchronize.SynchronizeClientInterface) {
 	s.synchronizeSrv = synchronizeSrv
 }
@@ -74,8 +79,11 @@ func (s *Service) newSrvComm(header http.Header) *srvComm {
 	}
 }
 
+// WebService TODO
 func (s *Service) WebService() *restful.Container {
 	container := restful.NewContainer()
+
+	opentelemetry.AddOtlpFilter(container)
 
 	ws := new(restful.WebService)
 	ws.Path("/synchronize/{version}").Filter(s.Engine.Metric().RestfulMiddleWare).Filter(rdapi.HTTPRequestIDFilter()).Produces(restful.MIME_JSON)
@@ -85,13 +93,16 @@ func (s *Service) WebService() *restful.Container {
 
 	container.Add(ws)
 
-	healthzAPI := new(restful.WebService).Produces(restful.MIME_JSON)
-	healthzAPI.Route(healthzAPI.GET("/healthz").To(s.Healthz))
-	container.Add(healthzAPI)
+	// common api
+	commonAPI := new(restful.WebService).Produces(restful.MIME_JSON)
+	commonAPI.Route(commonAPI.GET("/healthz").To(s.Healthz))
+	commonAPI.Route(commonAPI.GET("/version").To(restfulservice.Version))
+	container.Add(commonAPI)
 
 	return container
 }
 
+// Healthz TODO
 func (s *Service) Healthz(req *restful.Request, resp *restful.Response) {
 	meta := metric.HealthMeta{IsHealthy: true}
 

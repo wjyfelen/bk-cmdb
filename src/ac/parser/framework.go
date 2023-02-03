@@ -15,15 +15,19 @@ package parser
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 
 	"configcenter/src/ac/meta"
 	"configcenter/src/common/blog"
-	"configcenter/src/common/util"
 )
 
+// InstanceIDGetter TODO
 type InstanceIDGetter func(request *RequestContext, re *regexp.Regexp) ([]int64, error)
+
+// BizIDGetter TODO
 type BizIDGetter func(request *RequestContext, config AuthConfig) (bizID int64, err error)
 
+// AuthConfig TODO
 type AuthConfig struct {
 	Name             string
 	Pattern          string
@@ -38,6 +42,7 @@ type AuthConfig struct {
 	Description string
 }
 
+// Match TODO
 func (config *AuthConfig) Match(request *RequestContext) bool {
 	if config.HTTPMethod != request.Method {
 		return false
@@ -49,6 +54,7 @@ func (config *AuthConfig) Match(request *RequestContext) bool {
 	return config.Pattern == request.URI
 }
 
+// MatchAndGenerateIAMResource TODO
 func MatchAndGenerateIAMResource(authConfigs []AuthConfig, request *RequestContext) ([]meta.ResourceAttribute, error) {
 	for _, item := range authConfigs {
 		if item.Match(request) == false {
@@ -99,6 +105,7 @@ func MatchAndGenerateIAMResource(authConfigs []AuthConfig, request *RequestConte
 	return nil, nil
 }
 
+// DefaultBizIDGetter TODO
 func DefaultBizIDGetter(request *RequestContext, config AuthConfig) (bizID int64, err error) {
 	bizID, err = request.getBizIDFromBody()
 	if err != nil {
@@ -107,6 +114,7 @@ func DefaultBizIDGetter(request *RequestContext, config AuthConfig) (bizID int64
 	return
 }
 
+// BizIDFromURLGetter TODO
 func BizIDFromURLGetter(request *RequestContext, config AuthConfig) (bizID int64, err error) {
 
 	if len(request.Elements) <= config.BizIndex {
@@ -115,7 +123,7 @@ func BizIDFromURLGetter(request *RequestContext, config AuthConfig) (bizID int64
 	}
 
 	bizIDStr := request.Elements[config.BizIndex]
-	bizID, err = util.GetInt64ByInterface(bizIDStr)
+	bizID, err = strconv.ParseInt(bizIDStr, 10, 64)
 	if err != nil {
 		blog.Errorf("get business id from request path failed, name: %s, BizIndex:%d, uri:%s, err: %v, rid: %s", config.Name, config.BizIndex, request.URI, err, request.Rid)
 		return 0, err
@@ -124,6 +132,7 @@ func BizIDFromURLGetter(request *RequestContext, config AuthConfig) (bizID int64
 	return bizID, nil
 }
 
+// ParseStreamWithFramework TODO
 func ParseStreamWithFramework(ps *parseStream, authConfigs []AuthConfig) *parseStream {
 	resources, err := MatchAndGenerateIAMResource(authConfigs, ps.RequestCtx)
 	if err != nil {

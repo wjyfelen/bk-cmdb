@@ -1,3 +1,4 @@
+// Package association TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -19,6 +20,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// AssociationInterface TODO
 type AssociationInterface interface {
 	SearchType(ctx context.Context, h http.Header, request *metadata.SearchAssociationTypeRequest) (resp *metadata.SearchAssociationTypeResult, err error)
 	CreateType(ctx context.Context, h http.Header, request *metadata.AssociationKind) (resp *metadata.CreateAssociationTypeResult, err error)
@@ -31,15 +33,29 @@ type AssociationInterface interface {
 	SearchInst(ctx context.Context, h http.Header, request *metadata.SearchAssociationInstRequest) (resp *metadata.SearchAssociationInstResult, err error)
 	SearchAssociationRelatedInst(ctx context.Context, h http.Header, request *metadata.SearchAssociationRelatedInstRequest) (resp *metadata.SearchAssociationInstResult, err error)
 	CreateInst(ctx context.Context, h http.Header, request *metadata.CreateAssociationInstRequest) (resp *metadata.CreateAssociationInstResult, err error)
-	DeleteInst(ctx context.Context, h http.Header, assoID int64) (resp *metadata.DeleteAssociationInstResult, err error)
+	CreateManyInstAssociation(ctx context.Context, header http.Header, request *metadata.CreateManyInstAsstRequest) (*metadata.CreateManyInstAsstResult, error)
+	DeleteInst(ctx context.Context, h http.Header, objID string, assoID int64) (resp *metadata.DeleteAssociationInstResult, err error)
 	DeleteInstBatch(ctx context.Context, h http.Header, assoIDs *metadata.DeleteAssociationInstBatchRequest) (resp *metadata.DeleteAssociationInstBatchResult, err error)
 	SearchObjectAssoWithAssoKindList(ctx context.Context, h http.Header, assoKindIDs metadata.AssociationKindIDs) (resp *metadata.ListAssociationsWithAssociationKindResult, err error)
+
+	SearchInstAssocAndInstDetail(ctx context.Context, header http.Header, objID string,
+		input *metadata.InstAndAssocRequest) (*metadata.InstAndAssocDetailResult, error)
+
+	// SearchInstanceAssociations searches object instance associations.
+	SearchInstanceAssociations(ctx context.Context, header http.Header,
+		objID string, input *metadata.CommonSearchFilter) (*metadata.Response, error)
+
+	// CountInstanceAssociations counts object instance associations num.
+	CountInstanceAssociations(ctx context.Context, header http.Header,
+		objID string, input *metadata.CommonCountFilter) (*metadata.Response, error)
 }
 
+// NewAssociationInterface TODO
 func NewAssociationInterface(client rest.ClientInterface) AssociationInterface {
 	return &Association{client: client}
 }
 
+// Association TODO
 type Association struct {
 	client rest.ClientInterface
 }

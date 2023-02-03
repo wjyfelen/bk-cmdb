@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package ssl TODO
 package ssl
 
 import (
@@ -20,12 +21,15 @@ import (
 	"io/ioutil"
 )
 
-func ClientTslConfNoVerity() *tls.Config {
+// ClientTLSConfNoVerify TODO
+// client tls config without verify
+func ClientTLSConfNoVerify() *tls.Config {
 	return &tls.Config{
-		InsecureSkipVerify: false,
+		InsecureSkipVerify: true,
 	}
 }
 
+// ClientTslConfVerityServer TODO
 func ClientTslConfVerityServer(caFile string) (*tls.Config, error) {
 	caPool, err := loadCa(caFile)
 	if err != nil {
@@ -39,6 +43,7 @@ func ClientTslConfVerityServer(caFile string) (*tls.Config, error) {
 	return conf, nil
 }
 
+// ClientTLSConfVerity TODO
 func ClientTLSConfVerity(caFile, certFile, keyFile, passwd string) (*tls.Config, error) {
 	caPool, err := loadCa(caFile)
 	if err != nil {
@@ -59,29 +64,8 @@ func ClientTLSConfVerity(caFile, certFile, keyFile, passwd string) (*tls.Config,
 	return conf, nil
 }
 
-func ServerTslConf(caFile, certFile, keyFile, passwd string) (*tls.Config, error) {
-	if "" == caFile {
-		return ServerTslConfVerity(certFile, keyFile, passwd)
-	}
-
-	return ServerTslConfVerityClient(caFile, certFile, keyFile, passwd)
-}
-
-func ServerTslConfVerity(certFile, keyFile, passwd string) (*tls.Config, error) {
-
-	cert, err := loadCertificates(certFile, keyFile, passwd)
-	if err != nil {
-		return nil, err
-	}
-
-	conf := &tls.Config{
-		Certificates: []tls.Certificate{*cert},
-	}
-
-	return conf, nil
-}
-
-func ServerTslConfVerityClient(caFile, certFile, keyFile, passwd string) (*tls.Config, error) {
+// ServerTLSVerifyClient server tls verify client
+func ServerTLSVerifyClient(caFile, certFile, keyFile, passwd string) (*tls.Config, error) {
 	caPool, err := loadCa(caFile)
 	if err != nil {
 		return nil, err
@@ -116,7 +100,7 @@ func loadCa(caFile string) (*x509.CertPool, error) {
 }
 
 func loadCertificates(certFile, keyFile, passwd string) (*tls.Certificate, error) {
-	//key file
+	// key file
 	priKey, err := ioutil.ReadFile(keyFile)
 	if err != nil {
 		return nil, err
@@ -139,7 +123,7 @@ func loadCertificates(certFile, keyFile, passwd string) (*tls.Certificate, error
 		})
 	}
 
-	//certificate
+	// certificate
 	certData, err := ioutil.ReadFile(certFile)
 	if err != nil {
 		return nil, err

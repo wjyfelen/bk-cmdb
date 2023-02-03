@@ -4,34 +4,43 @@
 
 ## 编译环境
 
-- golang >= 1.8
+- golang >= 1.16
 - python >= 2.7.5
 - nodejs >= 4.0.0（编译过程中需要可以连公网下载依赖包）
+
+#### 将go mod设置为auto
+```
+go env -w GO111MODULE="auto"
+```
 
 ## 源码下载
 
 ``` shell
-cd $GOPATH/src
-git clone https://github.com/Tencent/bk-cmdb  configcenter
+git clone https://github.com/Tencent/bk-cmdb configcenter
 ```
 
-**GOPATH 是使用Golang编写项目的根目录，配置GOPATH的示例如下:**
-
+## 下载项目所需依赖
 ``` shell
-mkdir -p /data/abc #为GOPATH新建一个目录
-export GOPATH=/data/abc   # 设置GOPATH地址
-mkdir -p $GOPATH/src    #为GOPATH新建源代码存放路径
+cd configcenter
+
+go mod tidy
 ```
 
+ go mod是Golang的包管理工具，若没有开启，可以进行下面操作:
+ ``` shell
+ go env -w GO111MODULE="auto"
+
+或
+
+ go env -w GO111MODULE="on"
+ ```
 
 ## 编译
-
-
 
 ### 进入源码根目录：
 
 ``` shell
-cd $GOPATH/src/configcenter/src
+cd configcenter/src
 ```
 
 #### 编译共有三种模式
@@ -95,7 +104,7 @@ make ui NPM=cnpm
 make package
 ```
 
-归档包存放位置： $GOPATH/src/configcenter/src/bin/pub/cmdb.tar.gz 
+归档包存放位置： configcenter/src/bin/pub/cmdb.tar.gz 
 
 
 ### Docker 镜像制作

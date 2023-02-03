@@ -16,6 +16,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -32,56 +33,78 @@ import (
 )
 
 const (
-	AttributeFieldID              = "id"
+	// AttributeFieldID TODO
+	AttributeFieldID = "id"
+	// AttributeFieldSupplierAccount TODO
 	AttributeFieldSupplierAccount = "bk_supplier_account"
-	AttributeFieldObjectID        = "bk_obj_id"
-	AttributeFieldPropertyID      = "bk_property_id"
-	AttributeFieldPropertyName    = "bk_property_name"
-	AttributeFieldPropertyGroup   = "bk_property_group"
-	AttributeFieldPropertyIndex   = "bk_property_index"
-	AttributeFieldUnit            = "unit"
-	AttributeFieldPlaceHolder     = "placeholder"
-	AttributeFieldIsEditable      = "editable"
-	AttributeFieldIsPre           = "ispre"
-	AttributeFieldIsRequired      = "isrequired"
-	AttributeFieldIsReadOnly      = "isreadonly"
-	AttributeFieldIsOnly          = "isonly"
-	AttributeFieldIsSystem        = "bk_issystem"
-	AttributeFieldIsAPI           = "bk_isapi"
-	AttributeFieldPropertyType    = "bk_property_type"
-	AttributeFieldOption          = "option"
-	AttributeFieldDescription     = "description"
-	AttributeFieldCreator         = "creator"
-	AttributeFieldCreateTime      = "create_time"
-	AttributeFieldLastTime        = "last_time"
+	// AttributeFieldObjectID TODO
+	AttributeFieldObjectID = "bk_obj_id"
+	// AttributeFieldPropertyID TODO
+	AttributeFieldPropertyID = "bk_property_id"
+	// AttributeFieldPropertyName TODO
+	AttributeFieldPropertyName = "bk_property_name"
+	// AttributeFieldPropertyGroup TODO
+	AttributeFieldPropertyGroup = "bk_property_group"
+	// AttributeFieldPropertyIndex TODO
+	AttributeFieldPropertyIndex = "bk_property_index"
+	// AttributeFieldUnit TODO
+	AttributeFieldUnit = "unit"
+	// AttributeFieldPlaceHolder TODO
+	AttributeFieldPlaceHolder = "placeholder"
+	// AttributeFieldIsEditable TODO
+	AttributeFieldIsEditable = "editable"
+	// AttributeFieldIsPre TODO
+	AttributeFieldIsPre = "ispre"
+	// AttributeFieldIsRequired TODO
+	AttributeFieldIsRequired = "isrequired"
+	// AttributeFieldIsReadOnly TODO
+	AttributeFieldIsReadOnly = "isreadonly"
+	// AttributeFieldIsOnly TODO
+	AttributeFieldIsOnly = "isonly"
+	// AttributeFieldIsSystem TODO
+	AttributeFieldIsSystem = "bk_issystem"
+	// AttributeFieldIsAPI TODO
+	AttributeFieldIsAPI = "bk_isapi"
+	// AttributeFieldPropertyType TODO
+	AttributeFieldPropertyType = "bk_property_type"
+	// AttributeFieldOption TODO
+	AttributeFieldOption = "option"
+	// AttributeFieldDescription TODO
+	AttributeFieldDescription = "description"
+	// AttributeFieldCreator TODO
+	AttributeFieldCreator = "creator"
+	// AttributeFieldCreateTime TODO
+	AttributeFieldCreateTime = "create_time"
+	// AttributeFieldLastTime TODO
+	AttributeFieldLastTime = "last_time"
 )
 
 // Attribute attribute metadata definition
 type Attribute struct {
-	BizID             int64       `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id"`
-	ID                int64       `field:"id" json:"id" bson:"id"`
-	OwnerID           string      `field:"bk_supplier_account" json:"bk_supplier_account" bson:"bk_supplier_account"`
-	ObjectID          string      `field:"bk_obj_id" json:"bk_obj_id" bson:"bk_obj_id"`
-	PropertyID        string      `field:"bk_property_id" json:"bk_property_id" bson:"bk_property_id"`
-	PropertyName      string      `field:"bk_property_name" json:"bk_property_name" bson:"bk_property_name"`
-	PropertyGroup     string      `field:"bk_property_group" json:"bk_property_group" bson:"bk_property_group"`
-	PropertyGroupName string      `field:"bk_property_group_name,ignoretomap" json:"bk_property_group_name" bson:"-"`
-	PropertyIndex     int64       `field:"bk_property_index" json:"bk_property_index" bson:"bk_property_index"`
-	Unit              string      `field:"unit" json:"unit" bson:"unit"`
-	Placeholder       string      `field:"placeholder" json:"placeholder" bson:"placeholder"`
-	IsEditable        bool        `field:"editable" json:"editable" bson:"editable"`
-	IsPre             bool        `field:"ispre" json:"ispre" bson:"ispre"`
-	IsRequired        bool        `field:"isrequired" json:"isrequired" bson:"isrequired"`
-	IsReadOnly        bool        `field:"isreadonly" json:"isreadonly" bson:"isreadonly"`
-	IsOnly            bool        `field:"isonly" json:"isonly" bson:"isonly"`
-	IsSystem          bool        `field:"bk_issystem" json:"bk_issystem" bson:"bk_issystem"`
-	IsAPI             bool        `field:"bk_isapi" json:"bk_isapi" bson:"bk_isapi"`
-	PropertyType      string      `field:"bk_property_type" json:"bk_property_type" bson:"bk_property_type"`
-	Option            interface{} `field:"option" json:"option" bson:"option"`
-	Description       string      `field:"description" json:"description" bson:"description"`
-	Creator           string      `field:"creator" json:"creator" bson:"creator"`
-	CreateTime        *Time       `json:"create_time" bson:"create_time"`
-	LastTime          *Time       `json:"last_time" bson:"last_time"`
+	BizID             int64       `field:"bk_biz_id" json:"bk_biz_id" bson:"bk_biz_id" mapstructure:"bk_biz_id"`
+	ID                int64       `field:"id" json:"id" bson:"id" mapstructure:"id"`
+	OwnerID           string      `field:"bk_supplier_account" json:"bk_supplier_account" bson:"bk_supplier_account" mapstructure:"bk_supplier_account"`
+	ObjectID          string      `field:"bk_obj_id" json:"bk_obj_id" bson:"bk_obj_id" mapstructure:"bk_obj_id"`
+	PropertyID        string      `field:"bk_property_id" json:"bk_property_id" bson:"bk_property_id" mapstructure:"bk_property_id"`
+	PropertyName      string      `field:"bk_property_name" json:"bk_property_name" bson:"bk_property_name" mapstructure:"bk_property_name"`
+	PropertyGroup     string      `field:"bk_property_group" json:"bk_property_group" bson:"bk_property_group" mapstructure:"bk_property_group"`
+	PropertyGroupName string      `field:"bk_property_group_name,ignoretomap" json:"bk_property_group_name" bson:"-" mapstructure:"bk_property_group_name"`
+	PropertyIndex     int64       `field:"bk_property_index" json:"bk_property_index" bson:"bk_property_index" mapstructure:"bk_property_index"`
+	Unit              string      `field:"unit" json:"unit" bson:"unit" mapstructure:"unit"`
+	Placeholder       string      `field:"placeholder" json:"placeholder" bson:"placeholder" mapstructure:"placeholder"`
+	IsEditable        bool        `field:"editable" json:"editable" bson:"editable" mapstructure:"editable"`
+	IsPre             bool        `field:"ispre" json:"ispre" bson:"ispre" mapstructure:"ispre"`
+	IsRequired        bool        `field:"isrequired" json:"isrequired" bson:"isrequired" mapstructure:"ispre"`
+	IsReadOnly        bool        `field:"isreadonly" json:"isreadonly" bson:"isreadonly" mapstructure:"isreadonly"`
+	IsOnly            bool        `field:"isonly" json:"isonly" bson:"isonly" mapstructure:"isonly"`
+	IsSystem          bool        `field:"bk_issystem" json:"bk_issystem" bson:"bk_issystem" mapstructure:"bk_issystem"`
+	IsAPI             bool        `field:"bk_isapi" json:"bk_isapi" bson:"bk_isapi" mapstructure:"bk_isapi"`
+	PropertyType      string      `field:"bk_property_type" json:"bk_property_type" bson:"bk_property_type" mapstructure:"bk_property_type"`
+	Option            interface{} `field:"option" json:"option" bson:"option" mapstructure:"option"`
+	Description       string      `field:"description" json:"description" bson:"description" mapstructure:"description"`
+	Creator           string      `field:"creator" json:"creator" bson:"creator" mapstructure:"creator"`
+	CreateTime        *Time       `json:"create_time" bson:"create_time" mapstructure:"create_time"`
+	LastTime          *Time       `json:"last_time" bson:"last_time" mapstructure:"last_time"`
 }
 
 // AttributeGroup attribute metadata definition
@@ -118,11 +141,13 @@ type ObjAttDes struct {
 	PropertyGroupName string `json:"bk_property_group_name"`
 }
 
+// HostObjAttDes TODO
 type HostObjAttDes struct {
 	ObjAttDes        `json:",inline" bson:",inline"`
 	HostApplyEnabled bool `json:"host_apply_enabled"`
 }
 
+// Validate TODO
 func (attribute *Attribute) Validate(ctx context.Context, data interface{}, key string) (rawError errors.RawErrorInfo) {
 	fieldType := attribute.PropertyType
 	switch fieldType {
@@ -148,6 +173,8 @@ func (attribute *Attribute) Validate(ctx context.Context, data interface{}, key 
 		rawError = attribute.validUser(ctx, data, key)
 	case common.FieldTypeList:
 		rawError = attribute.validList(ctx, data, key)
+	case common.FieldObject:
+		rawError = attribute.validObjectCondition(ctx, data, key)
 	case common.FieldTypeOrganization:
 		rawError = attribute.validOrganization(ctx, data, key)
 	case "foreignkey", "singleasst", "multiasst":
@@ -161,7 +188,7 @@ func (attribute *Attribute) Validate(ctx context.Context, data interface{}, key 
 			Args:    []interface{}{fieldType},
 		}
 	}
-	//如果出现了问题，并且报错原内容为propertyID，则替换为propertyName。
+	// 如果出现了问题，并且报错原内容为propertyID，则替换为propertyName。
 	if rawError.ErrCode != 0 {
 		if key == attribute.PropertyID || key == common.BKPropertyValueField {
 			rawError.Args = []interface{}{attribute.PropertyName}
@@ -319,6 +346,7 @@ func (attribute *Attribute) validBool(ctx context.Context, val interface{}, key 
 	return errors.RawErrorInfo{}
 }
 
+// validTimeZone TODO
 // valid char valid object attribute that is timezone type
 func (attribute *Attribute) validTimeZone(ctx context.Context, val interface{}, key string) (rawError errors.RawErrorInfo) {
 	rid := util.ExtractRequestIDFromContext(ctx)
@@ -651,6 +679,48 @@ func (attribute *Attribute) validUser(ctx context.Context, val interface{}, key 
 	return errors.RawErrorInfo{}
 }
 
+// validObjectCondition valid object attribute that is user type
+func (attribute *Attribute) validObjectCondition(ctx context.Context, val interface{}, key string) (
+	rawError errors.RawErrorInfo) {
+
+	rid := util.ExtractRequestIDFromContext(ctx)
+	if nil == val || "" == val {
+		if attribute.IsRequired {
+			blog.Errorf("params in need, rid: %s", rid)
+			return errors.RawErrorInfo{
+				ErrCode: common.CCErrCommParamsNeedSet,
+				Args:    []interface{}{key},
+			}
+
+		}
+		return errors.RawErrorInfo{}
+	}
+	// 对于对象的校验只需要判断类型是否是map[string]interface和MapStr即可
+
+	switch reflect.TypeOf(val).Kind() {
+	case reflect.Map:
+	case reflect.Ptr:
+		switch reflect.TypeOf(val).Elem().Kind() {
+		case reflect.Map:
+		default:
+			blog.Errorf("object type is error, must be map, type: %v, rid: %s", reflect.TypeOf(val).Elem().Kind(), rid)
+			return errors.RawErrorInfo{
+				ErrCode: common.CCErrCommParamsInvalid,
+				Args:    []interface{}{key},
+			}
+		}
+
+	default:
+		blog.Errorf("object type is error, must be map, type: %v, rid: %s", reflect.TypeOf(val), rid)
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsInvalid,
+			Args:    []interface{}{key},
+		}
+	}
+
+	return errors.RawErrorInfo{}
+}
+
 func (attribute *Attribute) validList(ctx context.Context, val interface{}, key string) (rawError errors.RawErrorInfo) {
 	rid := util.ExtractRequestUserFromContext(ctx)
 
@@ -707,6 +777,7 @@ func (attribute *Attribute) validList(ctx context.Context, val interface{}, key 
 	}
 }
 
+// validOrganization TODO
 // validBool valid object attribute that is bool type
 func (attribute *Attribute) validOrganization(ctx context.Context, val interface{}, key string) (rawError errors.RawErrorInfo) {
 	rid := util.ExtractRequestIDFromContext(ctx)
@@ -735,10 +806,91 @@ func (attribute *Attribute) validOrganization(ctx context.Context, val interface
 	return errors.RawErrorInfo{}
 }
 
-// validTable valid object attribute that is bool type
-func (attribute *Attribute) validTable(ctx context.Context, val interface{}, key string) (rawError errors.RawErrorInfo) {
-	// rid := util.ExtractRequestIDFromContext(ctx)
-	// TODO 暂时不需要实现，目前只有进程和进程模板使用
+// validTable valid object attribute that is table type
+func (attribute *Attribute) validTable(ctx context.Context, val interface{}, key string) (
+	rawError errors.RawErrorInfo) {
+
+	rid := util.ExtractRequestIDFromContext(ctx)
+	if val == nil {
+		if attribute.IsRequired {
+			blog.Errorf("params can not be null, rid: %s", rid)
+			return errors.RawErrorInfo{
+				ErrCode: common.CCErrCommParamsNeedSet,
+				Args:    []interface{}{key},
+			}
+
+		}
+		return errors.RawErrorInfo{}
+	}
+
+	if attribute.Option == nil {
+		return errors.RawErrorInfo{}
+	}
+
+	// validate within enum
+	subAttrs, err := ParseSubAttribute(ctx, attribute.Option)
+	if err != nil {
+		blog.Errorf("parse sub-attribute failed, err: %v, rid: %s", err, rid)
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsInvalid,
+			Args:    []interface{}{key},
+		}
+	}
+
+	subAttrMap := make(map[string]SubAttribute)
+	for _, subAttr := range subAttrs {
+		subAttrMap[subAttr.PropertyID] = subAttr
+	}
+
+	var valMapArr []mapstr.MapStr
+	switch t := val.(type) {
+	case []interface{}:
+		valMapArr = make([]mapstr.MapStr, len(t))
+		for index, value := range t {
+			var valMap mapstr.MapStr
+			switch v := value.(type) {
+			case mapstr.MapStr:
+				valMap = v
+			case map[string]interface{}:
+				valMap = v
+			default:
+				blog.Errorf("check value type failed, valMap: %#v, rid: %s", valMap, rid)
+				return errors.RawErrorInfo{ErrCode: common.CCErrCommParamsInvalid, Args: []interface{}{key}}
+			}
+			valMapArr[index] = valMap
+		}
+	case []mapstr.MapStr:
+		valMapArr = t
+	case []map[string]interface{}:
+		valMapArr = make([]mapstr.MapStr, len(t))
+		for index, value := range t {
+			valMapArr[index] = value
+		}
+	default:
+		blog.Errorf("check value type failed, val: %#v, rid: %s", val, rid)
+		return errors.RawErrorInfo{ErrCode: common.CCErrCommParamsInvalid, Args: []interface{}{key}}
+	}
+
+	for _, value := range valMapArr {
+		for subKey, subValue := range value {
+			validator, exist := subAttrMap[subKey]
+			if !exist {
+				blog.Errorf("extra field, subKey: %s, subValue: %v, rid: %s", subKey, subValue, rid)
+				return errors.RawErrorInfo{
+					ErrCode: common.CCErrCommParamsInvalid,
+					Args:    []interface{}{fmt.Sprintf("%s.%s", key, subKey)},
+				}
+			}
+			if rawError := validator.Validate(ctx, subValue, subKey); rawError.ErrCode != 0 {
+				blog.Errorf("validate sub-attr failed, key: %s, val: %v, err: %v, rid: %s", subKey, subValue, err, rid)
+				return errors.RawErrorInfo{
+					ErrCode: common.CCErrCommParamsInvalid,
+					Args:    []interface{}{fmt.Sprintf("%s.%s", key, subKey)},
+				}
+			}
+		}
+	}
+
 	return errors.RawErrorInfo{}
 }
 
@@ -769,7 +921,7 @@ func parseFloatOption(ctx context.Context, val interface{}) FloatOption {
 	return floatOption
 }
 
-// parseIntOption  parse int data in option
+// ParseIntOption  parse int data in option
 func ParseIntOption(ctx context.Context, val interface{}) IntOption {
 	rid := util.ExtractRequestIDFromContext(ctx)
 	intOption := IntOption{}
@@ -922,7 +1074,7 @@ func parseEnumOption(options []interface{}, enumOptions *[]EnumVal) error {
 	return nil
 }
 
-// parseFloatOption  parse float data in option
+// ParseFloatOption  parse float data in option
 func ParseFloatOption(ctx context.Context, val interface{}) FloatOption {
 	rid := util.ExtractRequestIDFromContext(ctx)
 	floatOption := FloatOption{}
@@ -949,6 +1101,7 @@ func ParseFloatOption(ctx context.Context, val interface{}) FloatOption {
 	return floatOption
 }
 
+// PrettyValue TODO
 func (attribute Attribute) PrettyValue(ctx context.Context, val interface{}) (string, error) {
 	if val == nil {
 		return "", nil
@@ -1050,6 +1203,7 @@ func (attribute Attribute) PrettyValue(ctx context.Context, val interface{}) (st
 	return "", nil
 }
 
+// HostApplyFieldMap TODO
 var HostApplyFieldMap = map[string]bool{
 	common.BKOperatorField:        true,
 	common.BKBakOperatorField:     true,
@@ -1082,15 +1236,26 @@ var HostApplyFieldMap = map[string]bool{
 	common.BKCloudInstIDField:     false,
 	common.BKCloudHostStatusField: false,
 	common.BKCloudVendor:          false,
+	common.BKHostInnerIPv6Field:   false,
+	common.BKHostOuterIPv6Field:   false,
+	common.BKAgentIDField:         false,
+	"bk_cpu_architecture":         false,
 }
 
 // CheckAllowHostApplyOnField 检查字段是否能用于主机属性自动应用
-func CheckAllowHostApplyOnField(field string) bool {
-	if allow, exist := HostApplyFieldMap[field]; exist == true {
+func CheckAllowHostApplyOnField(field *Attribute) bool {
+	if !field.IsEditable {
+		return false
+	}
+
+	if allow, exist := HostApplyFieldMap[field.PropertyID]; exist == true {
 		return allow
 	}
 	return true
 }
+
+// SubAttributeOption TODO
+type SubAttributeOption []SubAttribute
 
 // SubAttribute sub attribute metadata definition
 type SubAttribute struct {
@@ -1108,6 +1273,7 @@ type SubAttribute struct {
 	PropertyGroup string      `field:"bk_property_group" json:"bk_property_group" bson:"bk_property_group"`
 }
 
+// Validate TODO
 func (sa *SubAttribute) Validate(ctx context.Context, data interface{}, key string) (rawError errors.RawErrorInfo) {
 	attr := Attribute{
 		PropertyID:   sa.PropertyID,
@@ -1127,3 +1293,89 @@ func (sa *SubAttribute) Validate(ctx context.Context, data interface{}, key stri
 	}
 	return attr.Validate(ctx, data, key)
 }
+
+// ParseSubAttribute convert val to []SubAttribute
+func ParseSubAttribute(ctx context.Context, val interface{}) (SubAttributeOption, error) {
+	rid := util.ExtractRequestIDFromContext(ctx)
+	subAttrs := make([]SubAttribute, 0)
+	var err error
+	if val == nil || val == "" {
+		return subAttrs, nil
+	}
+	switch options := val.(type) {
+	case []SubAttribute:
+		return options, nil
+	case string:
+		err = json.Unmarshal([]byte(options), &subAttrs)
+		if nil != err {
+			blog.Errorf("parse sub-attribute failed, err: %v, rid: %s", err, rid)
+			return nil, err
+		}
+	case []interface{}:
+		subAttrs, err = parseSubAttribute(options)
+		if err != nil {
+			blog.Errorf("parse sub-attribute failed, err: %v, rid: %s", err, rid)
+			return nil, err
+		}
+	case bson.A:
+		subAttrs, err = parseSubAttribute(options)
+		if err != nil {
+			blog.Errorf("parse sub-attribute failed, err: %v, rid: %s", err, rid)
+			return nil, err
+		}
+	default:
+		return nil, fmt.Errorf("unknow val type: %#v", val)
+	}
+	return subAttrs, nil
+}
+
+func parseSubAttribute(options []interface{}) ([]SubAttribute, error) {
+
+	subAttrs := make([]SubAttribute, 0)
+	for _, optionVal := range options {
+		switch option := optionVal.(type) {
+		case map[string]interface{}:
+			subAttrs = append(subAttrs, parseSubAttr(option))
+		case bson.M:
+			subAttrs = append(subAttrs, parseSubAttr(map[string]interface{}(option)))
+		case bson.D:
+			subAttrs = append(subAttrs, parseSubAttr(map[string]interface{}(option.Map())))
+		default:
+			return nil, fmt.Errorf("unknow optionVal type: %#v", optionVal)
+		}
+	}
+	return subAttrs, nil
+}
+
+func parseSubAttr(options map[string]interface{}) SubAttribute {
+	subAttr := SubAttribute{}
+
+	subAttr.PropertyID = getString(options["bk_property_id"])
+	subAttr.PropertyName = getString(options["bk_property_name"])
+	subAttr.PropertyGroup = getString(options["bk_property_group"])
+	subAttr.Placeholder = getString(options["placeholder"])
+	subAttr.PropertyType = getString(options["bk_property_type"])
+	subAttr.IsAPI = getBool(options["bk_isapi"])
+	subAttr.IsEditable = getBool(options["editable"])
+	subAttr.IsReadOnly = getBool(options["isreadonly"])
+	subAttr.IsRequired = getBool(options["isrequired"])
+	subAttr.IsSystem = getBool(options["bk_issystem"])
+	subAttr.Option = options["option"]
+	subAttr.Description = getString(options["description"])
+
+	return subAttr
+}
+
+// EnumOptions TODO
+type EnumOptions []AttributesOption
+
+// AttributesOption TODO
+type AttributesOption struct {
+	ID        string `json:"id" bson:"id"`
+	Name      string `json:"name" bson:"name"`
+	Type      string `json:"type" bson:"type"`
+	IsDefault bool   `json:"is_default" bson:"is_default"`
+}
+
+// ListOptions TODO
+type ListOptions []string

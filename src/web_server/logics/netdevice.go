@@ -29,12 +29,14 @@ import (
 	"github.com/rentiansheng/xlsx"
 )
 
+// GetImportNetDevices TODO
 // get date from excel file to import device
-func GetImportNetDevices(
-	header http.Header, defLang language.DefaultCCLanguageIf, f *xlsx.File) (map[int]map[string]interface{}, []string, error) {
+func GetImportNetDevices(header http.Header, defLang language.DefaultCCLanguageIf,
+	f *xlsx.File) (map[int]map[string]interface{}, []string, error) {
+
 	ctx := util.NewContextFromHTTPHeader(header)
 
-	if 0 == len(f.Sheets) {
+	if len(f.Sheets) == 0 {
 		return nil, nil, errors.New(defLang.Language("web_excel_content_empty"))
 	}
 
@@ -45,11 +47,14 @@ func GetImportNetDevices(
 		return nil, nil, errors.New(defLang.Language("web_excel_sheet_not_found"))
 	}
 
-	return GetExcelData(ctx, sheet, fields, nil, true, 0, defLang)
+	return GetExcelData(ctx, sheet, fields, nil, true, 0, defLang, nil)
 }
 
-func BuildNetDeviceExcelFromData(ctx context.Context, defLang language.DefaultCCLanguageIf, fields map[string]Property, data []mapstr.MapStr, sheet *xlsx.Sheet) error {
-	productExcelHeader(ctx, fields, nil, sheet, defLang)
+// BuildNetDeviceExcelFromData build net device data for excel
+func BuildNetDeviceExcelFromData(ctx context.Context, defLang language.DefaultCCLanguageIf, fields map[string]Property,
+	data []mapstr.MapStr, sheet *xlsx.Sheet, xlsxFile *xlsx.File) error {
+
+	productExcelHeader(ctx, fields, nil, xlsxFile, sheet, defLang)
 
 	rowIndex := common.HostAddMethodExcelIndexOffset
 	for _, row := range data {
@@ -62,6 +67,7 @@ func BuildNetDeviceExcelFromData(ctx context.Context, defLang language.DefaultCC
 	return nil
 }
 
+// GetNetDeviceData TODO
 // get net device data to export
 func (lgc *Logics) GetNetDeviceData(header http.Header, deviceIDStr string) ([]mapstr.MapStr, error) {
 	rid := util.GetHTTPCCRequestID(header)
@@ -103,8 +109,9 @@ func BuildNetDeviceExcelTemplate(header http.Header, defLang language.DefaultCCL
 	file = xlsx.NewFile()
 
 	sheet, err := file.AddSheet(common.BKNetDevice)
-	if nil != err {
-		blog.Errorf("[Build NetDevice Excel Template] add comment sheet error, sheet name:%s, error:%s, rid: %s", common.BKNetDevice, err.Error(), rid)
+	if err != nil {
+		blog.Errorf("[Build NetDevice Excel Template] add comment sheet error, sheet name: %s, err: %v, rid: %s",
+			common.BKNetDevice, err, rid)
 		return err
 	}
 
@@ -112,15 +119,16 @@ func BuildNetDeviceExcelTemplate(header http.Header, defLang language.DefaultCCL
 
 	blog.V(5).Infof("[Build NetDevice Excel Template] fields count:%d, rid: %s", len(fields), rid)
 
-	productExcelHeader(ctx, fields, nil, sheet, defLang)
+	productExcelHeader(ctx, fields, nil, file, sheet, defLang)
 
-	if err = file.Save(filename); nil != err {
+	if err = file.Save(filename); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// GetNetDevicefield TODO
 // get feild to import device or generate template
 func GetNetDevicefield(lang language.DefaultCCLanguageIf) map[string]Property {
 
@@ -144,6 +152,7 @@ func GetNetDevicefield(lang language.DefaultCCLanguageIf) map[string]Property {
 	}
 }
 
+// AddNetDeviceExtFields TODO
 // add extra feild to export device
 func AddNetDeviceExtFields(originField map[string]Property, lang language.DefaultCCLanguageIf) {
 

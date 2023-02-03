@@ -27,10 +27,13 @@ import (
 )
 
 const (
+	// AuditLogInstanceOpDetailModelIDField TODO
 	AuditLogInstanceOpDetailModelIDField = "operation_detail.bk_obj_id"
-	AuditLogResourceIDField              = "resource_id"
+	// AuditLogResourceIDField TODO
+	AuditLogResourceIDField = "resource_id"
 )
 
+// TimerFreshData TODO
 func (m *operationManager) TimerFreshData(kit *rest.Kit) error {
 	wg := &sync.WaitGroup{}
 	wg.Add(3)
@@ -64,42 +67,32 @@ func (m *operationManager) ModelInstCount(kit *rest.Kit, wg *sync.WaitGroup) err
 	defer wg.Done()
 
 	// 查询模型 （排除top模型：biz\set\module\process\host\plat）
-	innerObject := []string{common.BKInnerObjIDHost, common.BKInnerObjIDApp, common.BKInnerObjIDSet, common.BKInnerObjIDModule, common.BKInnerObjIDProc, common.BKInnerObjIDPlat}
+	innerObject := []string{common.BKInnerObjIDHost, common.BKInnerObjIDApp, common.BKInnerObjIDSet,
+		common.BKInnerObjIDModule, common.BKInnerObjIDProc, common.BKInnerObjIDPlat}
 	cond := mapstr.MapStr{}
 	cond[common.BKObjIDField] = mapstr.MapStr{common.BKDBNIN: innerObject}
-	modelInfos := []map[string]interface{}{}
-	if err := mongodb.Client().Table(common.BKTableNameObjDes).Find(cond).Fields(common.BKObjIDField).All(kit.Ctx, &modelInfos); err != nil {
+	fields := []string{common.BKObjIDField, common.BkSupplierAccount}
+	modelInfos := make([]metadata.Object, 0)
+	if err := mongodb.Client().Table(common.BKTableNameObjDes).Find(cond).
+		Fields(fields...).All(kit.Ctx, &modelInfos); err != nil {
 		blog.Errorf("count model's instance, search model info fail ,err: %v, rid: %v", err, kit.Rid)
 		return err
 	}
 
-	// 判断是否有模型实例
-	condition := mapstr.MapStr{}
-	count, err := mongodb.Client().Table(common.BKTableNameBaseInst).Find(condition).Count(kit.Ctx)
-	if err != nil {
-		blog.Errorf("model's instance count fail, err: %v, rid: %v", err, kit.Rid)
-		return err
-	}
-
-	// 如果有模型实例，根据查询出来的模型，计数
 	modelInstNumber := make([]metadata.StringIDCount, 0)
-	if count > 0 {
-		for _, modelInfo := range modelInfos {
-			condition := mapstr.MapStr{
-				common.BKObjIDField: util.GetStrByInterface(modelInfo[common.BKObjIDField]),
-			}
-			count, err = mongodb.Client().Table(common.BKTableNameBaseInst).Find(condition).Count(kit.Ctx)
-			if err != nil {
-				blog.Errorf("model %s's instance count fail, err: %v, rid: %v", modelInfo[common.BKObjIDField], err, kit.Rid)
-				return err
-			}
 
-			modelInstNumber = append(modelInstNumber, metadata.StringIDCount{
-				ID:    util.GetStrByInterface(modelInfo[common.BKObjIDField]),
-				Count: int64(count),
-			})
+	for _, modelInfo := range modelInfos {
+
+		tableName := common.GetObjectInstTableName(modelInfo.ObjectID, modelInfo.OwnerID)
+		condition := mapstr.MapStr{common.BKObjIDField: modelInfo.ObjectID}
+		count, err := mongodb.Client().Table(tableName).Find(condition).Count(kit.Ctx)
+		if err != nil {
+			blog.Errorf("count model %s instance failed, err: %v, rid: %v", modelInfo.ObjectID, err, kit.Rid)
+			return err
 		}
+		modelInstNumber = append(modelInstNumber, metadata.StringIDCount{ID: modelInfo.ObjectID, Count: int64(count)})
 	}
+
 	if err := m.UpdateInnerChartData(kit, common.ModelInstChart, modelInstNumber); err != nil {
 		blog.Errorf("update inner chart ModelInstCount data fail, err: %v, rid: %v", err, kit.Rid)
 		return err
@@ -108,6 +101,7 @@ func (m *operationManager) ModelInstCount(kit *rest.Kit, wg *sync.WaitGroup) err
 	return nil
 }
 
+// ModelInstChange TODO
 func (m *operationManager) ModelInstChange(kit *rest.Kit, wg *sync.WaitGroup) error {
 	defer wg.Done()
 
@@ -283,6 +277,7 @@ func (m *operationManager) BizHostCount(kit *rest.Kit) ([]metadata.StringIDCount
 	return ret, nil
 }
 
+// HostCloudChartData TODO
 func (m *operationManager) HostCloudChartData(kit *rest.Kit, inputParam metadata.ChartConfig) (interface{}, error) {
 	commonCount := make([]metadata.IntIDCount, 0)
 	groupField := fmt.Sprintf("$%s", inputParam.Field)
@@ -316,6 +311,7 @@ func (m *operationManager) HostCloudChartData(kit *rest.Kit, inputParam metadata
 	return respData, nil
 }
 
+// HostBizChartData TODO
 func (m *operationManager) HostBizChartData(kit *rest.Kit, inputParam metadata.ChartConfig) (interface{}, error) {
 	bizHost, err := m.BizHostCount(kit)
 	if err != nil {
@@ -326,6 +322,7 @@ func (m *operationManager) HostBizChartData(kit *rest.Kit, inputParam metadata.C
 	return bizHost, nil
 }
 
+// UpdateInnerChartData TODO
 func (m *operationManager) UpdateInnerChartData(kit *rest.Kit, reportType string, data interface{}) error {
 	chartData := metadata.ChartData{
 		ReportType: reportType,
@@ -347,7 +344,7 @@ func (m *operationManager) UpdateInnerChartData(kit *rest.Kit, reportType string
 	return nil
 }
 
-// StatisticOperationLog
+// StatisticOperationLog TODO
 // Note: 根据 bk_obj_id 分类统计模型实例操作次数，统计时间为前一天零点，到当天零点
 func (m *operationManager) StatisticOperationLog(kit *rest.Kit) (*metadata.StatisticInstOperation, error) {
 	zeroTime := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(),

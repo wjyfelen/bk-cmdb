@@ -10,9 +10,11 @@
  * limitations under the License.
  */
 
+// Package options TODO
 package options
 
 import (
+	"configcenter/src/ac/iam"
 	"configcenter/src/common/auth"
 	"configcenter/src/common/core/cc/config"
 	"configcenter/src/storage/dal/redis"
@@ -43,6 +45,9 @@ func (s *ServerOption) AddFlags(fs *pflag.FlagSet) {
 	fs.Var(auth.EnableAuthFlag, "enable-auth", "The auth center enable status, true for enabled, false for disabled")
 }
 
+// Config TODO
 type Config struct {
 	Redis redis.Config
+	// Auth is auth config
+	Auth iam.AuthConfig
 }

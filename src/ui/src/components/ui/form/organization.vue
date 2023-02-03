@@ -1,18 +1,34 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="cmdb-organization-select"
-    :class="{
-      'is-focus': focused,
-      'is-disabled': disabled,
-      'is-readonly': readonly,
-      'is-unselected': unselected
-    }"
+    :class="[
+      'cmdb-organization-select',
+      size,
+      {
+        'is-focus': focused,
+        'is-disabled': disabled,
+        'is-readonly': readonly,
+        'is-unselected': unselected
+      }
+    ]"
     :data-placeholder="placeholder">
     <i class="select-loading" v-if="$loading([searchRequestId]) && searchValue === undefined"></i>
-    <i class="select-angle bk-icon icon-angle-down"></i>
-    <i class="select-clear bk-icon icon-close"
+    <i class="select-clear bk-icon icon-close-circle-shape"
       v-if="clearable && !unselected && !disabled && !readonly"
       @click.prevent.stop="handleClear">
     </i>
+    <i class="select-angle bk-icon icon-angle-down"></i>
     <bk-popover class="select-dropdown"
       ref="selectDropdown"
       trigger="click"
@@ -30,7 +46,7 @@
         :title="displayName">
         {{displayName}}
       </div>
-      <div slot="content" :style="{ width: popoverWidth + 'px' }" class="select-dropdown-content">
+      <div slot="content" :style="{ width: popoverWidth + 'px' }" :class="['select-dropdown-content', size]">
         <div class="search-bar">
           <bk-input
             :placeholder="$t('搜索')"
@@ -59,6 +75,7 @@
 
 <script>
   import debounce from 'lodash.debounce'
+  import isEqual from 'lodash/isEqual'
   export default {
     name: 'cmdb-form-organization',
     props: {
@@ -73,6 +90,7 @@
       readonly: Boolean,
       multiple: Boolean,
       clearable: Boolean,
+      size: String,
       placeholder: {
         type: String,
         default: ''
@@ -107,11 +125,16 @@
       }
     },
     watch: {
-      value(value) {
+      value(value, oldValue) {
         this.checked = value
+        if (!isEqual(value, oldValue)) {
+          this.initTree()
+        }
       },
-      checked(checked) {
-        this.$emit('input', checked)
+      checked(checked, oldChecked) {
+        if (!isEqual(checked, oldChecked)) {
+          this.$emit('input', checked)
+        }
         this.$emit('on-checked', checked)
         this.setDisplayName()
       },
@@ -409,12 +432,11 @@
             padding: 0;
             box-shadow: 0 3px 9px 0 rgba(0, 0, 0, .1);
         }
-    }
-
-    .search-input {
-        .bk-form-input {
-            &:focus {
-                border-color: #c4c6cc !important;
+        .search-input {
+            .bk-form-input {
+                &:focus {
+                    border-color: #c4c6cc !important;
+                }
             }
         }
     }
@@ -430,6 +452,29 @@
         color: #63656e;
         cursor: pointer;
         font-size: 12px;
+
+        &.small {
+          line-height: 26px;
+
+           .select-angle {
+            top: 2px;
+           }
+           .select-clear {
+            top: 6px;
+           }
+           .select-loading {
+            top: 4px;
+           }
+          .select-dropdown {
+            .select-name {
+              height: 26px;
+            }
+          }
+
+          &.is-unselected::before {
+            line-height: 24px;
+          }
+        }
 
         &.is-focus {
             border-color: #3a84ff;
@@ -455,6 +500,7 @@
             position: absolute;
             height: 100%;
             content: attr(data-placeholder);
+            font-size: 12px;
             left: 10px;
             top: 0;
             color: #c3cdd7;
@@ -482,21 +528,19 @@
             position: absolute;
             right: 6px;
             top: 8px;
-            width: 14px;
-            height: 14px;
-            line-height: 14px;
-            background-color: #c4c6cc;
-            border-radius: 50%;
             text-align: center;
             font-size: 14px;
-            color: #fff;
+            color: #c4c6cc;
             z-index: 100;
             &:before {
                 display: block;
-                transform: scale(.7);
             }
             &:hover {
-                background-color: #979ba5;
+                color: #979ba5;
+            }
+
+            & + .select-angle {
+              display: none;
             }
         }
 
@@ -541,6 +585,19 @@
                     @include ellipsis;
                 }
             }
+        }
+
+        &.small {
+          ::v-deep {
+            .node-content {
+              font-size: 12px;
+            }
+
+            .bk-big-tree .bk-big-tree-node:not(.has-link-line) {
+              height: 32px;
+              line-height: 32px;
+            }
+          }
         }
     }
 

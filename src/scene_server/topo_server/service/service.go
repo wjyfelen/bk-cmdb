@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -21,16 +22,19 @@ import (
 	"configcenter/src/common/language"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/rdapi"
+	"configcenter/src/common/webservice/restfulservice"
 	"configcenter/src/scene_server/topo_server/app/options"
-	"configcenter/src/scene_server/topo_server/core"
+	"configcenter/src/scene_server/topo_server/logics"
 	"configcenter/src/thirdparty/elasticsearch"
+	"configcenter/src/thirdparty/logplatform/opentelemetry"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Service TODO
 type Service struct {
 	Engine      *backbone.Engine
-	Core        core.Core
+	Logics      logics.Logics
 	Config      options.Config
 	AuthManager *extensions.AuthManager
 	Es          *elasticsearch.EsSrv
@@ -46,15 +50,21 @@ func (s *Service) WebService() *restful.Container {
 	}
 
 	api := new(restful.WebService)
-	api.Path("/topo/v3/").Filter(s.Engine.Metric().RestfulMiddleWare).Filter(rdapi.AllGlobalFilter(getErrFunc)).Produces(restful.MIME_JSON)
+	api.Path("/topo/v3/").Filter(s.Engine.Metric().RestfulMiddleWare).Filter(rdapi.AllGlobalFilter(getErrFunc)).
+		Produces(restful.MIME_JSON)
 
 	// init service actions
 	s.initService(api)
 
-	healthz := new(restful.WebService).Produces(restful.MIME_JSON)
-	healthz.Route(healthz.GET("/healthz").To(s.Healthz))
 	container := restful.NewContainer().Add(api)
-	container.Add(healthz)
+
+	opentelemetry.AddOtlpFilter(container)
+
+	// common api
+	commonAPI := new(restful.WebService).Produces(restful.MIME_JSON)
+	commonAPI.Route(commonAPI.GET("/healthz").To(s.Healthz))
+	commonAPI.Route(commonAPI.GET("/version").To(restfulservice.Version))
+	container.Add(commonAPI)
 
 	return container
 }
@@ -66,11 +76,13 @@ type ModelType struct {
 	BizID int64 `json:"bk_biz_id"`
 }
 
+// MapStrWithModelBizID TODO
 type MapStrWithModelBizID struct {
 	ModelBizID int64
 	Data       mapstr.MapStr
 }
 
+// UnmarshalJSON TODO
 func (m *MapStrWithModelBizID) UnmarshalJSON(data []byte) error {
 	modelType := new(ModelType)
 	if err := json.Unmarshal(data, modelType); err != nil {

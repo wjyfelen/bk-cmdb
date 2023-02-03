@@ -1,3 +1,4 @@
+// Package util TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -17,6 +18,7 @@ import (
 	"strings"
 )
 
+// InArray TODO
 func InArray(obj interface{}, target interface{}) bool {
 	if target == nil {
 		return false
@@ -38,6 +40,7 @@ func InArray(obj interface{}, target interface{}) bool {
 	return false
 }
 
+// ArrayUnique TODO
 func ArrayUnique(a interface{}) (ret []interface{}) {
 	ret = make([]interface{}, 0)
 	va := reflect.ValueOf(a)
@@ -78,6 +81,7 @@ func IntArrayUnique(a []int64) (ret []int64) {
 	return ret
 }
 
+// BoolArrayUnique TODO
 func BoolArrayUnique(a []bool) (ret []bool) {
 	ret = make([]bool, 0)
 	trueExist := false
@@ -99,6 +103,7 @@ func BoolArrayUnique(a []bool) (ret []bool) {
 	return ret
 }
 
+// RemoveDuplicatesAndEmpty TODO
 func RemoveDuplicatesAndEmpty(slice []string) (ret []string) {
 	ret = make([]string, 0)
 	for _, a := range slice {
@@ -109,6 +114,7 @@ func RemoveDuplicatesAndEmpty(slice []string) (ret []string) {
 	return
 }
 
+// StrArrDiff TODO
 func StrArrDiff(slice1 []string, slice2 []string) []string {
 	diffStr := make([]string, 0)
 	for _, i := range slice1 {
@@ -126,6 +132,7 @@ func StrArrDiff(slice1 []string, slice2 []string) []string {
 	return diffStr
 }
 
+// IntArrIntersection TODO
 func IntArrIntersection(slice1 []int64, slice2 []int64) []int64 {
 	intersectInt := make([]int64, 0)
 	intMap := make(map[int64]bool)
@@ -140,6 +147,7 @@ func IntArrIntersection(slice1 []int64, slice2 []int64) []int64 {
 	return intersectInt
 }
 
+// PrettyIPStr TODO
 func PrettyIPStr(ips []string) string {
 	if len(ips) > 2 {
 		return fmt.Sprintf("%s ...", strings.Join(ips[:2], ","))
@@ -156,4 +164,60 @@ func ReverseArrayString(t []string) []string {
 		t[i], t[j] = t[j], t[i]
 	}
 	return t
+}
+
+// RemoveDuplicatesAndEmptyByMap remove duplicate element and empty element by map
+func RemoveDuplicatesAndEmptyByMap(target []string) []string {
+	result := make([]string, 0)
+	tempMap := map[string]struct{}{}
+	for _, item := range target {
+		if item == "" {
+			continue
+		}
+
+		if _, exist := tempMap[item]; exist {
+			continue
+		}
+		tempMap[item] = struct{}{}
+		result = append(result, item)
+	}
+
+	return result
+}
+
+// IntArrComplementary calculates the complement of subset relative to target
+func IntArrComplementary(target []int64, subset []int64) []int64 {
+	complementaryInt := make([]int64, 0)
+	intMap := make(map[int64]struct{})
+	for _, i := range subset {
+		intMap[i] = struct{}{}
+	}
+	for _, j := range target {
+		if _, exist := intMap[j]; !exist {
+			complementaryInt = append(complementaryInt, j)
+		}
+	}
+	return complementaryInt
+}
+
+// IntArrDeleteElements  the same elements in target and sub are deleted from target.
+func IntArrDeleteElements(target, sub []int64) []int64 {
+	if len(sub) == 0 {
+		return target
+	}
+
+	templateMap := make(map[int64]struct{})
+	for _, id := range target {
+		templateMap[id] = struct{}{}
+	}
+	for _, id := range sub {
+		if _, ok := templateMap[id]; ok {
+			delete(templateMap, id)
+		}
+	}
+	result := make([]int64, 0)
+	for id := range templateMap {
+		result = append(result, id)
+	}
+	return result
 }

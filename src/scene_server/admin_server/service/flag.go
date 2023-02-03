@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
@@ -62,6 +62,7 @@ func (s *Service) SetSystemConfiguration(req *restful.Request, resp *restful.Res
 	resp.WriteEntity(metadata.NewSuccessResp("modify system config success"))
 }
 
+// UserConfigSwitch TODO
 func (s *Service) UserConfigSwitch(req *restful.Request, resp *restful.Response) {
 	rid, _, defErr := s.getCommObject(req.Request.Header)
 

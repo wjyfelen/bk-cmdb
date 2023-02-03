@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="info-item clearfix" v-if="template"
     :title="`${$t('集群模板')} : ${template.name}`">
@@ -8,7 +20,7 @@
           <span class="text link">{{template.name}}</span>
           <i class="icon-cc-share"></i>
         </div>
-        <cmdb-auth :auth="{ type: $OPERATION.U_TOPO, relation: [bizId] }">
+        <cmdb-auth v-if="!isBizSet" :auth="{ type: $OPERATION.U_TOPO, relation: [bizId] }">
           <bk-button slot-scope="{ disabled }"
             :class="['sync-set-btn', 'ml5', { 'has-change': hasChange }]"
             :disabled="!hasChange || disabled"
@@ -23,7 +35,7 @@
 </template>
 
 <script>
-  import { mapGetters } from 'vuex'
+  import { MENU_BUSINESS_SET_TOPOLOGY, MENU_BUSINESS_SET_TEMPLATE_DETAILS } from '@/dictionary/menu-symbol'
   export default {
     name: 'set-template-info',
     props: {
@@ -39,7 +51,16 @@
       }
     },
     computed: {
-      ...mapGetters('objectBiz', ['bizId'])
+      isBizSet() {
+        return this.$route.name === MENU_BUSINESS_SET_TOPOLOGY
+      },
+      bizId() {
+        const { objectBiz, bizSet } = this.$store.state
+        return this.isBizSet ? bizSet.bizId : objectBiz.bizId
+      },
+      selectedNode() {
+        return this.$store.state.businessHost.selectedNode
+      }
     },
     watch: {
       instance: {
@@ -97,15 +118,9 @@
           this.$error(error.message)
         }
         this.$routerActions.redirect({
-          name: 'setTemplateConfig',
+          name: MENU_BUSINESS_SET_TEMPLATE_DETAILS,
           params: {
-            mode: 'view',
-            templateId: this.instance.set_template_id,
-            moduleId: this.selectedNode.data.bk_inst_id
-          },
-          query: {
-            node: this.selectedNode.id,
-            tab: 'nodeInfo'
+            templateId: this.instance.set_template_id
           },
           history: true
         })
@@ -130,13 +145,13 @@
             bizId: this.bizId,
             setTemplateId: this.instance.set_template_id,
             params: {
-              bk_set_ids: [this.instance.bk_set_id]
+              bk_set_id: this.instance.bk_set_id
             },
             config: {
               requestId: 'diffTemplateAndInstances'
             }
           })
-          const diff = data.difference ? (data.difference[0] || {}).module_diffs : []
+          const diff = data.difference ? (data.difference || {}).module_diffs : []
           const len = diff.filter(_module => _module.diff_type !== 'unchanged').length
           return !!len
         } catch (e) {

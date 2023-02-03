@@ -25,17 +25,16 @@ const (
 	defaultLimit = 100
 )
 
-func (lgc *Logics) findInstance(ctx context.Context, objID string, input *metadata.QueryCondition) (*metadata.InstDataInfo, error) {
+func (lgc *Logics) findInstance(ctx context.Context, objID string, input *metadata.QueryCondition) (
+	*metadata.InstDataInfo, error) {
 	result, err := lgc.CoreAPI.CoreService().Instance().ReadInstance(ctx, lgc.header, objID, input)
 	if err != nil {
-		blog.Errorf("FindInstance ReadInstance http do error, error: %s,input:  %#v,rid:%s", err.Error(), input, lgc.rid)
+		blog.Errorf("FindInstance ReadInstance http do error, error: %s,input:  %#v,rid:%s", err.Error(), input,
+			lgc.rid)
 		return nil, lgc.ccErr.Error(common.CCErrCommHTTPDoRequestFailed)
 	}
-	if !result.Result {
-		blog.Errorf("FindInstance ReadInstance http reply error, error code: %d, error message: %s,input:  %#v,rid:%s", result.Code, result.ErrMsg, input, lgc.rid)
-		return nil, lgc.ccErr.New(result.Code, result.ErrMsg)
-	}
-	return &result.Data, nil
+
+	return result, nil
 }
 
 func (lgc *Logics) find(ctx context.Context, input *metadata.SynchronizeFindInfoParameter) (*metadata.InstDataInfo, errors.CCError) {
@@ -52,6 +51,7 @@ func (lgc *Logics) find(ctx context.Context, input *metadata.SynchronizeFindInfo
 	return &result.Data, nil
 }
 
+// Find TODO
 func (lgc *Logics) Find(ctx context.Context, input *metadata.SynchronizeFindInfoParameter) (*metadata.InstDataInfo, errors.CCError) {
 	switch input.DataType {
 	case metadata.SynchronizeOperateDataTypeInstance:
@@ -60,7 +60,7 @@ func (lgc *Logics) Find(ctx context.Context, input *metadata.SynchronizeFindInfo
 		return lgc.find(ctx, input)
 	case metadata.SynchronizeOperateDataTypeModel:
 		// cancel limit
-		//input.Limit = 0
+		// input.Limit = 0
 		return lgc.find(ctx, input)
 	}
 	blog.Warnf("Find not found, input:%#v,rid:%s", input, lgc.rid)

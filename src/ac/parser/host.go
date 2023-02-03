@@ -13,6 +13,8 @@ import (
 	"configcenter/src/common/json"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
+
+	"github.com/tidwall/gjson"
 )
 
 func (ps *parseStream) hostRelated() *parseStream {
@@ -25,7 +27,6 @@ func (ps *parseStream) hostRelated() *parseStream {
 		dynamicGrouping().
 		userCustom().
 		hostFavorite().
-		hostSnapshot().
 		findObjectIdentifier().
 		HostApply()
 	return ps
@@ -309,6 +310,7 @@ const (
 	moveHostsToBizIdleModulePattern       = "/api/v3/hosts/modules/idle"
 	moveHostsToBizRecycleModulePattern    = "/api/v3/hosts/modules/recycle"
 	moveHostAcrossBizPattern              = "/api/v3/hosts/modules/across/biz"
+	moveResourceHostAcrossBizPattern      = "/api/v3/hosts/resource/cross/biz"
 	moveRscPoolHostToRscPoolDir           = "/api/v3/host/transfer/resource/directory"
 	cleanHostInSetOrModulePattern         = "/api/v3/hosts/modules/idle/set"
 	findHostTopoRelationPattern           = "/api/v3/host/topo/relation/read"
@@ -332,11 +334,16 @@ const (
 	findHostRelationWithObjInstPattern = "/api/v3/findmany/hosts/relation/with_topo"
 	listHostDetailAndTopologyPattern   = "/api/v3/findmany/hosts/detail_topo"
 
+	findHostsServiceTemplatesPattern = "/api/v3/findmany/hosts/service_template"
+
 	// 特殊接口，给蓝鲸业务使用
 	hostInstallPattern = "/api/v3/host/install/bk"
 
 	// cc system user config
 	systemUserConfig = "/api/v3/system/config/user_config/blueking_modify"
+
+	// 查询业务下的主机CPU数量的特殊接口，给成本管理使用
+	countHostCPUPattern = "/api/v3/host/count/cpu"
 )
 
 var (
@@ -354,6 +361,11 @@ var (
 	findHostsBySetTemplatesRegex     = regexp.MustCompile(`^/api/v3/findmany/hosts/by_set_templates/biz/\d+$`)
 	findHostModuleRelationsRegex     = regexp.MustCompile(`^/api/v3/findmany/module_relation/bk_biz_id/[0-9]+/?$`)
 	findHostsByTopoRegex             = regexp.MustCompile(`^/api/v3/findmany/hosts/by_topo/biz/\d+$`)
+
+	// find host by biz set regex, authorize by biz set access permission, **only for ui**
+	findHostsByBizSetPattern = regexp.MustCompile(`^/api/v3/findmany/hosts/biz_set/[0-9]+/?$`)
+
+	findHostsTotalTopo = regexp.MustCompile(`^/api/v3/findmany/hosts/total_mainline_topo/biz/\d+$`)
 )
 
 func (ps *parseStream) host() *parseStream {
@@ -425,6 +437,21 @@ func (ps *parseStream) host() *parseStream {
 		return ps
 	}
 
+	// find host service_template_id relation
+	if ps.hitPattern(findHostsServiceTemplatesPattern, http.MethodPost) {
+
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				Basic: meta.Basic{
+					Type:   meta.HostInstance,
+					Action: meta.FindMany,
+				},
+			},
+		}
+
+		return ps
+	}
+
 	if ps.hitRegexp(findHostsBySetTemplatesRegex, http.MethodPost) {
 		bizID, err := strconv.ParseInt(ps.RequestCtx.Elements[6], 10, 64)
 		if err != nil {
@@ -448,6 +475,26 @@ func (ps *parseStream) host() *parseStream {
 		bizID, err := strconv.ParseInt(ps.RequestCtx.Elements[6], 10, 64)
 		if err != nil {
 			ps.err = fmt.Errorf("find hosts by set templates, but got invalid business id: %s", ps.RequestCtx.Elements[6])
+			return ps
+		}
+
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				BusinessID: bizID,
+				Basic: meta.Basic{
+					Type:   meta.HostInstance,
+					Action: meta.FindMany,
+				},
+			},
+		}
+		return ps
+	}
+
+	if ps.hitRegexp(findHostsTotalTopo, http.MethodPost) {
+		bizID, err := strconv.ParseInt(ps.RequestCtx.Elements[6], 10, 64)
+		if err != nil {
+			ps.err = fmt.Errorf("find hosts total mainline topo, but got invalid business id: %s",
+				ps.RequestCtx.Elements[6])
 			return ps
 		}
 
@@ -621,6 +668,32 @@ func (ps *parseStream) host() *parseStream {
 
 		return ps
 	}
+
+	if ps.hitRegexp(findHostsByBizSetPattern, http.MethodPost) {
+		if len(ps.RequestCtx.Elements) != 6 {
+			ps.err = fmt.Errorf("get invalid url elements length %d", len(ps.RequestCtx.Elements))
+			return ps
+		}
+
+		bizSetID, err := strconv.ParseInt(ps.RequestCtx.Elements[5], 10, 64)
+		if err != nil {
+			ps.err = fmt.Errorf("get invalid business set id %s, err: %v", ps.RequestCtx.Elements[5], err)
+			return ps
+		}
+
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				Basic: meta.Basic{
+					Type:       meta.BizSet,
+					Action:     meta.AccessBizSet,
+					InstanceID: bizSetID,
+				},
+			},
+		}
+
+		return ps
+	}
+
 	// find hosts without app id
 	if ps.hitPattern(findBizHostsWithoutAppPattern, http.MethodPost) {
 		ps.Attribute.Resources = []meta.ResourceAttribute{
@@ -703,11 +776,17 @@ func (ps *parseStream) host() *parseStream {
 	}
 
 	if ps.hitPattern(findHostsDetailsPattern, http.MethodPost) {
-		bizID, err := ps.parseBusinessID()
+		var bizID int64
+		val, err := ps.RequestCtx.getValueFromBody(common.BKAppIDField)
 		if err != nil {
 			ps.err = err
 			return ps
 		}
+
+		if val.Exists() {
+			bizID = val.Int()
+		}
+
 		ps.Attribute.Resources = []meta.ResourceAttribute{
 			{
 				BusinessID: bizID,
@@ -1135,9 +1214,63 @@ func (ps *parseStream) hostTransfer() *parseStream {
 		return ps
 	}
 
+	// transfer resource hosts to another business.
+	if ps.hitPattern(moveResourceHostAcrossBizPattern, http.MethodPost) {
+
+		// src biz ids
+		bizIds := make([]int64, 0)
+		val, err := ps.RequestCtx.getValueFromBody("resource_hosts.#.src_bk_biz_id")
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+
+		val.ForEach(
+			func(key, value gjson.Result) bool {
+				bizIds = append(bizIds, value.Int())
+				return true
+			})
+
+		if len(bizIds) == 0 {
+			ps.err = errors.New("src bk_biz_id must be set")
+			return ps
+		}
+		val, err = ps.RequestCtx.getValueFromBody("dst_bk_biz_id")
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+		dstBizID := val.Int()
+		if dstBizID == 0 {
+			ps.err = errors.New("dst_bk_biz_id invalid")
+			return ps
+		}
+		for _, bizId := range bizIds {
+			ps.Attribute.Resources = append(ps.Attribute.Resources, meta.ResourceAttribute{
+				BusinessID: bizId,
+				Basic: meta.Basic{
+					Type:   meta.HostInstance,
+					Action: meta.MoveHostToAnotherBizModule,
+				},
+				Layers: []meta.Item{
+					{
+						Type:       meta.Business,
+						InstanceID: bizId,
+					},
+					{
+						Type:       meta.Business,
+						InstanceID: dstBizID,
+					},
+				},
+			})
+		}
+
+		return ps
+	}
+
 	// synchronize hosts directly to a module in a business if this host does not exist.
 	// otherwise, this operation will only change host's attribute.
-	//if ps.hitPattern(moveHostToBusinessOrModulePattern, http.MethodPost) {
+	// if ps.hitPattern(moveHostToBusinessOrModulePattern, http.MethodPost) {
 	//	bizID, err := ps.parseBusinessID()
 	//	if err != nil {
 	//		ps.err = err
@@ -1154,7 +1287,7 @@ func (ps *parseStream) hostTransfer() *parseStream {
 	//	}
 	//
 	//	return ps
-	//}
+	// }
 
 	if ps.hitRegexp(transferHostWithAutoClearServiceInstanceRegex, http.MethodPost) ||
 		ps.hitRegexp(transferHostWithAutoClearServiceInstancePreviewRegex, http.MethodPost) {
@@ -1231,6 +1364,18 @@ func (ps *parseStream) hostTransfer() *parseStream {
 			}
 		}
 
+		return ps
+	}
+
+	if ps.hitPattern(countHostCPUPattern, http.MethodPost) {
+		ps.Attribute.Resources = []meta.ResourceAttribute{
+			{
+				Basic: meta.Basic{
+					Type:   meta.ConfigAdmin,
+					Action: meta.Update,
+				},
+			},
+		}
 		return ps
 	}
 
@@ -1325,50 +1470,6 @@ func (ps *parseStream) hostFavorite() *parseStream {
 
 		return ps
 	}
-	return ps
-}
-
-var (
-	findHostSnapshotAPIRegexp = regexp.MustCompile(`^/api/v3/hosts/snapshot/[0-9]+/?$`)
-
-	findHostSnapshotBatchPattern = "/api/v3/hosts/snapshot/batch"
-)
-
-func (ps *parseStream) hostSnapshot() *parseStream {
-	if ps.shouldReturn() {
-		return ps
-	}
-
-	if ps.hitRegexp(findHostSnapshotAPIRegexp, http.MethodGet) {
-		if len(ps.RequestCtx.Elements) != 5 {
-			ps.err = errors.New("find host snapshot details query, but got invalid uri")
-			return ps
-		}
-
-		ps.Attribute.Resources = []meta.ResourceAttribute{
-			{
-				Basic: meta.Basic{
-					Type:   meta.HostInstance,
-					Action: meta.SkipAction,
-				},
-			},
-		}
-		return ps
-	}
-
-	if ps.hitPattern(findHostSnapshotBatchPattern, http.MethodPost) {
-		ps.Attribute.Resources = []meta.ResourceAttribute{
-			{
-				Basic: meta.Basic{
-					Type:   meta.HostInstance,
-					Action: meta.SkipAction,
-				},
-			},
-		}
-
-		return ps
-	}
-
 	return ps
 }
 

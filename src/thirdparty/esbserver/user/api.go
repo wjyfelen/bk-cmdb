@@ -1,3 +1,4 @@
+// Package user TODO
 /*
  * Tencent is pleased to support the open source community by making 蓝鲸 available.
  * Copyright (C) 2017-2018 THL A29 Limited, a Tencent company. All rights reserved.
@@ -14,11 +15,13 @@ package user
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"configcenter/src/common/metadata"
 	"configcenter/src/thirdparty/esbserver/esbutil"
 )
 
+// GetAllUsers TODO
 // Deprecated
 func (p *user) GetAllUsers(ctx context.Context, h http.Header) (resp *metadata.EsbUserListResponse, err error) {
 	resp = &metadata.EsbUserListResponse{}
@@ -36,6 +39,7 @@ func (p *user) GetAllUsers(ctx context.Context, h http.Header) (resp *metadata.E
 	return
 }
 
+// ListUsers TODO
 func (p *user) ListUsers(ctx context.Context, h http.Header, params map[string]string) (resp *metadata.EsbListUserResponse, err error) {
 	// response demo
 	/*
@@ -99,18 +103,25 @@ func (p *user) ListUsers(ctx context.Context, h http.Header, params map[string]s
 	return
 }
 
+// GetDepartment TODO
 // get department from pass
-func (p *user) GetDepartment(ctx context.Context, q *http.Request) (resp *metadata.EsbDepartmentResponse, err error) {
+func (p *user) GetDepartment(ctx context.Context, h http.Header, u *url.URL) (
+	resp *metadata.EsbDepartmentResponse, err error) {
+
 	resp = &metadata.EsbDepartmentResponse{}
 	subPath := "/v2/usermanage/list_departments/"
-	h := q.Header
 	h.Set("Accept", "application/json")
 
-	err = p.client.Get().
+	request := p.client.Get().
 		WithContext(ctx).
 		// 通过WithParamsFromURL中的url参数指定page_size可以覆盖此默认的page_size
-		WithParam("page_size", "500").
-		WithParamsFromURL(q.URL).
+		WithParam("page_size", "500")
+
+	if u != nil {
+		request.WithParamsFromURL(u)
+	}
+
+	err = request.
 		// 确保只使用分页查找，指定一个大page_size同样能达到不分页的效果
 		WithParam("no_page", "false").
 		SubResourcef(subPath).
@@ -122,6 +133,7 @@ func (p *user) GetDepartment(ctx context.Context, q *http.Request) (resp *metada
 	return
 }
 
+// GetDepartmentProfile TODO
 // get department profile from pass
 func (p *user) GetDepartmentProfile(ctx context.Context, q *http.Request) (resp *metadata.EsbDepartmentProfileResponse, err error) {
 	resp = &metadata.EsbDepartmentProfileResponse{}

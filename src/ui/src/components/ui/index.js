@@ -1,4 +1,17 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import businessSelector from './selector/business.vue'
+import businessMixSelector from './selector/business-mix.vue'
 import clipboardSelector from './selector/clipboard.vue'
 import selector from './selector/selector.vue'
 import cloudSelector from './selector/cloud.vue'
@@ -44,6 +57,7 @@ import tagInput from './tag-input/tag-input.vue'
 const install = (Vue) => {
   const components = [
     businessSelector,
+    businessMixSelector,
     clipboardSelector,
     selector,
     details,
@@ -95,6 +109,7 @@ const install = (Vue) => {
 export default {
   install,
   businessSelector,
+  businessMixSelector,
   clipboardSelector,
   selector,
   details,

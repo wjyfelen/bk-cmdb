@@ -10,11 +10,14 @@
  * limitations under the License.
  */
 
+// Package types TODO
 package types
 
 import (
 	"context"
 	"errors"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 // Errors defines
@@ -32,16 +35,18 @@ var (
 // Filter condition alias name
 type Filter interface{}
 
+// Table TODO
 type Table interface {
 	// Find 查询多个并反序列化到 Result
-	Find(filter Filter, opts ...FindOpts) Find
-	// Aggregate 聚合查询
+	Find(filter Filter, opts ...*FindOpts) Find
+	// AggregateOne 聚合查询
 	AggregateOne(ctx context.Context, pipeline interface{}, result interface{}) error
-	AggregateAll(ctx context.Context, pipeline interface{}, result interface{}) error
+	AggregateAll(ctx context.Context, pipeline interface{}, result interface{}, opts ...*AggregateOpts) error
 	// Insert 插入数据, docs 可以为 单个数据 或者 多个数据
 	Insert(ctx context.Context, docs interface{}) error
 	// Update 更新数据
 	Update(ctx context.Context, filter Filter, doc interface{}) error
+	// Upsert TODO
 	// update or insert data
 	Upsert(ctx context.Context, filter Filter, doc interface{}) error
 	// UpdateMultiModel  data based on operators.
@@ -60,10 +65,10 @@ type Table interface {
 	// AddColumn 添加字段
 	AddColumn(ctx context.Context, column string, value interface{}) error
 	// RenameColumn 重命名字段
-	RenameColumn(ctx context.Context, oldName, newColumn string) error
+	RenameColumn(ctx context.Context, filter Filter, oldName, newColumn string) error
 	// DropColumn 移除字段
 	DropColumn(ctx context.Context, field string) error
-	// 根据条件移除字段
+	// DropColumns 根据条件移除字段
 	DropColumns(ctx context.Context, filter Filter, fields []string) error
 
 	// DropDocsColumn remove a column by the name for doc use filter
@@ -73,6 +78,11 @@ type Table interface {
 	// field the field for which to return distinct values.
 	// filter query that specifies the documents from which to retrieve the distinct values.
 	Distinct(ctx context.Context, field string, filter Filter) ([]interface{}, error)
+
+	// DeleteMany delete document, return number of documents that were deleted.
+	DeleteMany(ctx context.Context, filter Filter) (uint64, error)
+	// UpdateMany update document, return number of documents that were modified.
+	UpdateMany(ctx context.Context, filter Filter, doc interface{}) (uint64, error)
 }
 
 // Find find operation interface
@@ -91,6 +101,10 @@ type Find interface {
 	One(ctx context.Context, result interface{}) error
 	// Count 统计数量(非事务)
 	Count(ctx context.Context) (uint64, error)
+	// List 查询多个, start 等于0的时候，返回满足条件的行数
+	List(ctx context.Context, result interface{}) (int64, error)
+
+	Option(opts ...*FindOpts)
 }
 
 // ModeUpdate  根据不同的操作符去更新数据
@@ -101,13 +115,49 @@ type ModeUpdate struct {
 
 // Index define the DB index struct
 type Index struct {
-	Keys               map[string]int32 `json:"keys" bson:"key"`
-	Name               string           `json:"name" bson:"name"`
-	Unique             bool             `json:"unique" bson:"unique"`
-	Background         bool             `json:"background" bson:"background"`
-	ExpireAfterSeconds int32            `json:"expire_after_seconds" bson:"expire_after_seconds"`
+	Keys                    bson.D                 `json:"keys" bson:"key"`
+	Name                    string                 `json:"name" bson:"name"`
+	Unique                  bool                   `json:"unique" bson:"unique"`
+	Background              bool                   `json:"background" bson:"background"`
+	ExpireAfterSeconds      int32                  `json:"expire_after_seconds" bson:"expire_after_seconds,omitempty"`
+	PartialFilterExpression map[string]interface{} `json:"partialFilterExpression" bson:"partialFilterExpression"`
 }
 
+// FindOpts TODO
 type FindOpts struct {
-	WithObjectID bool
+	WithObjectID *bool
+	WithCount    *bool
+}
+
+// NewFindOpts TODO
+func NewFindOpts() *FindOpts {
+	return &FindOpts{}
+}
+
+// SetWithObjectID TODO
+func (f *FindOpts) SetWithObjectID(bl bool) *FindOpts {
+	f.WithObjectID = &bl
+	return f
+}
+
+// SetWithCount TODO
+func (f *FindOpts) SetWithCount(bl bool) *FindOpts {
+	f.WithCount = &bl
+	return f
+}
+
+// AggregateOpts TODO
+type AggregateOpts struct {
+	AllowDiskUse *bool
+}
+
+// NewAggregateOpts TODO
+func NewAggregateOpts() *AggregateOpts {
+	return &AggregateOpts{}
+}
+
+// SetAllowDiskUse TODO
+func (a *AggregateOpts) SetAllowDiskUse(bl bool) *AggregateOpts {
+	a.AllowDiskUse = &bl
+	return a
 }

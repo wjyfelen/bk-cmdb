@@ -28,9 +28,10 @@ import (
 	"configcenter/src/common/metadata"
 	"configcenter/src/common/util"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Kit TODO
 type Kit struct {
 	Rid             string
 	Header          http.Header
@@ -40,6 +41,7 @@ type Kit struct {
 	SupplierAccount string
 }
 
+// Contexts TODO
 type Contexts struct {
 	Kit            *Kit
 	Request        *restful.Request
@@ -48,6 +50,7 @@ type Contexts struct {
 	uri            string
 }
 
+// DecodeInto TODO
 func (c *Contexts) DecodeInto(to interface{}) error {
 	body, err := ioutil.ReadAll(c.Request.Request.Body)
 	if err != nil {
@@ -67,12 +70,16 @@ func (c *Contexts) DecodeInto(to interface{}) error {
 	return nil
 }
 
+// RespEntity TODO
 func (c *Contexts) RespEntity(data interface{}) {
 	if c.respStatusCode != 0 {
 		c.resp.WriteHeader(c.respStatusCode)
 	}
 	c.resp.Header().Set("Content-Type", "application/json")
-	c.Response(metadata.NewSuccessResp(data))
+	c.Response(&metadata.Response{
+		BaseResp: metadata.BaseResp{Result: true, Code: common.CCSuccess, ErrMsg: common.CCSuccessStr},
+		Data:     data,
+	})
 }
 
 // RespString response the data format to a json string.
@@ -94,7 +101,7 @@ func (c *Contexts) RespString(data *string) {
 	c.resp.Write(jsonBuffer.Bytes())
 }
 
-// RespString response the data format to a json string.
+// RespStringArray response the data format to a json string.
 // the data is a string, and do not need marshal, can return directly.
 func (c *Contexts) RespStringArray(jsonArray []string) {
 	if c.respStatusCode != 0 {
@@ -131,6 +138,7 @@ func (c *Contexts) RespStringArray(jsonArray []string) {
 	}
 }
 
+// RespCountInfoString TODO
 func (c *Contexts) RespCountInfoString(count int64, infoArray []string) {
 	if c.respStatusCode != 0 {
 		c.resp.WriteHeader(c.respStatusCode)
@@ -164,6 +172,7 @@ func (c *Contexts) RespCountInfoString(count int64, infoArray []string) {
 	}
 }
 
+// RespEntityWithError TODO
 func (c *Contexts) RespEntityWithError(data interface{}, err error) {
 	c.collectErrorMetric()
 
@@ -209,11 +218,13 @@ func (c *Contexts) RespEntityWithError(data interface{}, err error) {
 	c.Response(&resp)
 }
 
+// CountInfo TODO
 type CountInfo struct {
 	Count int64       `json:"count"`
 	Info  interface{} `json:"info"`
 }
 
+// RespEntityWithCount TODO
 func (c *Contexts) RespEntityWithCount(count int64, info interface{}) {
 	if c.respStatusCode != 0 {
 		c.resp.WriteHeader(c.respStatusCode)
@@ -230,11 +241,13 @@ func (c *Contexts) RespEntityWithCount(count int64, info interface{}) {
 	c.Response(&resp)
 }
 
+// WithStatusCode TODO
 func (c *Contexts) WithStatusCode(statusCode int) *Contexts {
 	c.respStatusCode = statusCode
 	return c
 }
 
+// RespWithError TODO
 // WriteError is used to write a error response to the http client, which means the request occur an error.
 // It receive an err and an optional error code parameter.
 // It will testify the err, if the err is a CCErrorCoder, then the error code inside it will be used.
@@ -287,6 +300,7 @@ func (c *Contexts) RespWithError(err error, errCode int, format string, args ...
 	c.Response(&body)
 }
 
+// RespAutoError TODO
 func (c *Contexts) RespAutoError(err error) {
 	c.collectErrorMetric()
 
@@ -321,6 +335,7 @@ func (c *Contexts) RespAutoError(err error) {
 	c.Response(&body)
 }
 
+// RespErrorCodeF TODO
 // WriteErrorf used to write a error response to the request client.
 // it will wrapper the error with error code and other errorf args.
 // errorf is used to format multiple-language error message.
@@ -346,6 +361,7 @@ func (c *Contexts) RespErrorCodeF(errCode int, logMsg string, errorf ...interfac
 	c.Response(&body)
 }
 
+// RespErrorCodeOnly TODO
 func (c *Contexts) RespErrorCodeOnly(errCode int, format string, args ...interface{}) {
 	c.collectErrorMetric()
 
@@ -368,6 +384,7 @@ func (c *Contexts) RespErrorCodeOnly(errCode int, format string, args ...interfa
 	c.Response(&body)
 }
 
+// RespBkEntity TODO
 func (c *Contexts) RespBkEntity(data interface{}) {
 	if c.respStatusCode != 0 {
 		c.resp.WriteHeader(c.respStatusCode)
@@ -387,6 +404,7 @@ func (c *Contexts) RespBkEntity(data interface{}) {
 	}
 }
 
+// RespBkError TODO
 func (c *Contexts) RespBkError(errCode int, errMsg string) {
 	c.collectErrorMetric()
 
@@ -405,6 +423,7 @@ func (c *Contexts) RespBkError(errCode int, errMsg string) {
 	}
 }
 
+// Response TODO
 func (c *Contexts) Response(resp *metadata.Response) {
 	body, err := json.Marshal(resp)
 	if err != nil {
@@ -434,6 +453,7 @@ func (c *Contexts) NewHeader() http.Header {
 	return util.CCHeader(c.Kit.Header)
 }
 
+// SetReadPreference TODO
 func (c *Contexts) SetReadPreference(mode common.ReadPreferenceMode) {
 	c.Kit.Ctx, c.Kit.Header = util.SetReadPreference(c.Kit.Ctx, c.Kit.Header, mode)
 }

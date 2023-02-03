@@ -16,11 +16,13 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/auditlog"
 	"configcenter/src/common/blog"
+	"configcenter/src/common/errors"
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/metadata"
 	meta "configcenter/src/common/metadata"
 )
 
+// TransferHostModule TODO
 // HostModuleRelation transfer host to module specify by bk_module_id (in the same business)
 // move a business host to a module.
 func (s *Service) TransferHostModule(ctx *rest.Contexts) {
@@ -52,18 +54,13 @@ func (s *Service) TransferHostModule(ctx *rest.Contexts) {
 		return
 	}
 
-	var result *metadata.OperaterException
+	var result []metadata.ExceptionResult
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		var err error
+		var err errors.CCErrorCoder
 		result, err = s.CoreAPI.CoreService().Host().TransferToNormalModule(ctx.Kit.Ctx, ctx.Kit.Header, config)
 		if err != nil {
-			blog.Errorf("add host module relation, but add config failed, err: %v, %v,input:%+v,rid:%s", err, result.ErrMsg, config, ctx.Kit.Rid)
+			blog.Errorf("transfer host failed, err: %v, input: %#v, rid:%s", err, config, ctx.Kit.Rid)
 			return ctx.Kit.CCError.Error(common.CCErrCommHTTPDoRequestFailed)
-		}
-
-		if !result.Result {
-			blog.Errorf("add host module relation, but add config failed, err: %v, %v.input:%+v,rid:%s", err, result.ErrMsg, config, ctx.Kit.Rid)
-			return result.CCError()
 		}
 
 		if err := audit.SaveAudit(ctx.Kit); err != nil {
@@ -74,24 +71,28 @@ func (s *Service) TransferHostModule(ctx *rest.Contexts) {
 	})
 
 	if txnErr != nil {
-		ctx.RespEntityWithError(result.Data, txnErr)
+		ctx.RespEntityWithError(result, txnErr)
 		return
 	}
 	ctx.RespEntity(nil)
 }
 
+// MoveHost2IdleModule TODO
 func (s *Service) MoveHost2IdleModule(ctx *rest.Contexts) {
 	s.moveHostToDefaultModule(ctx, common.DefaultResModuleFlag)
 }
 
+// MoveHost2FaultModule TODO
 func (s *Service) MoveHost2FaultModule(ctx *rest.Contexts) {
 	s.moveHostToDefaultModule(ctx, common.DefaultFaultModuleFlag)
 }
 
+// MoveHost2RecycleModule TODO
 func (s *Service) MoveHost2RecycleModule(ctx *rest.Contexts) {
 	s.moveHostToDefaultModule(ctx, common.DefaultRecycleModuleFlag)
 }
 
+// MoveHostToResourcePool TODO
 func (s *Service) MoveHostToResourcePool(ctx *rest.Contexts) {
 	conf := new(metadata.DefaultModuleHostConfigParams)
 	if err := ctx.DecodeInto(&conf); nil != err {
@@ -185,7 +186,7 @@ func (s *Service) GetHostModuleRelation(ctx *rest.Contexts) {
 	return
 }
 
-// 根据主线拓扑上的模型实例，分页查询主机关系数据
+// GetHostRelationsWithMainlineTopoInstance 根据主线拓扑上的模型实例，分页查询主机关系数据
 func (s *Service) GetHostRelationsWithMainlineTopoInstance(ctx *rest.Contexts) {
 
 	option := new(meta.FindHostRelationWtihTopoOpt)
@@ -266,6 +267,34 @@ func (s *Service) TransferHostAcrossBusiness(ctx *rest.Contexts) {
 	return
 }
 
+// TransferResourceHostsAcrossBusiness Transfer resource hosts across business, delete old business host and module
+// relation.
+func (s *Service) TransferResourceHostsAcrossBusiness(ctx *rest.Contexts) {
+	data := new(metadata.TransferResourceHostAcrossBusinessParam)
+	if err := ctx.DecodeInto(data); err != nil {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
+		err := s.Logic.TransferResourceHostsAcrossBusiness(ctx.Kit, data.ResourceSrcHosts, data.DstAppID,
+			data.DstModuleID)
+		if err != nil {
+			blog.Errorf("transfer host across business failed, input: %v, err: %v, rid: %s", data, err, ctx.Kit.Rid)
+			return err
+		}
+		return nil
+	})
+
+	if txnErr != nil {
+		ctx.RespAutoError(txnErr)
+		return
+	}
+
+	ctx.RespEntity(nil)
+	return
+}
+
 // DeleteHostFromBusiness delete host from business
 // dangerous operation
 func (s *Service) DeleteHostFromBusiness(ctx *rest.Contexts) {
@@ -296,6 +325,7 @@ func (s *Service) DeleteHostFromBusiness(ctx *rest.Contexts) {
 	return
 }
 
+// moveHostToDefaultModule TODO
 // move host to idle, fault or recycle module under the same business.
 func (s *Service) moveHostToDefaultModule(ctx *rest.Contexts, defaultModuleFlag int) {
 
@@ -326,7 +356,7 @@ func (s *Service) moveHostToDefaultModule(ctx *rest.Contexts, defaultModuleFlag 
 	}
 
 	moduleFilter[common.BKAppIDField] = bizID
-	moduleID, err := s.Logic.GetResourcePoolModuleID(ctx.Kit, moduleFilter)
+	moduleID, _, err := s.Logic.GetResourcePoolModuleID(ctx.Kit, moduleFilter)
 	if err != nil {
 		blog.ErrorJSON("move host to default module failed, get default module id failed, filter: %s, err: %s, rid: %s", moduleFilter, err, ctx.Kit.Rid)
 		ctx.RespAutoError(defErr.Errorf(common.CCErrAddHostToModuleFailStr, "module not found"))
@@ -340,7 +370,7 @@ func (s *Service) moveHostToDefaultModule(ctx *rest.Contexts, defaultModuleFlag 
 		return
 	}
 
-	var result *metadata.OperaterException
+	var result []metadata.ExceptionResult
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 
 		transferInput := &metadata.TransferHostToInnerModule{
@@ -348,15 +378,11 @@ func (s *Service) moveHostToDefaultModule(ctx *rest.Contexts, defaultModuleFlag 
 			HostID:        conf.HostIDs,
 			ModuleID:      moduleID,
 		}
-		var err error
+		var err errors.CCErrorCoder
 		result, err = s.CoreAPI.CoreService().Host().TransferToInnerModule(ctx.Kit.Ctx, ctx.Kit.Header, transferInput)
 		if err != nil {
-			blog.ErrorJSON("move host to default module failed, TransferHostToDefaultModule http do error. input:%s, condition:%s, err:%s, rid:%s", conf, transferInput, err.Error(), rid)
-			return defErr.Error(common.CCErrCommHTTPDoRequestFailed)
-		}
-		if !result.Result {
-			blog.ErrorJSON("move host to default module failed, TransferHostToDefaultModule response failed. input:%s, transferInput:%s, response:%s, rid:%s", conf, transferInput, result, rid)
-			return defErr.New(result.Code, result.ErrMsg)
+			blog.Errorf("transfer host to default module failed, err: %v, input: %#v, rid:%s", err, transferInput, rid)
+			return err
 		}
 
 		if err := audit.SaveAudit(ctx.Kit); err != nil {
@@ -367,7 +393,7 @@ func (s *Service) moveHostToDefaultModule(ctx *rest.Contexts, defaultModuleFlag 
 	})
 
 	if txnErr != nil {
-		ctx.RespEntityWithError(result.Data, txnErr)
+		ctx.RespEntityWithError(result, txnErr)
 		return
 	}
 	ctx.RespEntity(nil)
@@ -392,6 +418,7 @@ func (s *Service) GetAppHostTopoRelation(ctx *rest.Contexts) {
 	return
 }
 
+// TransferHostResourceDirectory TODO
 func (s *Service) TransferHostResourceDirectory(ctx *rest.Contexts) {
 	input := new(metadata.TransferHostResourceDirectory)
 	if err := ctx.DecodeInto(&input); nil != err {

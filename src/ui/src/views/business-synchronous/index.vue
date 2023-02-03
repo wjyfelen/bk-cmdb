@@ -1,577 +1,384 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
-  <section class="batch-wrapper" v-bkloading="{ isLoading: $loading() }">
-    <cmdb-tips>{{$t('同步模板功能提示')}}</cmdb-tips>
-    <h2 class="title">{{$t('将会同步以下信息')}}：</h2>
-    <div class="info-layout cleafix">
-      <ul class="process-list fl">
-        <li class="process-item"
-          v-for="(process, index) in processList"
-          :key="index"
-          :class="{
-            'show-tips': !process.confirmed,
-            'is-active': activeIndex === index,
-            'is-remove': process.type === 'removed'
-          }"
-          @click="handleChangeActive(process, index)">
-          <span class="process-name" :title="process.process_template_name">{{process.process_template_name}}</span>
-          <span class="process-service-count" v-if="process.type !== 'others'">{{getInstanceCount(process)}}</span>
-        </li>
-      </ul>
-      <div class="change-details"
-        v-if="current"
-        :key="current.process_template_id">
-        <cmdb-collapse class="details-info">
-          <div class="collapse-title" slot="title">
-            {{$t('变更内容')}}
-            <span v-if="current.type === 'changed'">（{{changedProperties.length}}）</span>
-          </div>
-          <div class="info-content">
-            <div class="process-info"
-              v-if="current.type === 'added'">
-              <div class="info-item" style="width: auto;">
-                {{$t('模板中新增进程')}}
-                <span class="info-item-value">{{current.process_template_name}}</span>
-              </div>
-            </div>
-            <div class="process-info"
-              v-if="current.type === 'removed'">
-              <div class="info-item" style="width: auto;">
-                <span class="info-item-value" style="font-weight: 700;">{{current.process_template_name}}</span>
-                {{$t('从模板中删除')}}
-              </div>
-            </div>
-            <div class="process-info clearfix"
-              v-else-if="current.type === 'changed'">
-              <div :class="['info-item fl', { table: changed.property.bk_property_type === 'table' }]"
-                v-for="(changed, index) in changedProperties"
-                :key="index"
-                v-bk-overflow-tips>
-                {{changed.property.bk_property_name}}：
-                <span class="info-item-value">
-                  <span
-                    v-if="changed.property.bk_property_id === 'bind_info' && !changed.template_property_value.length">
-                    {{$t('移除所有进程监听信息')}}
-                  </span>
-                  <cmdb-property-value v-else
-                    :value="getChangedValue(changed)"
-                    :property="changed.property">
-                  </cmdb-property-value>
-                </span>
-              </div>
-            </div>
-            <div class="process-info"
-              v-else-if="current.type === 'others'">
-              <div class="info-item" style="width: auto;">
-                {{$t('服务分类')}}：
-                <span class="info-item-value">{{current.service_category}}</span>
-              </div>
-            </div>
-          </div>
-        </cmdb-collapse>
-        <cmdb-collapse class="details-modules"
-          v-for="(module, index) in current.modules"
-          :key="index"
-          :collapse="true"
-          @collapse-change.once="handleModulesCollapseChange(...arguments, module)">
-          <div class="collapse-title" slot="title">
-            {{getModuleTopoPath(module.bk_module_id)}} {{$t('涉及实例')}}
-          </div>
-          <ul class="instance-list">
-            <li class="instance-item"
-              v-for="(instance, instanceIndex) in module.service_instances"
-              :key="instanceIndex"
-              @click="handleViewDiff(instance, module)">
-              <span class="instance-name" v-bk-overflow-tips>{{instance.service_instance.name}}</span>
-              <span class="instance-diff-count"
-                v-if="instance.changed_attributes">
-                ({{instance.changed_attributes.length}})
-              </span>
-            </li>
-          </ul>
+  <cmdb-sticky-layout
+    class="service-template-sync-layout"
+    v-bkloading="{ isLoading: $loading([requestIds.properties, requestIds.topopath]) }">
+    <template #header="{ sticky }">
+      <cmdb-tips :class="['layout-header', { 'is-sticky': sticky }]">{{$t('同步模板功能提示')}}</cmdb-tips>
+    </template>
+
+    <div class="layout-top">
+      <p class="title" v-if="isSingleModule">{{$t('请确认单个实例更改信息')}}</p>
+      <i18n path="请确认实例更改信息"
+        tag="p"
+        class="title"
+        v-else>
+        <template #count>
+          <span>{{moduleIds.length}}</span>
+        </template>
+      </i18n>
+      <div class="type-legend">
+        <span class="legend-item">
+          <i class="dot changed"></i>
+          {{$t('变更')}}
+        </span>
+        <span class="legend-item">
+          <i class="dot added"></i>
+          {{$t('新增')}}
+        </span>
+        <span class="legend-item">
+          <i class="dot removed"></i>
+          {{$t('删除')}}
+        </span>
+      </div>
+    </div>
+
+    <div class="layout-main">
+      <div class="module-instance-container" v-if="isSingleModule">
+        <module-instance
+          v-bkloading="{ isLoading: moduleGroup[moduleIds[0]].loading }"
+          :module-id="moduleIds[0]"
+          :template-id="templateId"
+          :topo-path="moduleGroup[moduleIds[0]].topoPath"
+          :model-property="modelProperty"
+          :property-diff="moduleGroup[moduleIds[0]].propertyDiff"
+          :process-diff="moduleGroup[moduleIds[0]].processDiff">
+        </module-instance>
+      </div>
+      <div class="module-instance-group" v-else>
+        <cmdb-collapse class="module-instance-container"
+          v-for="moduleId in moduleIds"
+          :label="moduleGroup[moduleId].topoPath"
+          :collapse="moduleGroup[moduleId].collapse"
+          arrow-type="filled"
+          :key="moduleId"
+          @collapse-change="handleModuleCollapseChange(moduleId, $event)">
+          <module-instance
+            v-bkloading="{ isLoading: moduleGroup[moduleId].loading }"
+            class="module-instance-item"
+            collapse-size="small"
+            :module-id="Number(moduleId)"
+            :template-id="templateId"
+            :topo-path="moduleGroup[moduleId].topoPath"
+            :model-property="modelProperty"
+            :property-diff="moduleGroup[moduleId].propertyDiff"
+            :process-diff="moduleGroup[moduleId].processDiff">
+          </module-instance>
         </cmdb-collapse>
       </div>
     </div>
-    <div class="batch-options">
-      <bk-button class="mr10" theme="primary"
-        :disabled="!allConfirmed"
-        @click="handleConfirm">
-        {{$t('确认并同步')}}
-      </bk-button>
-      <bk-button @click="handleGoBackModule">{{$t('取消')}}</bk-button>
-    </div>
-    <bk-sideslider
-      v-transfer-dom
-      :width="676"
-      :is-show.sync="slider.show"
-      :title="slider.title">
-      <template slot="content" v-if="slider.show">
-        <instance-details slot="content"
-          v-if="slider.show"
-          v-bind="slider.props"
-          :properties="properties">
-        </instance-details>
-      </template>
-    </bk-sideslider>
-  </section>
+
+    <template #footer="{ sticky }">
+      <div :class="['layout-footer', { 'is-sticky': sticky }]">
+        <cmdb-auth :auth="{ type: $OPERATION.C_SERVICE_INSTANCE, relation: [bizId] }">
+          <template #default="{ disabled }">
+            <bk-button theme="primary"
+              :disabled="disabled"
+              :loading="confirming"
+              @click="confirmAndSync">
+              {{$t('确认同步')}}
+            </bk-button>
+          </template>
+        </cmdb-auth>
+        <bk-button @click="handleGoback">{{$t('取消')}}</bk-button>
+      </div>
+    </template>
+  </cmdb-sticky-layout>
 </template>
 
 <script>
-  import InstanceDetails from './children/details.vue'
-  import formatter from '@/filters/formatter'
   import { mapGetters } from 'vuex'
+  import to from 'await-to-js'
+  import ModuleInstance from './children/module-instance.vue'
+
   export default {
+    name: 'BusinessSynchronous',
     components: {
-      InstanceDetails
+      ModuleInstance,
     },
     data() {
+      const moduleIds = String(this.$route.params.modules).split(',')
+        .map(id => Number(id))
+
+      const moduleGroup = {}
+      moduleIds.forEach((id) => {
+        moduleGroup[id] = {
+          collapse: true, // 是否展开
+          topoPath: '', // 拓扑路径
+          processDiff: [], // 进程对比数据
+          propertyDiff: [], // 属性对比数据
+          loaded: false, // 是否加载过
+          loading: false // 是否加载中
+        }
+      })
+
       return {
-        processList: [],
-        properties: [],
-        activeIndex: null,
-        topoPath: {},
-        categories: [],
-        slider: {
-          show: false,
-          title: '',
-          props: {
-            module: null,
-            instance: null,
-            type: ''
-          }
+        moduleIds,
+        moduleGroup, // 按模块分组的数据
+        modelProperty: {}, // 资源的所有属性，用来翻译
+        confirming: false,
+        requestIds: {
+          properties: Symbol(),
+          topopath: Symbol(),
+          difference: Symbol()
         }
       }
     },
     computed: {
       ...mapGetters(['supplierAccount']),
       ...mapGetters('objectBiz', ['bizId']),
-      current() {
-        if (this.activeIndex !== null) {
-          return this.processList[this.activeIndex]
-        }
-        return null
-      },
-      changedProperties() {
-        if (this.current && this.current.type === 'changed') {
-          return this.getChangedProperties()
-        }
-        return []
-      },
       templateId() {
         return Number(this.$route.params.template)
       },
-      modules() {
-        return String(this.$route.params.modules).split(',')
-          .map(id => Number(id))
-      },
-      allConfirmed() {
-        return this.processList.every(process => process.confirmed)
+      isSingleModule() {
+        return this.moduleIds?.length === 1
       }
     },
     async created() {
-      try {
-        await this.getProperties()
-        this.getTopoPath()
-        this.getDifference()
-      } catch (e) {
-        console.error(e)
+      await to(this.loadProperties())
+      await to(this.loadTopoPath())
+
+      if (this.moduleIds?.length > 1) {
+        this.$store.commit('setTitle', this.$t('批量同步模板'))
       }
+
+      // 默认展开第1个
+      this.loadDiffByModule(this.moduleIds[0])
     },
     methods: {
-      handleChangeActive(process, index) {
-        this.activeIndex = index
-        process.confirmed = true
-      },
-      async getProperties() {
-        try {
-          this.properties = await this.$store.dispatch('objectModelProperty/searchObjectAttribute', {
-            params: {
-              bk_obj_id: 'process',
-              bk_supplier_account: this.supplierAccount,
-              bk_biz_id: this.bizId
-            }
+      /**
+       * 加载进程属性，便于转换成可读中文
+       */
+      loadProperties() {
+        return this.$store.dispatch('objectModelProperty/batchSearchObjectAttribute', {
+          params: {
+            bk_biz_id: this.bizId,
+            bk_obj_id: { $in: ['process', 'module'] },
+            bk_supplier_account: this.supplierAccount
+          },
+          config: {
+            requestId: this.requestIds.properties,
+            fromCache: true
+          }
+        }).then((data) => {
+          this.modelProperty = data
+        })
+          .catch(() => {
+            this.modelProperty = {}
           })
-        } catch (e) {
-          console.error(e)
-        }
       },
-      async getTopoPath() {
-        try {
-          const { nodes } = await this.$store.dispatch('objectMainLineModule/getTopoPath', {
-            bizId: this.bizId,
-            params: {
-              topo_nodes: this.modules.map(moduleId => ({ bk_obj_id: 'module', bk_inst_id: moduleId }))
-            }
-          })
-          const topoPath = {}
+      /**
+       * 加载拓扑路径，用于加载涉及实例
+       */
+      loadTopoPath() {
+        return this.$store.dispatch('objectMainLineModule/getTopoPath', {
+          bizId: this.bizId,
+          params: {
+            topo_nodes: this.moduleIds.map(moduleId => ({ bk_obj_id: 'module', bk_inst_id: moduleId }))
+          },
+          config: { requestId: this.requestIds.topopath }
+        }).then(({ nodes }) => {
           nodes.forEach((node) => {
-            topoPath[node.topo_node.bk_inst_id] = node.topo_path.reverse().map(path => path.bk_inst_name)
+            const moduleId = node.topo_node.bk_inst_id
+            this.moduleGroup[moduleId].topoPath = node.topo_path.reverse().map(path => path.bk_inst_name)
               .join(' / ')
           })
-          this.topoPath = topoPath
-        } catch (e) {
-          console.error(e)
-        }
+        })
       },
-      async getDifference() {
-        try {
-          const differences = await this.$store.dispatch('businessSynchronous/searchServiceInstanceDifferences', {
-            params: {
-              bk_module_ids: this.modules,
-              service_template_id: this.templateId,
-              bk_biz_id: this.bizId
-            }
-          })
-          const processList = []
-          const differenceType = ['changed', 'added', 'removed']
-          let changedCategory = null
-          differences.forEach((difference) => {
-            differenceType.forEach((type) => {
-              difference[type].forEach((info) => {
-                const moduleInfo = { ...info, bk_module_id: difference.bk_module_id }
-                // eslint-disable-next-line max-len
-                const item = processList.find(item => item.type === type && item.process_template_id === info.process_template_id)
-                if (item) {
-                  item.modules.push(moduleInfo)
-                } else {
-                  const newItem = {
-                    type,
-                    process_template_id: info.process_template_id,
-                    process_template_name: info.process_template_name,
-                    modules: [moduleInfo]
-                  }
-                  const length = processList.push(newItem)
-                  newItem.confirmed = length === 1
-                }
-              })
-            })
-            changedCategory = (difference.changed_attributes || []).find(attr => attr.property_id === 'service_category_id')
-          })
-          if (changedCategory) {
-            const categoryInfo = await this.getServiceCategoryDifference(changedCategory)
-            categoryInfo.confirmed = !processList.length
-            processList.push(categoryInfo)
-          }
-          this.processList = processList
-          this.activeIndex = 0
-        } catch (e) {
-          console.error(e)
-        }
-      },
-      async getServiceCategoryDifference(changedCategory) {
-        try {
-          const categoryInfo = {
-            type: 'others',
-            process_template_id: 'service_category_id',
-            process_template_name: this.$t('服务分类变更'),
-            modules: []
-          }
-          const [{ info: categories }, { info: modules }] = await Promise.all([
-            this.getServiceCategory(),
-            this.getServiceModules()
-          ])
-          this.categories = categories
-          const templateCategoryId = changedCategory.template_property_value
-          categoryInfo.service_category = this.getCagetoryPath(templateCategoryId)
-          modules.forEach((module) => {
-            if (module.service_category_id !== templateCategoryId) {
-              categoryInfo.modules.push({
-                bk_module_id: module.bk_module_id,
-                template_service_category: categoryInfo.service_category,
-                current_service_category: this.getCagetoryPath(module.service_category_id),
-                service_instances: []
+      /**
+       * 按模块获取diff信息（进程视角）
+       */
+      loadDiffByModule(moduleId) {
+        const currentModule = this.moduleGroup[moduleId]
+
+        currentModule.loading = true
+        currentModule.collapse = false
+
+        return this.$store.dispatch('businessSynchronous/getTplDiffs', {
+          params: {
+            bk_module_id: moduleId,
+            bk_biz_id: this.bizId,
+            service_template_id: this.templateId
+          },
+          config: { requestId: this.requestIds.difference }
+        }).then((difference) => {
+          const processDiff = []
+          const processDiffTypes = ['changed', 'added', 'removed']
+
+          // 进程变更
+          Object.keys(difference).forEach((type) => {
+            const diffItem = difference[type]
+            if (processDiffTypes.includes(type) && diffItem) {
+              diffItem.forEach(({ id, name }) => {
+                processDiff.push(this.genProcessDiffItem({
+                  diffType: type,
+                  processId: id,
+                  processName: name,
+                }))
               })
             }
           })
 
-          return categoryInfo
-        } catch (e) {
-          console.error(e)
-        }
-      },
-      getServiceCategory() {
-        return this.$store.dispatch('serviceClassification/searchServiceCategory', {
-          params: { bk_biz_id: this.bizId }
-        })
-      },
-      getCagetoryPath(id) {
-        const second = this.categories.find(second => second.category.id === id)
-        const first = this.categories.find(first => first.category.id === this.$tools.getValue(second, 'category.bk_parent_id'))
-        const firstName = this.$tools.getValue(first, 'category.name') || '--'
-        const secondName = this.$tools.getValue(second, 'category.name') || '--'
-        return [firstName, secondName].join(' / ')
-      },
-      getServiceModules() {
-        return this.$store.dispatch('serviceTemplate/getServiceTemplateModules', {
-          bizId: this.bizId,
-          serviceTemplateId: this.templateId,
-          params: {
-            bk_module_ids: this.modules
-          }
-        })
-      },
-      getChangedProperties() {
-        const changed = []
-        this.current.modules.forEach((module) => {
-          module.service_instances.forEach((instance) => {
-            (instance.changed_attributes || []).forEach((changedProperty) => {
-              const isExist = changed.some(exist => exist.property.bk_property_id === changedProperty.property_id)
-              const property = this.properties.find(property => property.bk_property_id === changedProperty.property_id)
-              if (!isExist && property) {
-                changed.push({
-                  property,
-                  template_property_value: changedProperty.template_property_value
-                })
+          // 属性变更，注入原始属性对象
+          if (difference.attributes) {
+            currentModule.propertyDiff = difference.attributes.map((attr) => {
+              const property = this.modelProperty.module.find(prop => prop.id === attr.id)
+              return {
+                property,
+                ...attr
               }
             })
+          }
+
+          currentModule.processDiff = processDiff
+        })
+          .finally(() => {
+            currentModule.loading = false
+            currentModule.loaded = true
           })
-        })
-        return changed
       },
-      getChangedValue(changed) {
-        const { property } = changed
-        let value = changed.template_property_value
-        value = Object.prototype.toString.call(value) === '[object Object]' ? value.value : value
-        return formatter(value, property)
-      },
-      getModuleTopoPath(moduleId) {
-        return this.topoPath[moduleId]
-      },
-      async handleModulesCollapseChange(collapse, module) {
-        // eslint-disable-next-line no-underscore-dangle
-        const loaded = module.service_instances.__loaded__
-        if (this.current.type === 'others' && !loaded) {
-          try {
-            // eslint-disable-next-line no-underscore-dangle
-            module.service_instances.__loaded__ = true
-            const { info: instances } = await this.getModuleServiceInstances(module.bk_module_id)
-            module.service_instances.push(...instances.map(instance => ({
-              changed_attributes: [{
-                property_id: 'service_category_id',
-                property_name: this.$t('服务分类'),
-                property_value: module.current_service_category,
-                template_property_value: module.template_service_category
-              }],
-              service_instance: instance
-            })))
-          } catch (e) {
-            console.error(e)
-            // eslint-disable-next-line no-underscore-dangle
-            module.service_instances.__loaded__ = false
-          }
+      /**
+       * 生成进程变更对比项
+       * @param {string} diffType 必须，变更类型
+       * @param {string} processId 非必须，进程模板的变更 ID
+       * @param {string} processName 非必须，进程模板的名称
+       */
+      genProcessDiffItem({
+        diffType,
+        processId,
+        processName
+      }) {
+        return {
+          type: diffType,
+          process_template_id: processId,
+          process_template_name: processName,
+          confirmed: false
         }
       },
-      getModuleServiceInstances(moduleId) {
-        return this.$store.dispatch('serviceInstance/getModuleServiceInstances', {
-          params: {
-            bk_biz_id: this.bizId,
-            bk_module_id: moduleId,
-            with_name: true
-          }
-        })
-      },
-      handleViewDiff(instance, module) {
-        this.slider.title = instance.service_instance.name
-        this.slider.props = {
-          module,
-          instance,
-          type: this.current.type
-        }
-        this.slider.show = true
-      },
-      handleConfirm() {
+      confirmAndSync() {
+        this.confirming = true
         this.$store.dispatch('businessSynchronous/syncServiceInstanceByTemplate', {
           params: {
             service_template_id: this.templateId,
-            bk_module_ids: this.modules,
-            service_instances: this.getServiceInstanceIds(),
+            bk_module_ids: this.moduleIds,
             bk_biz_id: this.bizId
           }
         }).then(() => {
-          this.$success(this.$t('同步成功'))
-          this.handleGoBackModule()
+          this.$success(this.$t('提交同步成功'))
+          this.goBackModule()
         })
+          .finally(() => {
+            this.confirming = false
+          })
       },
-      handleGoBackModule() {
+      handleModuleCollapseChange(moduleId, collapse) {
+        // 打开并且未加载过或者不在加载中状态
+        if (!collapse && !this.moduleGroup[moduleId].loaded && !this.moduleGroup[moduleId].loading) {
+          this.loadDiffByModule(moduleId)
+        }
+      },
+      goBackModule() {
         this.$routerActions.back()
       },
-      getServiceInstanceIds() {
-        const ids = []
-        this.processList.forEach((process) => {
-          process.modules.forEach((module) => {
-            module.service_instances.forEach((data) => {
-              ids.push(data.service_instance.id)
-            })
-          })
-        })
-        return [...new Set(ids)]
-      },
-      getInstanceCount(process) {
-        return process.modules.reduce((count, module) => count + module.service_instances.length, 0)
+      handleGoback() {
+        this.goBackModule()
       }
     }
   }
 </script>
 
 <style lang="scss" scoped>
-    .batch-wrapper {
-        padding: 10px 20px;
-        .title {
-            margin-top: 24px;
-            font-size: 14px;
-            line-height: 20px;
-        }
-        .collapse-title {
-            font-size: 14px;
-            color: $textColor;
-        }
+.service-template-sync-layout {
+  .layout-header {
+    margin: 20px 24px 0 24px;
+  }
+  .layout-top {
+    display: flex;
+    margin: 24px;
+    .title {
+      font-size: 14px;
     }
-    .info-layout {
-        margin-top: 10px;
-        border: 1px solid $borderColor;
-        border-bottom: none;
-        height: calc(100vh - 350px);
-        overflow: hidden;
-        .process-list {
-            position: relative;
-            margin-right: -1px;
-            width: 200px;
-            height: 100%;
-            z-index: 2;
-            @include scrollbar-y;
-        }
-        .change-details {
-            position: relative;
-            height: 100%;
-            padding: 20px;
-            background-color: #FFF;
-            border-left: 1px solid $borderColor;
-            border-bottom: 1px solid $borderColor;
-            z-index: 1;
-            @include scrollbar-y;
-        }
-    }
-    .process-list {
-        border-bottom: 1px solid $borderColor;
-        .process-item {
-            display: flex;
-            padding: 0 12px 0 14px;
-            height: 61px;
-            align-items: center;
-            justify-content: space-between;
-            background-color: #FAFBFD;
-            border-right: 1px solid $borderColor;
-            border-bottom: 1px solid $borderColor;
-            cursor: pointer;
-            &.is-active {
-                background-color: #FFF;
-                border-right: none;
-                .process-name {
-                    font-weight: bold;
-                    color: $primaryColor;
-                }
-                &.is-remove {
-                    .process-name {
-                        color: $dangerColor;
-                    }
-                }
-            }
-            &.is-remove {
-                .process-name {
-                    text-decoration: line-through;
-                }
-            }
-            &.show-tips {
-                .process-name:after {
-                    position: absolute;
-                    width: 6px;
-                    height: 6px;
-                    top: 21px;
-                    right: 4px;
-                    border-radius: 50%;
-                    background-color: #FF5656;
-                    content: "";
-                    z-index: 1;
-                }
-            }
-            .process-name {
-                line-height: 60px;
-                position: relative;
-                padding: 0 14px 0 0;
-                @include ellipsis;
-            }
-            .process-service-count {
-                padding: 0 8px;
-                height: 16px;
-                line-height: 16px;
-                font-size: 12px;
-                font-style: normal;
-                text-align: center;
-                background-color: #c4c6cc;
-                color: #fff;
-                border-radius: 8px;
-            }
-        }
-    }
-    .details-info {
-        .process-info {
-            padding: 0 0 0 22px;
-            .info-item {
-                width: 200px;
-                font-size: 14px;
-                margin: 20px 40px 0 0;
-                @include ellipsis;
-                .info-item-value {
-                    color: #313238;
-                }
 
-                &.table {
-                    width: 100%;
-                    /deep/ .table-value {
-                        width: 800px;
-                    }
-                }
-            }
+    .type-legend {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+
+      .legend-item {
+        margin-right: 30px;
+        .dot {
+          display: inline-block;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background-color: #2DCB56;
+          margin-right: 2px;
+          &.added {
+            background-color: #2DCB56;
+          }
+          &.changed {
+            background-color: #FF9C01;
+          }
+          &.removed {
+            background-color: #FF5656;
+          }
         }
+      }
     }
-    .details-modules {
-        margin-top: 60px;
-        & ~ .details-modules {
-            margin-top: 20px;
-        }
+  }
+
+  .layout-main {
+    margin: 24px;
+  }
+
+  .module-instance-container {
+    background: #fff;
+    box-shadow: 0 2px 4px 0 rgba(25, 25, 41, 0.05);
+    border-radius: 2px;
+    padding: 24px;
+
+    & + .module-instance-container {
+      margin-top: 16px;
     }
-    .instance-list {
-        padding: 0 0 0 22px;
-        .instance-item {
-            display: inline-flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 240px;
-            margin: 10px 80px 0 0;
-            padding: 0 4px;
-            height: 22px;
-            border: 1px solid $borderColor;
-            background-color: #FAFBFD;
-            font-size: 12px;
-            cursor: pointer;
-            &:hover {
-                .instance-name,
-                .instance-diff-count {
-                    color: $primaryColor;
-                }
-                .instance-diff-count {
-                    font-weight: bold;
-                }
-            }
-            .instance-name {
-                padding-right: 20px;
-                @include ellipsis;
-            }
-            .instance-diff-count {
-                color: #C4C6CC;
-            }
-        }
+  }
+
+  .module-instance-group {
+    .module-instance-item {
+      margin: 24px 16px 0 16px;
     }
-    .batch-options {
-        margin-top: 20px;
+  }
+
+  .layout-footer {
+    display: flex;
+    align-items: center;
+    height: 52px;
+    padding: 0 24px;
+    margin-top: 8px;
+    .bk-button {
+      min-width: 86px;
+
+      & + .bk-button {
+        margin-left: 8px;
+      }
     }
+    .auth-box + .bk-button {
+      margin-left: 8px;
+    }
+    &.is-sticky {
+      background-color: #fff;
+      border-top: 1px solid $borderColor;
+    }
+  }
+}
 </style>

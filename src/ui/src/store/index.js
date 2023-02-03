@@ -1,3 +1,15 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import Vue from 'vue'
 import Vuex from 'vuex'
 import global from './modules/global.js'
@@ -9,7 +21,6 @@ import businessSync from './modules/view/business-sync.js'
 import hosts from './modules/view/hosts.js'
 import setFeatures from './modules/view/set-features.js'
 import auth from './modules/api/auth.js'
-import eventSub from './modules/api/event-sub.js'
 import hostBatch from './modules/api/host-batch.js'
 import hostDelete from './modules/api/host-delete.js'
 import hostFavorites from './modules/api/host-favorites.js'
@@ -64,12 +75,17 @@ import cloudarea from './modules/api/cloudarea'
 import audit from './modules/api/audit.js'
 import dynamicGroup from './modules/api/dynamic-group'
 
+import globalConfig from './modules/global-config.js'
+import bizSet from './modules/biz-set.js'
+
 Vue.use(Vuex)
 
 export default new Vuex.Store({
   ...global,
   modules: {
     index,
+    bizSet,
+    globalConfig,
     hostDetails,
     serviceProcess,
     businessSync,
@@ -77,7 +93,6 @@ export default new Vuex.Store({
     setFeatures,
     auth,
     request,
-    eventSub,
     hostBatch,
     hostDelete,
     hostFavorites,

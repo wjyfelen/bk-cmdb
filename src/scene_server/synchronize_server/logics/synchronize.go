@@ -14,11 +14,11 @@ package logics
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	"configcenter/src/common/blog"
 	"configcenter/src/common/metadata"
-	"configcenter/src/common/util"
 	"configcenter/src/scene_server/synchronize_server/app/options"
 )
 
@@ -26,6 +26,7 @@ func getVersion() int64 {
 	return time.Now().Unix()
 }
 
+// TriggerSynchronize TODO
 func (lgc *Logics) TriggerSynchronize(ctx context.Context, config *options.Config) {
 	if config == nil {
 		blog.Errorf("TriggerSynchronize not config ")
@@ -36,7 +37,7 @@ func (lgc *Logics) TriggerSynchronize(ctx context.Context, config *options.Confi
 		return
 	}
 	lgc = lgc.NewFromHeader(copyHeader(lgc.header))
-	interval, err := util.GetInt64ByInterface(config.Trigger.Role)
+	interval, err := strconv.ParseInt(config.Trigger.Role, 10, 64)
 	if err != nil {
 		blog.Warnf("Trigger.Role %v not integer, err:%s", config.Trigger.Role, err.Error())
 		if config.Trigger.IsTiming() {
@@ -102,17 +103,18 @@ func (lgc *Logics) SynchronizeItem(ctx context.Context, syncConfig *options.Conf
 
 	exceptionMap := make(map[string][]metadata.ExceptionResult)
 	var err error
-	exceptionMap["model"], err = synchronizeItem.synchronizeModelTask(ctx) //lgc.synchronizeModelTask(ctx, syncConfig, version, nil)
+
+	exceptionMap["model"], err = synchronizeItem.synchronizeModelTask(ctx)
 	if err != nil {
 		blog.Errorf("SynchronizeItem model error, config:%#v,err:%s,version:%d,rid:%s", syncConfig, err.Error(), version, lgc.rid)
 	}
 
-	exceptionMap["instance"], err = synchronizeItem.synchronizeInstanceTask(ctx) //(ctx, syncConfig, version, nil)
+	exceptionMap["instance"], err = synchronizeItem.synchronizeInstanceTask(ctx)
 	if err != nil {
 		blog.Errorf("SynchronizeItem instance error, config:%#v,err:%s,version:%d,rid:%s", syncConfig, err.Error(), version, lgc.rid)
 	}
 
-	exceptionMap["association"], err = synchronizeItem.synchronizeAssociationTask(ctx) //(ctx, syncConfig, version, nil)
+	exceptionMap["association"], err = synchronizeItem.synchronizeAssociationTask(ctx)
 	if err != nil {
 		blog.Errorf("SynchronizeItem association error, config:%#v,err:%s,version:%d,rid:%s", syncConfig, err.Error(), version, lgc.rid)
 	}

@@ -18,9 +18,10 @@ import (
 	"configcenter/src/common/metric"
 	"configcenter/src/common/types"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// Healthz TODO
 func (s *AuthService) Healthz(req *restful.Request, resp *restful.Response) {
 	meta := metric.HealthMeta{IsHealthy: true}
 

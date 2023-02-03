@@ -30,7 +30,9 @@ import (
  * module instance
  */
 
-func (am *AuthManager) collectModuleByModuleIDs(ctx context.Context, header http.Header, moduleIDs ...int64) ([]ModuleSimplify, error) {
+func (am *AuthManager) collectModuleByModuleIDs(ctx context.Context, header http.Header, moduleIDs ...int64) (
+	[]ModuleSimplify, error) {
+
 	rid := util.ExtractRequestIDFromContext(ctx)
 
 	// unique ids so that we can be aware of invalid id if query result length not equal ids's length
@@ -45,7 +47,7 @@ func (am *AuthManager) collectModuleByModuleIDs(ctx context.Context, header http
 		return nil, fmt.Errorf("get modules by id failed, err: %+v", err)
 	}
 	modules := make([]ModuleSimplify, 0)
-	for _, cls := range result.Data.Info {
+	for _, cls := range result.Info {
 		module := ModuleSimplify{}
 		_, err = module.Parse(cls)
 		if err != nil {
@@ -69,6 +71,7 @@ func (am *AuthManager) extractBusinessIDFromModules(modules ...ModuleSimplify) (
 	return businessID, nil
 }
 
+// MakeResourcesByModule TODO
 func (am *AuthManager) MakeResourcesByModule(header http.Header, action meta.Action, businessID int64, modules ...ModuleSimplify) []meta.ResourceAttribute {
 	resources := make([]meta.ResourceAttribute, 0)
 	for _, module := range modules {
@@ -88,6 +91,7 @@ func (am *AuthManager) MakeResourcesByModule(header http.Header, action meta.Act
 	return resources
 }
 
+// AuthorizeByModuleID TODO
 func (am *AuthManager) AuthorizeByModuleID(ctx context.Context, header http.Header, action meta.Action, ids ...int64) error {
 	if !am.Enabled() {
 		return nil
@@ -107,6 +111,7 @@ func (am *AuthManager) AuthorizeByModuleID(ctx context.Context, header http.Head
 	return am.AuthorizeByModule(ctx, header, action, modules...)
 }
 
+// GenModuleSetNoPermissionResp TODO
 func (am *AuthManager) GenModuleSetNoPermissionResp() *metadata.BaseResp {
 	permission := &metadata.IamPermission{
 		SystemID: iam.SystemIDCMDB,
@@ -119,6 +124,7 @@ func (am *AuthManager) GenModuleSetNoPermissionResp() *metadata.BaseResp {
 	return &resp
 }
 
+// AuthorizeByModule TODO
 func (am *AuthManager) AuthorizeByModule(ctx context.Context, header http.Header, action meta.Action, modules ...ModuleSimplify) error {
 	rid := util.ExtractRequestIDFromContext(ctx)
 

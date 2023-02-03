@@ -1,7 +1,19 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-select
     v-model="localValue"
-    searchable
+    :searchable="searchable"
     font-size="medium"
     :clearable="false"
     v-bind="$attrs">
@@ -21,13 +33,13 @@
         type: Array,
         default: () => ([])
       },
-      objectUnique: {
-        type: Array,
-        default: () => ([])
-      },
       value: {
         type: [String, Number],
         default: ''
+      },
+      searchable: {
+        type: Boolean,
+        default: true
       }
     },
     computed: {
@@ -41,15 +53,7 @@
         }
       },
       options() {
-        const options = this.properties.filter(property => !!property.id)
-        const uniqueIds = (this.objectUnique.find(unique => unique.must_check) || {}).keys || []
-        options.sort((m, n) => {
-          const seedM = uniqueIds.some(key => key.key_id === m.id) ? m.id : Infinity
-          const seedN = uniqueIds.some(key => key.key_id === n.id) ? n.id : Infinity
-          const result = seedM - seedN
-          return isNaN(result) ? 0 : result
-        })
-        return options
+        return this.properties.filter(property => !!property.id)
       }
     }
   }

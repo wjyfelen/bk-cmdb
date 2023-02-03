@@ -21,6 +21,7 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// CreateServiceCategory TODO
 func (p *process) CreateServiceCategory(ctx context.Context, h http.Header, category *metadata.ServiceCategory) (*metadata.ServiceCategory, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceCategoryResult)
 	subPath := "/create/process/service_category"
@@ -44,7 +45,10 @@ func (p *process) CreateServiceCategory(ctx context.Context, h http.Header, cate
 	return &ret.Data, nil
 }
 
-func (p *process) GetServiceCategory(ctx context.Context, h http.Header, categoryID int64) (*metadata.ServiceCategory, errors.CCErrorCoder) {
+// GetServiceCategory search service category
+func (p *process) GetServiceCategory(ctx context.Context, h http.Header, categoryID int64) (*metadata.ServiceCategory,
+	errors.CCErrorCoder) {
+
 	ret := new(metadata.OneServiceCategoryResult)
 	subPath := "/find/process/service_category/%d"
 
@@ -56,16 +60,17 @@ func (p *process) GetServiceCategory(ctx context.Context, h http.Header, categor
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("GetServiceCategory failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
-	if ret.CCError() != nil {
-		return nil, ret.CCError()
+
+	if ccErr := ret.CCError(); ccErr != nil {
+		return nil, ccErr
 	}
 
 	return &ret.Data, nil
 }
 
+// GetDefaultServiceCategory search default service category
 func (p *process) GetDefaultServiceCategory(ctx context.Context, h http.Header) (*metadata.ServiceCategory, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceCategoryResult)
 	subPath := "/find/process/default_service_category"
@@ -78,16 +83,17 @@ func (p *process) GetDefaultServiceCategory(ctx context.Context, h http.Header) 
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("GetDefaultServiceCategory failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
-	if ret.CCError() != nil {
-		return nil, ret.CCError()
+
+	if ccErr := ret.CCError(); ccErr != nil {
+		return nil, ccErr
 	}
 
 	return &ret.Data, nil
 }
 
+// UpdateServiceCategory TODO
 func (p *process) UpdateServiceCategory(ctx context.Context, h http.Header, categoryID int64, category *metadata.ServiceCategory) (*metadata.ServiceCategory, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceCategoryResult)
 	subPath := "/update/process/service_category/%d"
@@ -111,6 +117,7 @@ func (p *process) UpdateServiceCategory(ctx context.Context, h http.Header, cate
 	return &ret.Data, nil
 }
 
+// DeleteServiceCategory TODO
 func (p *process) DeleteServiceCategory(ctx context.Context, h http.Header, categoryID int64) errors.CCErrorCoder {
 	ret := new(metadata.OneServiceCategoryResult)
 	subPath := "/delete/process/service_category/%d"
@@ -133,6 +140,7 @@ func (p *process) DeleteServiceCategory(ctx context.Context, h http.Header, cate
 	return nil
 }
 
+// ListServiceCategories TODO
 func (p *process) ListServiceCategories(ctx context.Context, h http.Header, option metadata.ListServiceCategoriesOption) (*metadata.MultipleServiceCategoryWithStatistics, errors.CCErrorCoder) {
 	ret := new(metadata.MultipleServiceCategoryWithStatisticsResult)
 	subPath := "/findmany/process/service_category"
@@ -156,6 +164,7 @@ func (p *process) ListServiceCategories(ctx context.Context, h http.Header, opti
 	return &ret.Data, nil
 }
 
+// CreateServiceTemplate TODO
 /*
 	service template api
 */
@@ -182,6 +191,7 @@ func (p *process) CreateServiceTemplate(ctx context.Context, h http.Header, temp
 	return &ret.Data, nil
 }
 
+// ListServiceTemplateDetail TODO
 func (p *process) ListServiceTemplateDetail(ctx context.Context, h http.Header, bizID int64, templateIDs ...int64) (metadata.MultipleServiceTemplateDetail, errors.CCErrorCoder) {
 	ret := new(metadata.MultipleServiceTemplateDetailResult)
 	subPath := "/findmany/process/service_template/detail/bk_biz_id/%d"
@@ -208,6 +218,7 @@ func (p *process) ListServiceTemplateDetail(ctx context.Context, h http.Header, 
 	return ret.Data, nil
 }
 
+// GetServiceTemplateWithStatistics TODO
 func (p *process) GetServiceTemplateWithStatistics(ctx context.Context, h http.Header, templateID int64) (*metadata.ServiceTemplateWithStatistics, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceTemplateWithStatisticsResult)
 	subPath := "/find/process/service_template/%d/with_statistics"
@@ -230,6 +241,7 @@ func (p *process) GetServiceTemplateWithStatistics(ctx context.Context, h http.H
 	return &ret.Data, nil
 }
 
+// GetServiceTemplate TODO
 func (p *process) GetServiceTemplate(ctx context.Context, h http.Header, templateID int64) (*metadata.ServiceTemplate, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceTemplateResult)
 	subPath := "/find/process/service_template/%d"
@@ -252,6 +264,7 @@ func (p *process) GetServiceTemplate(ctx context.Context, h http.Header, templat
 	return &ret.Data, nil
 }
 
+// UpdateServiceTemplate TODO
 func (p *process) UpdateServiceTemplate(ctx context.Context, h http.Header, templateID int64, template *metadata.ServiceTemplate) (*metadata.ServiceTemplate, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceTemplateResult)
 	subPath := "/update/process/service_template/%d"
@@ -265,7 +278,6 @@ func (p *process) UpdateServiceTemplate(ctx context.Context, h http.Header, temp
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("UpdateServiceTemplate failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
 	if ret.CCError() != nil {
@@ -275,6 +287,31 @@ func (p *process) UpdateServiceTemplate(ctx context.Context, h http.Header, temp
 	return &ret.Data, nil
 }
 
+// UpdateBatchServiceTemplate batch update service template action
+func (p *process) UpdateBatchServiceTemplate(ctx context.Context, h http.Header,
+	option *metadata.UpdateOption) errors.CCErrorCoder {
+	ret := new(metadata.BaseResp)
+	subPath := "/update/batch/process/service_templates"
+
+	err := p.client.Put().
+		WithContext(ctx).
+		Body(option).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(ret)
+
+	if err != nil {
+		return errors.CCHttpError
+	}
+	if ret.CCError() != nil {
+		return ret.CCError()
+	}
+
+	return nil
+}
+
+// DeleteServiceTemplate TODO
 func (p *process) DeleteServiceTemplate(ctx context.Context, h http.Header, templateID int64) errors.CCErrorCoder {
 	ret := new(metadata.OneServiceTemplateResult)
 	subPath := "/delete/process/service_template/%d"
@@ -297,7 +334,10 @@ func (p *process) DeleteServiceTemplate(ctx context.Context, h http.Header, temp
 	return nil
 }
 
-func (p *process) ListServiceTemplates(ctx context.Context, h http.Header, option *metadata.ListServiceTemplateOption) (*metadata.MultipleServiceTemplate, errors.CCErrorCoder) {
+// ListServiceTemplates search service templates
+func (p *process) ListServiceTemplates(ctx context.Context, h http.Header, option *metadata.ListServiceTemplateOption) (
+	*metadata.MultipleServiceTemplate, errors.CCErrorCoder) {
+
 	ret := new(metadata.MultipleServiceTemplateResult)
 	subPath := "/findmany/process/service_template"
 
@@ -310,16 +350,17 @@ func (p *process) ListServiceTemplates(ctx context.Context, h http.Header, optio
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("ListServiceTemplates failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
-	if ret.CCError() != nil {
-		return nil, ret.CCError()
+
+	if ccErr := ret.CCError(); ccErr != nil {
+		return nil, ccErr
 	}
 
 	return &ret.Data, nil
 }
 
+// CreateProcessTemplate TODO
 func (p *process) CreateProcessTemplate(ctx context.Context, h http.Header, template *metadata.ProcessTemplate) (*metadata.ProcessTemplate, errors.CCErrorCoder) {
 	ret := new(metadata.OneProcessTemplateResult)
 	subPath := "/create/process/process_template"
@@ -343,6 +384,7 @@ func (p *process) CreateProcessTemplate(ctx context.Context, h http.Header, temp
 	return &ret.Data, nil
 }
 
+// GetProcessTemplate TODO
 func (p *process) GetProcessTemplate(ctx context.Context, h http.Header, templateID int64) (*metadata.ProcessTemplate, errors.CCErrorCoder) {
 	ret := new(metadata.OneProcessTemplateResult)
 	subPath := "/find/process/process_template/%d"
@@ -365,7 +407,10 @@ func (p *process) GetProcessTemplate(ctx context.Context, h http.Header, templat
 	return &ret.Data, nil
 }
 
-func (p *process) UpdateProcessTemplate(ctx context.Context, h http.Header, templateID int64, property map[string]interface{}) (*metadata.ProcessTemplate, errors.CCErrorCoder) {
+// UpdateProcessTemplate TODO
+func (p *process) UpdateProcessTemplate(ctx context.Context, h http.Header, templateID int64,
+	property map[string]interface{}) (*metadata.ProcessTemplate, errors.CCErrorCoder) {
+
 	ret := new(metadata.OneProcessTemplateResult)
 	subPath := "/update/process/process_template/%d"
 
@@ -378,7 +423,6 @@ func (p *process) UpdateProcessTemplate(ctx context.Context, h http.Header, temp
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("UpdateProcessTemplate failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
 	if ret.CCError() != nil {
@@ -388,6 +432,7 @@ func (p *process) UpdateProcessTemplate(ctx context.Context, h http.Header, temp
 	return &ret.Data, nil
 }
 
+// DeleteProcessTemplate TODO
 func (p *process) DeleteProcessTemplate(ctx context.Context, h http.Header, templateID int64) errors.CCErrorCoder {
 	ret := new(metadata.OneProcessTemplateResult)
 	subPath := "/delete/process/process_template/%d"
@@ -410,6 +455,7 @@ func (p *process) DeleteProcessTemplate(ctx context.Context, h http.Header, temp
 	return nil
 }
 
+// DeleteProcessTemplateBatch TODO
 func (p *process) DeleteProcessTemplateBatch(ctx context.Context, h http.Header, templateIDs []int64) errors.CCErrorCoder {
 	ret := new(metadata.OneProcessTemplateResult)
 	subPath := "/delete/process/process_template"
@@ -437,6 +483,7 @@ func (p *process) DeleteProcessTemplateBatch(ctx context.Context, h http.Header,
 	return nil
 }
 
+// ListProcessTemplates TODO
 func (p *process) ListProcessTemplates(ctx context.Context, h http.Header, option *metadata.ListProcessTemplatesOption) (*metadata.MultipleProcessTemplate, errors.CCErrorCoder) {
 	ret := new(metadata.MultipleProcessTemplateResult)
 	subPath := "/findmany/process/process_template"
@@ -460,6 +507,7 @@ func (p *process) ListProcessTemplates(ctx context.Context, h http.Header, optio
 	return &ret.Data, nil
 }
 
+// CreateServiceInstance TODO
 /*
 	service instance api
 */
@@ -486,6 +534,7 @@ func (p *process) CreateServiceInstance(ctx context.Context, h http.Header, inst
 	return &ret.Data, nil
 }
 
+// CreateServiceInstances TODO
 func (p *process) CreateServiceInstances(ctx context.Context, h http.Header, instances []*metadata.ServiceInstance) ([]*metadata.ServiceInstance, errors.CCErrorCoder) {
 	ret := new(metadata.ManyServiceInstanceResult)
 	subPath := "/createmany/process/service_instance"
@@ -509,6 +558,7 @@ func (p *process) CreateServiceInstances(ctx context.Context, h http.Header, ins
 	return ret.Data, nil
 }
 
+// GetServiceInstance TODO
 func (p *process) GetServiceInstance(ctx context.Context, h http.Header, instanceID int64) (*metadata.ServiceInstance, errors.CCErrorCoder) {
 	ret := new(metadata.OneServiceInstanceResult)
 	subPath := "/find/process/service_instance/%d"
@@ -531,6 +581,7 @@ func (p *process) GetServiceInstance(ctx context.Context, h http.Header, instanc
 	return &ret.Data, nil
 }
 
+// UpdateServiceInstances TODO
 func (p *process) UpdateServiceInstances(ctx context.Context, h http.Header, bizID int64, option *metadata.UpdateServiceInstanceOption) errors.CCErrorCoder {
 	ret := new(metadata.OneServiceInstanceResult)
 	subPath := "/updatemany/process/service_instance/biz/%d"
@@ -554,6 +605,7 @@ func (p *process) UpdateServiceInstances(ctx context.Context, h http.Header, biz
 	return nil
 }
 
+// DeleteServiceInstance TODO
 func (p *process) DeleteServiceInstance(ctx context.Context, h http.Header, option *metadata.CoreDeleteServiceInstanceOption) errors.CCErrorCoder {
 	ret := new(metadata.OneServiceInstanceResult)
 	subPath := "/delete/process/service_instance"
@@ -577,7 +629,10 @@ func (p *process) DeleteServiceInstance(ctx context.Context, h http.Header, opti
 	return nil
 }
 
-func (p *process) ListServiceInstance(ctx context.Context, h http.Header, option *metadata.ListServiceInstanceOption) (*metadata.MultipleServiceInstance, errors.CCErrorCoder) {
+// ListServiceInstance search service inst
+func (p *process) ListServiceInstance(ctx context.Context, h http.Header, option *metadata.ListServiceInstanceOption) (
+	*metadata.MultipleServiceInstance, errors.CCErrorCoder) {
+
 	ret := new(metadata.MultipleServiceInstanceResult)
 	subPath := "/findmany/process/service_instance"
 
@@ -590,16 +645,17 @@ func (p *process) ListServiceInstance(ctx context.Context, h http.Header, option
 		Into(ret)
 
 	if err != nil {
-		blog.Errorf("ListServiceInstance failed, http request failed, err: %+v", err)
 		return nil, errors.CCHttpError
 	}
-	if ret.CCError() != nil {
-		return nil, ret.CCError()
+
+	if ccErr := ret.CCError(); ccErr != nil {
+		return nil, ccErr
 	}
 
 	return &ret.Data, nil
 }
 
+// ListServiceInstanceDetail TODO
 func (p *process) ListServiceInstanceDetail(ctx context.Context, h http.Header, option *metadata.ListServiceInstanceDetailOption) (*metadata.MultipleServiceInstanceDetail, errors.CCErrorCoder) {
 	ret := new(metadata.MultipleServiceInstanceDetailResult)
 	subPath := "/findmany/process/service_instance/details"
@@ -623,6 +679,7 @@ func (p *process) ListServiceInstanceDetail(ctx context.Context, h http.Header, 
 	return &ret.Data, nil
 }
 
+// CreateProcessInstanceRelation TODO
 /*
 	process instance relation api
 */
@@ -649,6 +706,7 @@ func (p *process) CreateProcessInstanceRelation(ctx context.Context, h http.Head
 	return &ret.Data, nil
 }
 
+// CreateProcessInstanceRelations TODO
 func (p *process) CreateProcessInstanceRelations(ctx context.Context, h http.Header, relations []*metadata.ProcessInstanceRelation) ([]*metadata.ProcessInstanceRelation, errors.CCErrorCoder) {
 	ret := new(metadata.ManyProcessInstanceRelationResult)
 	subPath := "/createmany/process/process_instance_relation"
@@ -672,6 +730,7 @@ func (p *process) CreateProcessInstanceRelations(ctx context.Context, h http.Hea
 	return ret.Data, nil
 }
 
+// GetProcessInstanceRelation TODO
 func (p *process) GetProcessInstanceRelation(ctx context.Context, h http.Header, processID int64) (*metadata.ProcessInstanceRelation, errors.CCErrorCoder) {
 	ret := new(metadata.OneProcessInstanceRelationResult)
 	subPath := "/find/process/process_instance_relation/%d"
@@ -694,6 +753,7 @@ func (p *process) GetProcessInstanceRelation(ctx context.Context, h http.Header,
 	return &ret.Data, nil
 }
 
+// UpdateProcessInstanceRelation TODO
 func (p *process) UpdateProcessInstanceRelation(ctx context.Context, h http.Header, instanceID int64, instance *metadata.ProcessInstanceRelation) (*metadata.ProcessInstanceRelation, errors.CCErrorCoder) {
 	ret := new(metadata.OneProcessInstanceRelationResult)
 	subPath := "/update/process/process_instance_relation/%d"
@@ -717,6 +777,7 @@ func (p *process) UpdateProcessInstanceRelation(ctx context.Context, h http.Head
 	return &ret.Data, nil
 }
 
+// DeleteProcessInstanceRelation TODO
 func (p *process) DeleteProcessInstanceRelation(ctx context.Context, h http.Header, option metadata.DeleteProcessInstanceRelationOption) errors.CCErrorCoder {
 	ret := new(metadata.OneProcessInstanceRelationResult)
 	subPath := "/delete/process/process_instance_relation"
@@ -740,6 +801,7 @@ func (p *process) DeleteProcessInstanceRelation(ctx context.Context, h http.Head
 	return nil
 }
 
+// ListProcessInstanceRelation TODO
 func (p *process) ListProcessInstanceRelation(ctx context.Context, h http.Header, option *metadata.ListProcessInstanceRelationOption) (*metadata.MultipleProcessInstanceRelation, errors.CCErrorCoder) {
 	ret := new(metadata.MultipleProcessInstanceRelationResult)
 	subPath := "/findmany/process/process_instance_relation"
@@ -763,6 +825,7 @@ func (p *process) ListProcessInstanceRelation(ctx context.Context, h http.Header
 	return &ret.Data, nil
 }
 
+// GetBusinessDefaultSetModuleInfo TODO
 func (p *process) GetBusinessDefaultSetModuleInfo(ctx context.Context, h http.Header, bizID int64) (metadata.BusinessDefaultSetModuleInfo, errors.CCErrorCoder) {
 	ret := new(metadata.BusinessDefaultSetModuleInfoResult)
 	subPath := "/find/process/business_default_set_module_info/%d"
@@ -786,6 +849,7 @@ func (p *process) GetBusinessDefaultSetModuleInfo(ctx context.Context, h http.He
 	return ret.Data, nil
 }
 
+// RemoveTemplateBindingOnModule TODO
 func (p *process) RemoveTemplateBindingOnModule(ctx context.Context, h http.Header, moduleID int64) (*metadata.RemoveTemplateBoundOnModuleResult, errors.CCErrorCoder) {
 	ret := new(metadata.RemoveTemplateBoundOnModuleResult)
 	subPath := "/delete/process/module_bound_template/%d"
@@ -808,6 +872,7 @@ func (p *process) RemoveTemplateBindingOnModule(ctx context.Context, h http.Head
 	return nil, nil
 }
 
+// ConstructServiceInstanceName TODO
 func (p *process) ConstructServiceInstanceName(ctx context.Context, h http.Header, params *metadata.SrvInstNameParams) errors.CCErrorCoder {
 	ret := new(metadata.RemoveTemplateBoundOnModuleResult)
 	subPath := "/update/process/service_instance_name"
@@ -831,6 +896,7 @@ func (p *process) ConstructServiceInstanceName(ctx context.Context, h http.Heade
 	return nil
 }
 
+// ReconstructServiceInstanceName TODO
 func (p *process) ReconstructServiceInstanceName(ctx context.Context, h http.Header, instanceID int64) errors.CCErrorCoder {
 	ret := new(metadata.RemoveTemplateBoundOnModuleResult)
 	subPath := "/update/process/service_instance_name/%d"
@@ -851,4 +917,104 @@ func (p *process) ReconstructServiceInstanceName(ctx context.Context, h http.Hea
 	}
 
 	return nil
+}
+
+// CreateServiceTemplateAttrs create service template attributes, returns the attribute ids
+func (p *process) CreateServiceTemplateAttrs(ctx context.Context, h http.Header,
+	option *metadata.CreateSvcTempAttrsOption) ([]int64, errors.CCErrorCoder) {
+
+	resp := new(metadata.CreateBatchResult)
+	subPath := "/createmany/process/service_template_attribute"
+
+	err := p.client.Post().
+		WithContext(ctx).
+		Body(option).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(resp)
+
+	if err != nil {
+		return nil, errors.CCHttpError
+	}
+	if resp.CCError() != nil {
+		return nil, resp.CCError()
+	}
+
+	return resp.Data.IDs, nil
+}
+
+// UpdateServiceTemplateAttribute update service template attribute
+func (p *process) UpdateServiceTemplateAttribute(ctx context.Context, h http.Header,
+	option *metadata.UpdateServTempAttrOption) errors.CCErrorCoder {
+
+	ret := new(metadata.BaseResp)
+	subPath := "/update/service_template/attribute"
+
+	err := p.client.Put().
+		WithContext(ctx).
+		Body(option).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(ret)
+
+	if err != nil {
+		return errors.CCHttpError
+	}
+	if ret.CCError() != nil {
+		return ret.CCError()
+	}
+
+	return nil
+}
+
+// DeleteServiceTemplateAttribute delete service template attribute
+func (p *process) DeleteServiceTemplateAttribute(ctx context.Context, h http.Header,
+	option *metadata.DeleteServTempAttrOption) errors.CCErrorCoder {
+
+	ret := new(metadata.BaseResp)
+	subPath := "/delete/service_template/attribute"
+
+	err := p.client.Delete().
+		WithContext(ctx).
+		Body(option).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(ret)
+
+	if err != nil {
+		return errors.CCHttpError
+	}
+	if ret.CCError() != nil {
+		return ret.CCError()
+	}
+
+	return nil
+}
+
+// ListServiceTemplateAttribute list service Template Attribute
+func (p *process) ListServiceTemplateAttribute(ctx context.Context, h http.Header,
+	option *metadata.ListServTempAttrOption) (*metadata.ServTempAttrData, errors.CCErrorCoder) {
+
+	ret := new(metadata.ServiceTemplateAttributeResult)
+	subPath := "/findmany/service_template/attribute"
+
+	err := p.client.Post().
+		WithContext(ctx).
+		Body(option).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(ret)
+
+	if err != nil {
+		return nil, errors.CCHttpError
+	}
+	if ret.CCError() != nil {
+		return nil, ret.CCError()
+	}
+
+	return ret.Data, nil
 }

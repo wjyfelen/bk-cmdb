@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package parser TODO
 package parser
 
 import (
@@ -24,9 +25,10 @@ import (
 	"configcenter/src/common/backbone"
 	"configcenter/src/common/util"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
+// ParseAttribute TODO
 func ParseAttribute(req *restful.Request, engine *backbone.Engine) (*meta.AuthAttribute, error) {
 	elements, err := urlParse(req.Request.URL.Path)
 	if err != nil {
@@ -69,6 +71,7 @@ func ParseCommonInfo(requestHeader *http.Header) (*meta.CommonInfo, error) {
 	return commonInfo, nil
 }
 
+// ParseUserInfo TODO
 func ParseUserInfo(requestHeader *http.Header) (*meta.UserInfo, error) {
 	userInfo := new(meta.UserInfo)
 	user := requestHeader.Get(common.BKHTTPHeaderUser)

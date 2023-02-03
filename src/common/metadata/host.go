@@ -28,9 +28,11 @@ import (
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
+// HostMapStr TODO
 // host map with string type ip and operator, can only get host from db with this map
 type HostMapStr map[string]interface{}
 
+// UnmarshalBSON TODO
 func (h *HostMapStr) UnmarshalBSON(b []byte) error {
 	if h == nil {
 		return bsonx.ErrNilDocument
@@ -70,6 +72,18 @@ func (h *HostMapStr) UnmarshalBSON(b []byte) error {
 				return err
 			}
 			(*h)[common.BKBakOperatorField] = string(bakOperator)
+		case common.BKHostInnerIPv6Field:
+			innerIPv6, err := parseBsonStringArrayValueToString(rawValue)
+			if err != nil {
+				return err
+			}
+			(*h)[common.BKHostInnerIPv6Field] = string(innerIPv6)
+		case common.BKHostOuterIPv6Field:
+			outerIPv6, err := parseBsonStringArrayValueToString(rawValue)
+			if err != nil {
+				return err
+			}
+			(*h)[common.BKHostOuterIPv6Field] = string(outerIPv6)
 		default:
 			dc := bsoncodec.DecodeContext{Registry: bson.DefaultRegistry}
 			vr := bsonrw.NewBSONValueReader(rawValue.Type, rawValue.Data)
@@ -122,9 +136,11 @@ func parseBsonStringArrayValueToString(value bsoncore.Value) ([]byte, error) {
 	}
 }
 
+// StringArrayToString TODO
 // special field whose string array value is parsed into string value from db
 type StringArrayToString string
 
+// UnmarshalBSONValue TODO
 func (s *StringArrayToString) UnmarshalBSONValue(typo bsontype.Type, raw []byte) error {
 	if s == nil {
 		return bsonx.ErrNilDocument
@@ -141,11 +157,16 @@ func (s *StringArrayToString) UnmarshalBSONValue(typo bsontype.Type, raw []byte)
 	return err
 }
 
-var specialFields = []string{common.BKHostInnerIPField, common.BKHostOuterIPField, common.BKOperatorField, common.BKBakOperatorField}
+// HostSpecialFields Special fields in the host attribute, in order to fuzzy query the following fields are stored in
+// the database as an array.
+var HostSpecialFields = []string{common.BKHostInnerIPField, common.BKHostOuterIPField, common.BKOperatorField,
+	common.BKBakOperatorField, common.BKHostInnerIPv6Field, common.BKHostOuterIPv6Field}
 
+// ConvertHostSpecialStringToArray TODO
 // convert host ip and operator fields value from string to array
+// NOTICE: if host special value is empty, convert it to null to trespass the unique check, **do not change this logic**
 func ConvertHostSpecialStringToArray(host map[string]interface{}) map[string]interface{} {
-	for _, field := range specialFields {
+	for _, field := range HostSpecialFields {
 		value, ok := host[field]
 		if !ok {
 			continue

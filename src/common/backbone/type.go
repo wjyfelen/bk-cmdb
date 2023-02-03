@@ -16,32 +16,22 @@ import (
 	"net/http"
 
 	"configcenter/src/apimachinery"
+	"configcenter/src/apimachinery/util"
 	"configcenter/src/common/types"
 )
 
+// Config TODO
 type Config struct {
 	RegisterPath string
 	RegisterInfo types.ServerInfo
 	CoreAPI      apimachinery.ClientSetInterface
 }
 
+// Server TODO
 type Server struct {
 	ListenAddr   string
 	ListenPort   uint
 	Handler      http.Handler
-	TLS          TLSConfig
+	TLS          *util.TLSClientConfig
 	PProfEnabled bool
-}
-
-type TLSConfig struct {
-	// Server should be accessed without verifying the TLS certificate. For testing only.
-	InsecureSkipVerify bool
-	// Server requires TLS client certificate authentication
-	CertFile string
-	// Server requires TLS client certificate authentication
-	KeyFile string
-	// Trusted root certificates for server
-	CAFile string
-	// the password to decrypt the certificate
-	Password string
 }

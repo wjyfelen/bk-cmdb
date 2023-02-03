@@ -17,7 +17,7 @@ import (
 
 	"configcenter/src/common/http/rest"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 func (s *coreService) initProcess(web *restful.WebService) {
@@ -41,6 +41,10 @@ func (s *coreService) initProcess(web *restful.WebService) {
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/process/service_template/detail/bk_biz_id/{bk_biz_id}", Handler: s.ListServiceTemplateDetail})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/process/service_template", Handler: s.ListServiceTemplates})
 	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/update/process/service_template/{service_template_id}", Handler: s.UpdateServiceTemplate})
+	utility.AddHandler(rest.Action{Verb: http.MethodPut,
+		Path:    "/update/batch/process/service_templates",
+		Handler: s.UpdateBatchServiceTemplates})
+
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/delete/process/service_template/{service_template_id}", Handler: s.DeleteServiceTemplate})
 
 	// service instance
@@ -72,6 +76,16 @@ func (s *coreService) initProcess(web *restful.WebService) {
 
 	utility.AddHandler(rest.Action{Verb: http.MethodGet, Path: "/find/process/business_default_set_module_info/{bk_biz_id}", Handler: s.GetBusinessDefaultSetModuleInfo})
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/delete/process/module_bound_template/{bk_module_id}", Handler: s.RemoveTemplateBindingOnModule})
+
+	// service template attribute
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/createmany/process/service_template_attribute",
+		Handler: s.CreateServiceTemplateAttrs})
+	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/update/service_template/attribute",
+		Handler: s.UpdateServiceTemplateAttribute})
+	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/delete/service_template/attribute",
+		Handler: s.DeleteServiceTemplateAttribute})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/service_template/attribute",
+		Handler: s.ListServiceTemplateAttribute})
 
 	utility.AddToRestfulWebService(web)
 }

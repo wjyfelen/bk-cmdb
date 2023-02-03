@@ -10,7 +10,8 @@
  * limitations under the License.
  */
 
-package auditlog
+// Package system TODO
+package system
 
 import (
 	"context"
@@ -21,12 +22,16 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// SystemClientInterface TODO
 type SystemClientInterface interface {
 	GetUserConfig(ctx context.Context, h http.Header) (*metadata.ResponseSysUserConfigData, errors.CCErrorCoder)
-
 	SearchConfigAdmin(ctx context.Context, h http.Header) (*metadata.ConfigAdminResult, error)
+	SearchPlatformSetting(ctx context.Context, h http.Header) (*metadata.PlatformSettingResult, error)
+	UpdatePlatformSetting(ctx context.Context, h http.Header, input *metadata.PlatformSettingConfig) (
+		*metadata.BaseResp, error)
 }
 
+// NewSystemClientInterface TODO
 func NewSystemClientInterface(client rest.ClientInterface) SystemClientInterface {
 	return &system{client: client}
 }

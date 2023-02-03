@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package topology TODO
 package topology
 
 import (
@@ -29,6 +30,7 @@ import (
 	"configcenter/src/storage/stream"
 )
 
+// NewTopology TODO
 func NewTopology(isMaster discovery.ServiceManageInterface, loopW stream.LoopInterface) (*Topology, error) {
 
 	t := &Topology{
@@ -59,6 +61,7 @@ func NewTopology(isMaster discovery.ServiceManageInterface, loopW stream.LoopInt
 	return t, nil
 }
 
+// Topology TODO
 type Topology struct {
 	db          dal.DB
 	rds         redis.Client
@@ -118,7 +121,7 @@ func (t *Topology) refreshBatch(bizList []int64, rid string) error {
 // refreshBizTopology construct a business Topology and update it to cache.
 func (t *Topology) refreshBizTopology(biz *BizBase, rid string) error {
 	ctx := context.WithValue(context.TODO(), common.ContextRequestIDField, rid)
-	idle, common, err := t.getBusinessTopology(ctx, biz.ID)
+	idle, common, err := t.getBusinessTopology(ctx, biz.ID, biz.OwnerID)
 	if err != nil {
 		blog.Error("refresh biz %d/%s topology, but get topology failed, err: %v, rid: %s", biz.ID, biz.Name, err, rid)
 		return err

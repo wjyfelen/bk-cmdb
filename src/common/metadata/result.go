@@ -36,6 +36,7 @@ func (br *BaseResp) CCError() errors.CCErrorCoder {
 	return errors.New(br.Code, br.ErrMsg)
 }
 
+// Error 用于错误处理
 // New 根据response返回的信息产生错误
 func (br *BaseResp) Error() error {
 	if br.Result {
@@ -44,6 +45,7 @@ func (br *BaseResp) Error() error {
 	return errors.New(br.Code, br.ErrMsg)
 }
 
+// ToString TODO
 func (br *BaseResp) ToString() string {
 	return fmt.Sprintf("code:%d, message:%s", br.Code, br.ErrMsg)
 }
@@ -62,24 +64,28 @@ type JsonCntInfoResp struct {
 	Data CntInfoString `json:"data"`
 }
 
+// CntInfoString TODO
 type CntInfoString struct {
 	Count int64 `json:"count"`
 	// info is a json array string field.
 	Info string `json:"info"`
 }
 
+// IamPermission TODO
 type IamPermission struct {
 	SystemID   string      `json:"system_id"`
 	SystemName string      `json:"system_name"`
 	Actions    []IamAction `json:"actions"`
 }
 
+// IamAction TODO
 type IamAction struct {
 	ID                   string            `json:"id"`
 	Name                 string            `json:"name"`
 	RelatedResourceTypes []IamResourceType `json:"related_resource_types"`
 }
 
+// IamResourceType TODO
 type IamResourceType struct {
 	SystemID   string                  `json:"system_id"`
 	SystemName string                  `json:"system_name"`
@@ -89,6 +95,7 @@ type IamResourceType struct {
 	Attributes []IamResourceAttribute  `json:"attributes,omitempty"`
 }
 
+// IamResourceInstance TODO
 type IamResourceInstance struct {
 	Type     string `json:"type"`
 	TypeName string `json:"type_name"`
@@ -96,15 +103,18 @@ type IamResourceInstance struct {
 	Name     string `json:"name"`
 }
 
+// IamResourceAttribute TODO
 type IamResourceAttribute struct {
 	ID     string                      `json:"id"`
 	Values []IamResourceAttributeValue `json:"values"`
 }
 
+// IamResourceAttributeValue TODO
 type IamResourceAttributeValue struct {
 	ID string `json:"id"`
 }
 
+// IamInstanceWithCreator TODO
 type IamInstanceWithCreator struct {
 	System    string                `json:"system"`
 	Type      string                `json:"type"`
@@ -114,30 +124,75 @@ type IamInstanceWithCreator struct {
 	Ancestors []IamInstanceAncestor `json:"ancestors,omitempty"`
 }
 
-type IamInstancesWithCreator struct {
+// IamInstances iam instances
+type IamInstances struct {
 	System    string        `json:"system"`
 	Type      string        `json:"type"`
-	Creator   string        `json:"creator"`
 	Instances []IamInstance `json:"instances"`
 }
 
+// IamInstancesWithCreator iam instances with creator
+type IamInstancesWithCreator struct {
+	IamInstances `json:",inline"`
+	Creator      string `json:"creator"`
+}
+
+// IamInstance TODO
 type IamInstance struct {
 	ID        string                `json:"id"`
 	Name      string                `json:"name"`
 	Ancestors []IamInstanceAncestor `json:"ancestors,omitempty"`
 }
 
+// IamInstanceAncestor TODO
 type IamInstanceAncestor struct {
 	System string `json:"system"`
 	Type   string `json:"type"`
 	ID     string `json:"id"`
 }
 
+// IamCreatorActionPolicy TODO
 type IamCreatorActionPolicy struct {
-	Action struct {
-		ID string `json:"id"`
-	} `json:"action"`
-	PolicyID int64 `json:"policy_id"`
+	Action   ActionWithID `json:"action"`
+	PolicyID int64        `json:"policy_id"`
+}
+
+// ActionWithID iam creator action with only action id
+type ActionWithID struct {
+	ID string `json:"id"`
+}
+
+// IamBatchOperateInstanceAuthReq batch grant or revoke iam instance auth request
+type IamBatchOperateInstanceAuthReq struct {
+	Asynchronous bool             `json:"asynchronous"`
+	Operate      IamAuthOperation `json:"operate"`
+	System       string           `json:"system"`
+	Actions      []ActionWithID   `json:"actions"`
+	Subject      IamSubject       `json:"subject"`
+	Resources    []IamInstances   `json:"resources"`
+	ExpiredAt    int64            `json:"expired_at"`
+}
+
+// IamAuthOperation TODO
+type IamAuthOperation string
+
+const (
+	// IamGrantOperation TODO
+	IamGrantOperation = "grant"
+	// IamRevokeOperation TODO
+	IamRevokeOperation = "revoke"
+)
+
+// IamSubject iam subject that can be authorized, right now it represents user or user group
+type IamSubject struct {
+	Type string `json:"type"`
+	Id   string `json:"id"`
+}
+
+// IamBatchOperateInstanceAuthRes batch operate iam instance auth response
+type IamBatchOperateInstanceAuthRes struct {
+	Action   ActionWithID `json:"action"`
+	PolicyID int64        `json:"policy_id"`
 }
 
 // Permission  describes all the authorities that a user
@@ -160,6 +215,7 @@ type Permission struct {
 	Resources [][]Resource `json:"resources"`
 }
 
+// Resource TODO
 type Resource struct {
 	ResourceTypeName string `json:"resource_type_name"`
 	ResourceType     string `json:"resource_type"`
@@ -167,6 +223,7 @@ type Resource struct {
 	ResourceID       string `json:"resource_id"`
 }
 
+// NewNoPermissionResp TODO
 func NewNoPermissionResp(permission *IamPermission) BaseResp {
 	return BaseResp{
 		Result:      false,
@@ -179,11 +236,13 @@ func NewNoPermissionResp(permission *IamPermission) BaseResp {
 // SuccessBaseResp default result
 var SuccessBaseResp = BaseResp{Result: true, Code: common.CCSuccess, ErrMsg: common.CCSuccessStr}
 
+// SuccessResponse TODO
 type SuccessResponse struct {
 	BaseResp `json:",inline"`
 	Data     interface{} `json:"data"`
 }
 
+// NewSuccessResponse TODO
 func NewSuccessResponse(data interface{}) *SuccessResponse {
 	return &SuccessResponse{
 		BaseResp: SuccessBaseResp,
@@ -312,48 +371,64 @@ type SearchAssociationKindResult struct {
 	Info  []AssociationKind `json:"info"`
 }
 
+// QueryModelAssociationResult query model association result definition
+type QueryModelAssociationResult struct {
+	Count uint64        `json:"count"`
+	Info  []Association `json:"info"`
+}
+
+// QueryInstAssociationResult query inst association result definition
+type QueryInstAssociationResult struct {
+	Count uint64     `json:"count"`
+	Info  []InstAsst `json:"info"`
+}
+
 // ReadModelAttrResult  read model attribute api http response return result struct
 type ReadModelAttrResult struct {
 	BaseResp `json:",inline"`
 	Data     QueryModelAttributeDataResult `json:"data"`
 }
 
-// ReadModelClassifitionResult  read model classifition api http response return result struct
-type ReadModelClassifitionResult struct {
+// ReadModelClassificationResult  read model classification api http response return result struct
+type ReadModelClassificationResult struct {
 	BaseResp `json:",inline"`
 	Data     QueryModelClassificationDataResult `json:"data"`
 }
 
-// ReadModelResult  read model classifition api http response return result struct
-type ReadModelResult struct {
+// ReadModelWithAttributeResult  read model with its attributes api http response return result struct
+type ReadModelWithAttributeResult struct {
 	BaseResp `json:",inline"`
 	Data     QueryModelWithAttributeDataResult `json:"data"`
 }
 
+// ReadModelResult TODO
+type ReadModelResult struct {
+	BaseResp `json:",inline"`
+	Data     QueryModelDataResult `json:"data"`
+}
+
+// ReadModelAttributeGroupResult TODO
 type ReadModelAttributeGroupResult struct {
 	BaseResp `json:",inline"`
 	Data     QueryModelAttributeGroupDataResult `json:"data"`
 }
 
+// ReadModelUniqueResult TODO
 type ReadModelUniqueResult struct {
 	BaseResp `json:",inline"`
 	Data     QueryUniqueResult `json:"data"`
 }
 
+// ReadModelAssociationResult TODO
 type ReadModelAssociationResult struct {
-	BaseResp
-	Data struct {
-		Count uint64        `json:"count"`
-		Info  []Association `json:"info"`
-	}
+	BaseResp `json:",inline"`
+	Data     QueryModelAssociationResult `json:"data"`
 }
 
+// ReadInstAssociationResult TODO
 type ReadInstAssociationResult struct {
-	BaseResp
-	Data struct {
-		Count uint64     `json:"count"`
-		Info  []InstAsst `json:"info"`
-	}
+	BaseResp `json:",inline"`
+	Data     QueryInstAssociationResult `json:"data"`
 }
 
 // OperaterException  result
@@ -362,17 +437,27 @@ type OperaterException struct {
 	Data     []ExceptionResult `json:"data"`
 }
 
+// Uint64DataResponse TODO
 type Uint64DataResponse struct {
 	BaseResp `json:",inline"`
 	Data     uint64 `json:"data"`
 }
 
+// TransferException TODO
 type TransferException struct {
 	HostID []int64 `json:"bk_host_id"`
 	ErrMsg string  `json:"bk_error_msg"`
 }
 
+// TransferExceptionResult TODO
 type TransferExceptionResult struct {
 	BaseResp `json:",inline"`
 	Data     TransferException `json:"data"`
+}
+
+// SyncHostIdentifierResult sync host identifier result struct
+type SyncHostIdentifierResult struct {
+	SuccessList []int64 `json:"success_list"`
+	FailedList  []int64 `json:"failed_list"`
+	TaskID      string  `json:"task_id"`
 }

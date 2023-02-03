@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <cmdb-sticky-layout class="form-layout">
     <div class="form-groups" ref="formGroups">
@@ -21,13 +33,13 @@
                     <i class="property-name-tooltips icon-cc-tips"
                       v-if="property['placeholder']"
                       v-bk-tooltips="{
-                        trigger: 'click',
+                        trigger: 'mouseenter',
                         content: htmlEncode(property['placeholder'])
                       }">
                     </i>
                   </div>
                   <div :class="['property-value', { 'is-lock': values[property.bk_property_id].as_default_value }]">
-                    <component class="form-component" ref="formComponent"
+                    <component class="form-component" ref="formComponent" v-test-id
                       :is="getComponentType(property)"
                       :disabled="getPropertyEditStatus(property)"
                       :class="{ error: errors.has(property['bk_property_id']) }"
@@ -38,7 +50,8 @@
                       :data-vv-as="property['bk_property_name']"
                       :placeholder="getPlaceholder(property)"
                       :auto-select="false"
-                      v-validate="getValidateRules(property)"
+                      v-bind="$tools.getValidateEvents(property)"
+                      v-validate="$tools.getValidateRules(property)"
                       v-model.trim="values[property['bk_property_id']]['value']">
                     </component>
                     <span class="property-lock-state"
@@ -46,7 +59,7 @@
                       v-bk-tooltips="{
                         placement: 'top',
                         interactive: false,
-                        content: isLocked(property) ? $t('取消锁定') : $t('进程模板锁定提示语'),
+                        content: $t('进程模板加解锁提示语'),
                         delay: [100, 0]
                       }"
                       tabindex="-1"
@@ -68,15 +81,18 @@
       :class="{ sticky: sticky }">
       <slot name="form-options">
         <cmdb-auth :auth="auth">
-          <bk-button slot-scope="{ disabled }"
+          <bk-button slot-scope="{ disabled }" v-test-id="type === 'create' ? 'submit' : 'save'"
             class="button-save"
             theme="primary"
-            :disabled="saveDisabled || $loading() || disabled || btnStatus()"
+            :loading="$loading()"
+            :disabled="saveDisabled || disabled || btnStatus()"
             @click="handleSave">
             {{type === 'create' ? $t('提交') : $t('保存')}}
           </bk-button>
         </cmdb-auth>
-        <bk-button class="button-cancel" @click="handleCancel">{{$t('取消')}}</bk-button>
+        <bk-button class="button-cancel" @click="handleCancel" v-test-id="'cancel'">
+          {{$t('取消')}}
+        </bk-button>
       </slot>
       <slot name="extra-options"></slot>
     </div>
@@ -133,6 +149,11 @@
         default: data => data
       }
     },
+    provide() {
+      return {
+        type: this.type
+      }
+    },
     data() {
       return {
         values: {
@@ -140,7 +161,7 @@
         },
         refrenceValues: {},
         invisibleNameProperties: ['bind_info'],
-        defaultLocked: ['bk_func_name', 'bk_process_name', 'bind_info']
+        mustLocked: ['bk_func_name', 'bk_process_name', 'bind_info']
       }
     },
     computed: {
@@ -173,7 +194,7 @@
         return this.values[property.bk_property_id].as_default_value
       },
       allowLock(property) {
-        return !this.defaultLocked.includes(property.bk_property_id)
+        return !this.mustLocked.includes(property.bk_property_id)
       },
       toggleLockState(property) {
         this.values[property.bk_property_id].as_default_value = !this.isLocked(property)
@@ -186,7 +207,7 @@
         return `cmdb-form-${type}`
       },
       getPropertyEditStatus(property) {
-        const uneditable = ['bk_func_name', 'bk_process_name'].includes(property.bk_property_id) && !this.isCreatedService
+        const uneditable = ['bk_func_name'].includes(property.bk_property_id) && !this.isCreatedService
         return this.type === 'update' && uneditable
       },
       changedValues() {
@@ -219,12 +240,13 @@
         Object.keys(formValues).forEach((key) => {
           if (!has(this.inst, key)) {
             restValues[key] = {
-              as_default_value: this.defaultLocked.includes(key),
+              // 除必须锁定不能修改字段外，创建模式也默认为锁定
+              as_default_value: this.mustLocked.includes(key) || this.type === 'create',
               value: formValues[key]
             }
           }
         })
-        this.values = Object.assign({}, this.values, restValues, this.inst)
+        this.values = Object.assign({}, this.values, restValues, this.$tools.clone(this.inst))
         const timer = setTimeout(() => {
           this.refrenceValues = this.$tools.clone(this.values)
           clearTimeout(timer)
@@ -256,9 +278,6 @@
       getPlaceholder(property) {
         const placeholderTxt = ['enum', 'list'].includes(property.bk_property_type) ? '请选择xx' : '请输入xx'
         return this.$t(placeholderTxt, { name: property.bk_property_name })
-      },
-      getValidateRules(property) {
-        return this.$tools.getValidateRules(property)
       },
       getFormError(property) {
         if (property.bk_property_type === 'table') {

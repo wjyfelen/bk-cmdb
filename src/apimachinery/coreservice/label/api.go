@@ -23,6 +23,7 @@ import (
 	"configcenter/src/common/util"
 )
 
+// AddLabel TODO
 func (l *label) AddLabel(ctx context.Context, h http.Header, tableName string, option selector.LabelAddOption) errors.CCErrorCoder {
 	rid := util.ExtractRequestIDFromContext(ctx)
 	ret := new(metadata.BaseResp)
@@ -52,6 +53,7 @@ func (l *label) AddLabel(ctx context.Context, h http.Header, tableName string, o
 	return nil
 }
 
+// RemoveLabel TODO
 func (l *label) RemoveLabel(ctx context.Context, h http.Header, tableName string, option selector.LabelRemoveOption) errors.CCErrorCoder {
 	rid := util.ExtractRequestIDFromContext(ctx)
 	ret := new(metadata.BaseResp)
@@ -71,6 +73,34 @@ func (l *label) RemoveLabel(ctx context.Context, h http.Header, tableName string
 
 	if err != nil {
 		blog.Errorf("RemoveLabel failed, http request failed, err: %+v, rid: %s", err, rid)
+		return errors.CCHttpError
+	}
+	if ret.CCError() != nil {
+		return ret.CCError()
+	}
+
+	return nil
+}
+
+// UpdateLabel update service instance tag request.
+func (l *label) UpdateLabel(ctx context.Context, h http.Header, tableName string,
+	option *selector.LabelUpdateOption) errors.CCErrorCoder {
+	ret := new(metadata.BaseResp)
+	subPath := "/updatemany/labels"
+
+	body := selector.LabelUpdateRequest{
+		Option:    option,
+		TableName: tableName,
+	}
+	err := l.client.Post().
+		Body(body).
+		WithContext(ctx).
+		SubResourcef(subPath).
+		WithHeaders(h).
+		Do().
+		Into(ret)
+
+	if err != nil {
 		return errors.CCHttpError
 	}
 	if ret.CCError() != nil {

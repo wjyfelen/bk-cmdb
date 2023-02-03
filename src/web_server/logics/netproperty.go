@@ -30,11 +30,13 @@ import (
 	"github.com/rentiansheng/xlsx"
 )
 
+// GetImportNetProperty TODO
 func GetImportNetProperty(
-	header http.Header, defLang language.DefaultCCLanguageIf, f *xlsx.File) (map[int]map[string]interface{}, []string, error) {
+	header http.Header, defLang language.DefaultCCLanguageIf, f *xlsx.File) (map[int]map[string]interface{},
+	[]string, error) {
 	ctx := util.NewContextFromHTTPHeader(header)
 
-	if 0 == len(f.Sheets) {
+	if len(f.Sheets) == 0 {
 		return nil, nil, errors.New(defLang.Language("web_excel_content_empty"))
 	}
 
@@ -45,11 +47,14 @@ func GetImportNetProperty(
 		return nil, nil, errors.New(defLang.Language("web_excel_sheet_not_found"))
 	}
 
-	return GetExcelData(ctx, sheet, fields, nil, true, 0, defLang)
+	return GetExcelData(ctx, sheet, fields, nil, true, 0, defLang, nil)
 }
 
-func BuildNetPropertyExcelFromData(ctx context.Context, defLang language.DefaultCCLanguageIf, fields map[string]Property, data []mapstr.MapStr, sheet *xlsx.Sheet) error {
-	productExcelHeader(ctx, fields, nil, sheet, defLang)
+// BuildNetPropertyExcelFromData build net property data for excel
+func BuildNetPropertyExcelFromData(ctx context.Context, defLang language.DefaultCCLanguageIf,
+	fields map[string]Property, data []mapstr.MapStr, sheet *xlsx.Sheet, xlsxFile *xlsx.File) error {
+
+	productExcelHeader(ctx, fields, nil, xlsxFile, sheet, defLang)
 
 	rowIndex := common.HostAddMethodExcelIndexOffset
 	for _, row := range data {
@@ -62,6 +67,7 @@ func BuildNetPropertyExcelFromData(ctx context.Context, defLang language.Default
 	return nil
 }
 
+// GetNetPropertyData TODO
 // get net property data to export
 func (lgc *Logics) GetNetPropertyData(header http.Header, netPropertyIDStr string) ([]mapstr.MapStr, error) {
 	rid := util.GetHTTPCCRequestID(header)
@@ -104,23 +110,25 @@ func BuildNetPropertyExcelTemplate(header http.Header, defLang language.DefaultC
 	file = xlsx.NewFile()
 
 	sheet, err := file.AddSheet(common.BKNetProperty)
-	if nil != err {
-		blog.Errorf("[Build NetProperty Excel Template] add comment sheet error, sheet name:%s, error:%s, rid: %s", common.BKNetProperty, err.Error(), rid)
+	if err != nil {
+		blog.Errorf("[Build NetProperty Excel Template] add comment sheet error, sheet name: %s, err: %v, rid: %s",
+			common.BKNetProperty, err, rid)
 		return err
 	}
 
 	fields := GetNetPropertyField(defLang)
 
 	blog.V(5).Infof("[Build NetProperty Excel Template]  fields count:%d, rid: %s", len(fields), rid)
-	productExcelHeader(ctx, fields, nil, sheet, defLang)
+	productExcelHeader(ctx, fields, nil, file, sheet, defLang)
 
-	if err = file.Save(filename); nil != err {
+	if err = file.Save(filename); err != nil {
 		return err
 	}
 
 	return nil
 }
 
+// GetNetPropertyField TODO
 // get feild to import property or generate template
 func GetNetPropertyField(lang language.DefaultCCLanguageIf) map[string]Property {
 
@@ -148,6 +156,7 @@ func GetNetPropertyField(lang language.DefaultCCLanguageIf) map[string]Property 
 	}
 }
 
+// AddNetPropertyExtFields TODO
 // add extra feild to export property
 func AddNetPropertyExtFields(originField map[string]Property, lang language.DefaultCCLanguageIf) {
 

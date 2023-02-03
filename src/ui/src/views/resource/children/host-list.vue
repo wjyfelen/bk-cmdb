@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="resource-layout">
     <host-list-options></host-list-options>
@@ -37,6 +49,7 @@
             :value="row | hostValueFilter(property.bk_obj_id, property.bk_property_id)"
             :show-unit="false"
             :property="property"
+            :multiple="property.bk_obj_id !== 'host'"
             @click.native.stop="handleValueClick(row, property)">
           </cmdb-property-value>
         </template>
@@ -113,16 +126,14 @@
     watch: {
       scope() {
         this.setModuleNamePropertyState()
+      },
+      $route() {
+        this.initFilterStore()
       }
     },
     async created() {
       try {
-        setupFilterStore({
-          header: {
-            custom: this.$route.meta.customInstanceColumn,
-            global: 'host_global_custom_table_columns'
-          }
-        })
+        this.initFilterStore()
         this.setModuleNamePropertyState()
         this.unwatchRouter = RouterQuery.watch('*', ({
           scope = 1,
@@ -169,6 +180,17 @@
           // eslint-disable-next-line no-underscore-dangle
           settingReference && settingReference._tippy && settingReference._tippy.disable()
         }, 1000)
+      },
+      initFilterStore() {
+        const currentRouteName = this.$route.name
+        if (this.storageRouteName === currentRouteName) return
+        this.storageRouteName = currentRouteName
+        setupFilterStore({
+          header: {
+            custom: this.$route.meta.customInstanceColumn,
+            global: 'host_global_custom_table_columns'
+          }
+        })
       },
       setModuleNamePropertyState() {
         const property = this.moduleProperties.find(property => property.bk_property_id === 'bk_module_name')
@@ -337,9 +359,14 @@
         }
         ColumnsConfig.open({
           props: {
-            properties: FilterStore.properties.filter(property => property.bk_obj_id === 'host'
-              || (property.bk_obj_id === 'module' && property.bk_property_id === 'bk_module_name')
-              || (property.bk_obj_id === 'set' && property.bk_property_id === 'bk_set_name')),
+            properties: FilterStore.properties.filter((property) => {
+              const { bk_obj_id: objId, bk_property_id: propId } = property
+              const isHost = objId === 'host'
+              const isModuleName = objId === 'module' && propId === 'bk_module_name'
+              const isSetName = objId === 'set' && propId === 'bk_set_name'
+              const isBizName = objId === 'biz' && propId  === 'bk_biz_name'
+              return isHost || isModuleName || isSetName || isBizName
+            }),
             selected: FilterStore.defaultHeader.map(property => property.bk_property_id),
             disabledColumns: ['bk_host_id', 'bk_host_innerip', 'bk_cloud_id']
           },

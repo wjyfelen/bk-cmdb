@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <cmdb-sticky-layout class="form-layout">
     <div class="form-groups" v-if="hasAvaliableGroups" ref="formGroups">
@@ -27,7 +39,7 @@
                     <i class="property-name-tooltips icon icon-cc-tips"
                       v-if="property['placeholder']"
                       v-bk-tooltips="{
-                        trigger: 'click',
+                        trigger: 'mouseenter',
                         content: htmlEncode(property['placeholder'])
                       }">
                     </i>
@@ -43,6 +55,7 @@
                       :data-vv-name="property['bk_property_id']"
                       :auto-select="false"
                       :placeholder="getPlaceholder(property)"
+                      v-bind="$tools.getValidateEvents(property)"
                       v-validate="getValidateRules(property)"
                       v-model.trim="values[property['bk_property_id']]">
                     </component>
@@ -68,12 +81,13 @@
           <bk-button slot-scope="{ disabled }"
             class="button-save"
             theme="primary"
-            :disabled="disabled || !hasChange || $loading()"
+            :loading="loading || allValidating"
+            :disabled="disabled || !hasChange"
             @click="handleSave">
             {{$t('保存')}}
           </bk-button>
         </cmdb-auth>
-        <bk-button class="button-cancel" @click="handleCancel">{{$t('取消')}}</bk-button>
+        <bk-button class="button-cancel" :disabled="loading" @click="handleCancel">{{$t('取消')}}</bk-button>
       </slot>
     </div>
   </cmdb-sticky-layout>
@@ -88,11 +102,16 @@
       saveAuth: {
         type: [Object, Array],
         default: null
+      },
+      loading: {
+        type: Boolean,
+        default: false,
       }
     },
     data() {
       return {
         isMultiple: true,
+        allValidating: false,
         values: {},
         refrenceValues: {},
         editable: {},
@@ -205,6 +224,7 @@
         return this.$tools.formatValues(multipleValues, this.properties)
       },
       handleSave() {
+        this.allValidating = true
         this.$validator.validateAll().then((result) => {
           if (result) {
             this.$emit('on-submit', this.getMultipleValues())
@@ -212,6 +232,9 @@
             this.uncollapseGroup()
           }
         })
+          .finally(() => {
+            this.allValidating = false
+          })
       },
       uncollapseGroup() {
         this.errors.items.forEach((item) => {

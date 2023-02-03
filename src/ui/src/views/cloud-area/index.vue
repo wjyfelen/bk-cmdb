@@ -1,13 +1,29 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="cloud-area-layout">
     <cmdb-tips class="cloud-area-tips" tips-key="cloud-area-tips">
       <i18n path="云区域提示语">
-        <bk-button text size="small" place="resource" style="padding: 0" @click="linkResource">
-          {{$t('云资源发现')}}
-        </bk-button>
-        <bk-button text size="small" place="agent" style="padding: 0" @click="linkAgent">
-          {{$t('节点管理')}}
-        </bk-button>
+        <template #resource>
+          <bk-button text size="small" style="padding: 0" @click="linkResource">
+            {{$t('云资源发现')}}
+          </bk-button>
+        </template>
+        <template #agent>
+          <bk-button text size="small" style="padding: 0" @click="linkAgent">
+            {{$t('节点管理')}}
+          </bk-button>
+        </template>
       </i18n>
     </cmdb-tips>
     <div class="cloud-area-options">
@@ -46,8 +62,8 @@
             v-if="row === rowInEdit"
             :id="`input-${row.bk_cloud_id}`"
             :value="row.bk_cloud_name"
-            @enter="handleUpdateName(row, ...arguments)"
-            @blur="handleUpdateName(row, ...arguments)">
+            @enter="debounceUpdateName(row, ...arguments)"
+            @blur="debounceUpdateName(row, ...arguments)">
           </bk-input>
         </template>
       </bk-table-column>
@@ -112,6 +128,7 @@
   import CmdbVendor from '@/components/ui/other/vendor'
   import Loading from '@/components/loading/loading.vue'
   import throttle from 'lodash.throttle'
+  import debounce from 'lodash.debounce'
   import { MENU_RESOURCE_CLOUD_RESOURCE } from '@/dictionary/menu-symbol'
   import TaskRegionSelector from '@/views/cloud-resource/children/task-region-selector'
   export default {
@@ -131,6 +148,7 @@
           count: []
         },
         scheduleSearch: throttle(this.handlePageChange, 800, { leading: false, trailing: true }),
+        debounceUpdateName: debounce(this.handleUpdateName, 100, { leading: true, trailing: false }),
         rowInEdit: null
       }
     },
@@ -316,7 +334,7 @@
             app_url: urlSuffix
           }), '*')
         } else {
-          const agentAppUrl = window.CMDB_CONFIG.site.agent
+          const agentAppUrl = this.$Site.agent
           if (agentAppUrl) {
             window.open(agentAppUrl + urlSuffix)
           } else {

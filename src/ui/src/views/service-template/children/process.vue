@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="process-wrapper">
     <bk-table class="process-table"
@@ -24,7 +36,7 @@
       <bk-table-column :label="$t('操作')" prop="operation" v-if="showOperation">
         <template slot-scope="{ row, $index }">
           <cmdb-auth :auth="auth">
-            <bk-button slot-scope="{ disabled }"
+            <bk-button slot-scope="{ disabled }" v-test-id="'editProcess'"
               class="mr10"
               theme="primary"
               :disabled="disabled"
@@ -34,7 +46,7 @@
             </bk-button>
           </cmdb-auth>
           <cmdb-auth :auth="auth">
-            <bk-button slot-scope="{ disabled }"
+            <bk-button slot-scope="{ disabled }" v-test-id="'delProcess'"
               theme="primary"
               :disabled="disabled"
               :text="true"
@@ -51,6 +63,7 @@
 <script>
   import { processTableHeader } from '@/dictionary/table-header'
   import ProcessBindInfoValue from '@/components/service/process-bind-info-value'
+
   export default {
     components: {
       ProcessBindInfoValue
@@ -104,7 +117,6 @@
           result._original_ = template
           return result
         })
-        list.sort((prev, next) => prev.process_id - next.process_id)
         return list
       }
     },

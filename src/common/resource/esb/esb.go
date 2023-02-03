@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package esb TODO
 package esb
 
 import (
@@ -31,31 +32,29 @@ var (
 	tlsConfig     util.TLSClientConfig
 )
 
+// EsbClient TODO
 func EsbClient() esbserver.EsbClientInterface {
 	return esbClient
 }
 
-func ParseEsbConfig(prefix string) (*esbutil.EsbConfig, errors.CCErrorCoder) {
-	if len(prefix) > 0 {
-		prefix = prefix + "."
-	}
-
+// ParseEsbConfig parse esb config
+func ParseEsbConfig() (*esbutil.EsbConfig, errors.CCErrorCoder) {
 	var err error
-	esbAddr, err := cc.String(prefix + "esb.addr")
+	esbAddr, err := cc.String("esb.addr")
 	if err != nil {
 		blog.Infof("esb addr not found, unable to call esb service")
 		lastConfigErr = errors.NewCCError(common.CCErrCommConfMissItem, "Configuration file missing [esb.addr] configuration item")
 		return nil, lastConfigErr
 	}
 
-	esbAppCode, err := cc.String(prefix + "esb.appCode")
+	esbAppCode, err := cc.String("esb.appCode")
 	if err != nil {
 		blog.Errorf("esb appCode not found, unable to call esb service")
 		lastConfigErr = errors.NewCCError(common.CCErrCommConfMissItem, "Configuration file missing [esb.esbAppCode] configuration item")
 		return nil, lastConfigErr
 	}
 
-	esbAppSecret, err := cc.String(prefix + "esb.appSecret")
+	esbAppSecret, err := cc.String("esb.appSecret")
 	if err != nil {
 		blog.Errorf("esb appSecretOk not found,unable to call esb service")
 		lastConfigErr = errors.NewCCError(common.CCErrCommConfMissItem, "Configuration file missing [esb.appSecret] configuration item")
@@ -63,7 +62,7 @@ func ParseEsbConfig(prefix string) (*esbutil.EsbConfig, errors.CCErrorCoder) {
 	}
 
 	// 不支持热更新
-	tlsConfig, err = util.NewTLSClientConfigFromConfig(prefix+"esb", nil)
+	tlsConfig, err = util.NewTLSClientConfigFromConfig("esb")
 	if err != nil {
 		lastInitErr = errors.NewCCError(common.CCErrCommResourceInitFailed, "'esb' initialization failed")
 		return nil, lastInitErr
@@ -78,6 +77,7 @@ func ParseEsbConfig(prefix string) (*esbutil.EsbConfig, errors.CCErrorCoder) {
 
 }
 
+// InitEsbClient TODO
 func InitEsbClient(defaultCfg *esbutil.EsbConfig) errors.CCErrorCoder {
 
 	apiMachineryConfig := &util.APIMachineryConfig{
@@ -95,10 +95,12 @@ func InitEsbClient(defaultCfg *esbutil.EsbConfig) errors.CCErrorCoder {
 	return nil
 }
 
+// Validate TODO
 func Validate() errors.CCErrorCoder {
 	return nil
 }
 
+// UpdateEsbConfig TODO
 func UpdateEsbConfig(config esbutil.EsbConfig) {
 	go func() {
 		cfgChan <- config

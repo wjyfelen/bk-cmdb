@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package common TODO
 package common
 
 import (
@@ -32,6 +33,7 @@ func New() core.CommonOperation {
 	return &commonOperation{}
 }
 
+// GetDistinctField TODO
 func (c *commonOperation) GetDistinctField(kit *rest.Kit, option *metadata.DistinctFieldOption) ([]interface{}, errors.CCErrorCoder) {
 
 	ret, err := mongodb.Client().Table(option.TableName).Distinct(kit.Ctx, option.Field, option.Filter)
@@ -41,4 +43,17 @@ func (c *commonOperation) GetDistinctField(kit *rest.Kit, option *metadata.Disti
 	}
 
 	return ret, nil
+}
+
+// GetDistinctCount 根据条件获取指定表中满足条件数据的数量
+func (c *commonOperation) GetDistinctCount(kit *rest.Kit, option *metadata.DistinctFieldOption) (int64,
+	errors.CCErrorCoder) {
+	var count int64
+	ret, err := mongodb.Client().Table(option.TableName).Distinct(kit.Ctx, option.Field, option.Filter)
+	if err != nil {
+		blog.Errorf("get distinct count failed, err: %v, option:%#v, rid: %s", err, *option, kit.Rid)
+		return count, kit.CCError.CCError(common.CCErrCommDBSelectFailed)
+	}
+	count = int64(len(ret))
+	return count, nil
 }

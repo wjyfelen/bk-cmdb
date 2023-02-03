@@ -1,7 +1,19 @@
+/*
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 const fs = require('fs')
 const path = require('path')
 
-const baseDir = path.resolve(__dirname, '../src')
+const baseDir = path.resolve(__dirname, '../../src')
 
 const fileCN = path.join(baseDir, 'i18n/lang/cn.json')
 const fileEN = path.join(baseDir, 'i18n/lang/en.json')
@@ -11,7 +23,7 @@ const en = require(fileEN)
 // 搜索模板中的语法正则
 const searchTplRe = [/path="(.+?)"/gm, /\$t[c]?\((.+?)\)/gm, /i18n.t\((.+?)\)/gm]
 // 搜索路由配置中的语法正则
-const searchRouteCfgRe = [/i18n:([^,\t\n\}]+)/gm]
+const searchRouteCfgRe = [/i18n:([^,\t\n\\}]+)/gm]
 // 模板中的中文字符
 const searchTplCn = /[\u4E00-\u9FA5]+/gm
 

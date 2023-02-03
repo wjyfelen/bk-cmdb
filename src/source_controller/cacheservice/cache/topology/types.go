@@ -12,6 +12,7 @@
 
 package topology
 
+// BizBriefTopology TODO
 type BizBriefTopology struct {
 	// basic business info
 	Biz *BizBase `json:"biz"`
@@ -21,6 +22,7 @@ type BizBriefTopology struct {
 	Nodes []*Node `json:"nds"`
 }
 
+// Node TODO
 type Node struct {
 	// the object of this node, like set or module
 	Object string `json:"obj"`
@@ -37,8 +39,9 @@ type Node struct {
 	SubNodes []*Node `json:"nds"`
 }
 
-var bizBaseFields = []string{"bk_biz_id", "bk_biz_name", "default"}
+var bizBaseFields = []string{"bk_biz_id", "bk_biz_name", "default", "bk_supplier_account"}
 
+// BizBase TODO
 type BizBase struct {
 	// business id
 	ID int64 `json:"id" bson:"bk_biz_id"`
@@ -48,6 +51,8 @@ type BizBase struct {
 	// 0: normal business
 	// >0: special business, like resource pool business.
 	Default int `json:"dft" bson:"default"`
+
+	OwnerID string `json:"bk_supplier_account" bson:"bk_supplier_account"`
 }
 
 var customBaseFields = []string{"bk_biz_id", "bk_parent_id", "bk_inst_id", "bk_inst_name", "bk_obj_id"}

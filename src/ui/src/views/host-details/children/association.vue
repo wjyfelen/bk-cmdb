@@ -1,7 +1,19 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <div class="association">
     <div class="options clearfix">
-      <div class="fl" v-show="activeView === viewName.list">
+      <div class="fl" v-if="!readonly" v-show="activeView === viewName.list">
         <cmdb-auth class="inline-block-middle mr10"
           v-if="hasAssociation"
           :auth="HOST_AUTH.U_HOST">
@@ -18,14 +30,14 @@
             {{$t('新增关联')}}
           </bk-button>
         </span>
+      </div>
+      <div class="fr">
         <bk-checkbox v-if="hasInstance"
+          v-show="activeView === viewName.list"
           :size="16" class="options-checkbox"
           @change="handleExpandAll">
           <span class="checkbox-label">{{$t('全部展开')}}</span>
         </bk-checkbox>
-        <bk-button theme="default" class="options-button" v-show="false">{{$t('批量取消')}}</bk-button>
-      </div>
-      <div class="fr">
         <bk-button class="options-button options-button-view"
           :theme="activeView === viewName.list ? 'primary' : 'default'"
           @click="toggleView(viewName.list)">
@@ -45,7 +57,7 @@
       </div>
     </div>
     <div class="association-view">
-      <component ref="dynamicComponent" :is="activeView"></component>
+      <component ref="dynamicComponent" :is="activeView" v-bind="componentProps"></component>
     </div>
     <bk-sideslider v-transfer-dom :is-show.sync="showCreate" :width="800" :title="$t('新增关联')">
       <cmdb-host-association-create slot="content" v-if="showCreate"></cmdb-host-association-create>
@@ -55,23 +67,25 @@
 
 <script>
   import cmdbHostAssociationList from './association-list.vue'
-  import cmdbHostAssociationGraphics from './association-graphics.new.vue'
+  import cmdbInstanceAssociation from '@/components/instance/association/index.vue'
   import cmdbHostAssociationCreate from './association-create.vue'
   import { mapGetters } from 'vuex'
   import authMixin from '../mixin-auth'
+  import { readonlyMixin } from '../mixin-readonly'
+
   export default {
     name: 'cmdb-host-association',
     components: {
       cmdbHostAssociationList,
-      cmdbHostAssociationGraphics,
+      cmdbInstanceAssociation,
       cmdbHostAssociationCreate
     },
-    mixins: [authMixin],
+    mixins: [authMixin, readonlyMixin],
     data() {
       return {
         viewName: {
           list: cmdbHostAssociationList.name,
-          graphics: cmdbHostAssociationGraphics.name
+          graphics: cmdbInstanceAssociation.name
         },
         activeView: cmdbHostAssociationList.name,
         showCreate: false
@@ -81,14 +95,25 @@
       ...mapGetters('hostDetails', [
         'source',
         'target',
-        'sourceInstances',
-        'targetInstances'
+        'allInstances'
       ]),
       hasAssociation() {
         return !!(this.source.length || this.target.length)
       },
       hasInstance() {
-        return [...this.sourceInstances, ...this.targetInstances].some(instance => !!(instance.children || []).length)
+        return !!this.allInstances.length
+      },
+      componentProps() {
+        if (this.activeView === cmdbInstanceAssociation.name) {
+          const { host, biz: [biz] } = this.info
+          return {
+            objId: 'host',
+            instId: host.bk_host_id,
+            instName: host.bk_host_innerip,
+            bizId: biz.bk_biz_id
+          }
+        }
+        return {}
       }
     },
     beforeDestroy() {
@@ -129,7 +154,7 @@
             }
         }
         .options-checkbox {
-            margin: 0 0 0 25px;
+            margin: 0 15px 0 0;
             line-height: 32px;
             .checkbox-label {
                 padding-left: 4px;

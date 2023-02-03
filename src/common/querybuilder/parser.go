@@ -20,13 +20,16 @@ import (
 	"configcenter/src/common/mapstr"
 
 	"github.com/mitchellh/mapstructure"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
+// RuleGroup TODO
 type RuleGroup struct {
 	Condition Condition                `json:"condition" field:"condition"`
 	Rules     []map[string]interface{} `json:"rules" field:"rules"`
 }
 
+// ParseRule TODO
 func ParseRule(data map[string]interface{}) (queryFilter Rule, errKey string, err error) {
 	if data == nil {
 		return nil, "", nil
@@ -64,6 +67,7 @@ func ParseRule(data map[string]interface{}) (queryFilter Rule, errKey string, er
 	return queryFilter, "", nil
 }
 
+// ParseRuleFromBytes TODO
 func ParseRuleFromBytes(bs []byte) (queryFilter Rule, errKey string, err error) {
 	data := make(map[string]interface{})
 	if err := json.Unmarshal(bs, &data); err != nil {
@@ -77,16 +81,20 @@ type QueryFilter struct {
 	Rule `json:",inline"`
 }
 
-func (qf *QueryFilter) Validate() (string, error) {
+// Validate validates query filter conditions.
+func (qf *QueryFilter) Validate(option *RuleOption) (string, error) {
 	if qf.Rule == nil {
 		return "", nil
 	}
+
 	if _, ok := qf.Rule.(CombinedRule); !ok {
 		return "", fmt.Errorf("query filter must be combined rules")
 	}
-	return qf.Rule.Validate()
+
+	return qf.Rule.Validate(option)
 }
 
+// MarshalJSON TODO
 func (qf *QueryFilter) MarshalJSON() ([]byte, error) {
 	if qf.Rule != nil {
 		return json.Marshal(qf.Rule)
@@ -94,6 +102,7 @@ func (qf *QueryFilter) MarshalJSON() ([]byte, error) {
 	return make([]byte, 0), nil
 }
 
+// UnmarshalJSON TODO
 func (qf *QueryFilter) UnmarshalJSON(raw []byte) error {
 	rule, errKey, err := ParseRuleFromBytes(raw)
 	if err != nil {
@@ -103,6 +112,30 @@ func (qf *QueryFilter) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 
+// MarshalBSON marshal query filter into bson value
+func (qf *QueryFilter) MarshalBSON() ([]byte, error) {
+	if qf.Rule != nil {
+		return bson.Marshal(qf.Rule)
+	}
+	return make([]byte, 0), nil
+}
+
+// UnmarshalBSON unmarshal query filter from bson value by first parse bson into map and then parse map into filter
+func (qf *QueryFilter) UnmarshalBSON(raw []byte) error {
+	data := make(map[string]interface{})
+	if err := bson.Unmarshal(raw, &data); err != nil {
+		return err
+	}
+
+	rule, errKey, err := ParseRule(data)
+	if err != nil {
+		return fmt.Errorf("parse rule failed, key: %s, err: %v", errKey, err)
+	}
+	qf.Rule = rule
+	return nil
+}
+
+// MapToQueryFilterHookFunc TODO
 func MapToQueryFilterHookFunc() mapstructure.DecodeHookFunc {
 	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 		if t != reflect.TypeOf(QueryFilter{}) {

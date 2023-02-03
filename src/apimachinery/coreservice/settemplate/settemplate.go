@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package settemplate TODO
 package settemplate
 
 import (
@@ -21,22 +22,35 @@ import (
 	"configcenter/src/common/metadata"
 )
 
+// SetTemplateInterface TODO
 type SetTemplateInterface interface {
-	CreateSetTemplate(ctx context.Context, header http.Header, bizID int64, option metadata.CreateSetTemplateOption) (metadata.SetTemplate, errors.CCErrorCoder)
-	UpdateSetTemplate(ctx context.Context, header http.Header, bizID int64, setTemplateID int64, option metadata.UpdateSetTemplateOption) (metadata.SetTemplate, errors.CCErrorCoder)
-	DeleteSetTemplate(ctx context.Context, header http.Header, bizID int64, option metadata.DeleteSetTemplateOption) errors.CCErrorCoder
-	GetSetTemplate(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) (metadata.SetTemplate, errors.CCErrorCoder)
-	ListSetTemplate(ctx context.Context, header http.Header, bizID int64, option metadata.ListSetTemplateOption) (*metadata.MultipleSetTemplateResult, errors.CCErrorCoder)
-	CountSetTplInstances(ctx context.Context, header http.Header, bizID int64, option metadata.CountSetTplInstOption) (map[int64]int64, errors.CCErrorCoder)
-	ListSetServiceTemplateRelations(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) ([]metadata.SetServiceTemplateRelation, errors.CCErrorCoder)
-	ListSetTplRelatedSvcTpl(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) ([]metadata.ServiceTemplate, errors.CCErrorCoder)
-	UpdateSetTemplateSyncStatus(ctx context.Context, header http.Header, setID int64, syncStatus metadata.SetTemplateSyncStatus) errors.CCErrorCoder
-	ListSetTemplateSyncStatus(ctx context.Context, header http.Header, bizID int64, option metadata.ListSetTemplateSyncStatusOption) (metadata.MultipleSetTemplateSyncStatus, errors.CCErrorCoder)
-	DeleteSetTemplateSyncStatus(ctx context.Context, header http.Header, bizID int64, setIDs []int64) errors.CCErrorCoder
-	ListSetTemplateSyncHistory(ctx context.Context, header http.Header, bizID int64, option metadata.ListSetTemplateSyncStatusOption) (metadata.MultipleSetTemplateSyncStatus, errors.CCErrorCoder)
-	ModifySetTemplateSyncStatus(ctx context.Context, header http.Header, setID int64, syncStatus metadata.SyncStatus) errors.CCErrorCoder
+	CreateSetTemplate(ctx context.Context, header http.Header, bizID int64, option metadata.CreateSetTemplateOption) (
+		metadata.SetTemplate, errors.CCErrorCoder)
+	UpdateSetTemplate(ctx context.Context, header http.Header, bizID int64, setTemplateID int64,
+		option metadata.UpdateSetTemplateOption) (metadata.SetTemplate, errors.CCErrorCoder)
+	DeleteSetTemplate(ctx context.Context, header http.Header, bizID int64,
+		option metadata.DeleteSetTemplateOption) errors.CCErrorCoder
+	GetSetTemplate(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) (metadata.SetTemplate,
+		errors.CCErrorCoder)
+	ListSetTemplate(ctx context.Context, header http.Header, bizID int64, option metadata.ListSetTemplateOption) (
+		*metadata.MultipleSetTemplateResult, errors.CCErrorCoder)
+	CountSetTplInstances(ctx context.Context, header http.Header, bizID int64, option metadata.CountSetTplInstOption) (
+		map[int64]int64, errors.CCErrorCoder)
+	ListSetServiceTemplateRelations(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) (
+		[]metadata.SetServiceTemplateRelation, errors.CCErrorCoder)
+	ListSetTplRelatedSvcTpl(ctx context.Context, header http.Header, bizID int64, setTemplateID int64) (
+		[]metadata.ServiceTemplate, errors.CCErrorCoder)
+	CreateSetTemplateAttribute(ctx context.Context, h http.Header, option *metadata.CreateSetTempAttrsOption) ([]int64,
+		errors.CCErrorCoder)
+	UpdateSetTemplateAttribute(ctx context.Context, h http.Header,
+		option *metadata.UpdateSetTempAttrOption) errors.CCErrorCoder
+	DeleteSetTemplateAttribute(ctx context.Context, h http.Header,
+		option *metadata.DeleteSetTempAttrOption) errors.CCErrorCoder
+	ListSetTemplateAttribute(ctx context.Context, h http.Header, option *metadata.ListSetTempAttrOption) (
+		*metadata.SetTempAttrData, errors.CCErrorCoder)
 }
 
+// NewSetTemplateInterfaceClient TODO
 func NewSetTemplateInterfaceClient(client rest.ClientInterface) SetTemplateInterface {
 	return &setTemplate{client: client}
 }

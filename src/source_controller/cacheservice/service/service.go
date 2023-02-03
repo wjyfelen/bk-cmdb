@@ -10,6 +10,7 @@
  * limitations under the License.
  */
 
+// Package service TODO
 package service
 
 import (
@@ -23,16 +24,20 @@ import (
 	"configcenter/src/common/language"
 	"configcenter/src/common/rdapi"
 	"configcenter/src/common/util"
+	"configcenter/src/common/webservice/restfulservice"
 	"configcenter/src/source_controller/cacheservice/app/options"
 	"configcenter/src/source_controller/cacheservice/cache"
 	cacheop "configcenter/src/source_controller/cacheservice/cache"
+	"configcenter/src/source_controller/cacheservice/event/bsrelation"
 	"configcenter/src/source_controller/cacheservice/event/flow"
+	"configcenter/src/source_controller/cacheservice/event/identifier"
 	"configcenter/src/source_controller/coreservice/core"
 	"configcenter/src/storage/dal/mongo/local"
 	"configcenter/src/storage/reflector"
 	"configcenter/src/storage/stream"
+	"configcenter/src/thirdparty/logplatform/opentelemetry"
 
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 // CacheServiceInterface the cache service methods used to init
@@ -57,6 +62,7 @@ type cacheService struct {
 	cacheSet    *cache.ClientSet
 }
 
+// SetConfig TODO
 func (s *cacheService) SetConfig(cfg options.Config, engine *backbone.Engine, err errors.CCErrorIf, lang language.CCLanguageIf) error {
 
 	s.cfg = cfg
@@ -115,6 +121,16 @@ func (s *cacheService) SetConfig(cfg options.Config, engine *backbone.Engine, er
 		return flowErr
 	}
 
+	if err := identifier.NewIdentity(watcher, engine.ServiceManageInterface, watchDB, ccDB); err != nil {
+		blog.Errorf("new host identity event failed, err: %v", err)
+		return err
+	}
+
+	if err := bsrelation.NewBizSetRelation(watcher, watchDB, ccDB); err != nil {
+		blog.Errorf("new biz set relation event failed, err: %v", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -122,6 +138,8 @@ func (s *cacheService) SetConfig(cfg options.Config, engine *backbone.Engine, er
 func (s *cacheService) WebService() *restful.Container {
 
 	container := restful.NewContainer()
+
+	opentelemetry.AddOtlpFilter(container)
 
 	getErrFunc := func() errors.CCErrorIf { return s.err }
 
@@ -133,13 +151,16 @@ func (s *cacheService) WebService() *restful.Container {
 	s.initService(api)
 	container.Add(api)
 
-	healthzAPI := new(restful.WebService).Produces(restful.MIME_JSON)
-	healthzAPI.Route(healthzAPI.GET("/healthz").To(s.Healthz))
-	container.Add(healthzAPI)
+	// common api
+	commonAPI := new(restful.WebService).Produces(restful.MIME_JSON)
+	commonAPI.Route(commonAPI.GET("/healthz").To(s.Healthz))
+	commonAPI.Route(commonAPI.GET("/version").To(restfulservice.Version))
+	container.Add(commonAPI)
 
 	return container
 }
 
+// Language TODO
 func (s *cacheService) Language(header http.Header) language.DefaultCCLanguageIf {
 	lang := util.GetLanguage(header)
 	l, exist := s.langFactory[common.LanguageType(lang)]

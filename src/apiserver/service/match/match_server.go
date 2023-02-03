@@ -13,7 +13,7 @@
 package match
 
 import (
-	"github.com/emicklei/go-restful"
+	"github.com/emicklei/go-restful/v3"
 )
 
 type service struct {
@@ -26,6 +26,7 @@ var (
 )
 
 const (
+	// RootPath TODO
 	RootPath = "/api/v3"
 )
 

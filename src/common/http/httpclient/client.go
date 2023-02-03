@@ -21,9 +21,11 @@ import (
 	"net/http"
 	"time"
 
+	"configcenter/src/apimachinery/util"
 	"configcenter/src/common/ssl"
 )
 
+// HttpClient TODO
 type HttpClient struct {
 	caFile   string
 	certFile string
@@ -32,6 +34,7 @@ type HttpClient struct {
 	httpCli  *http.Client
 }
 
+// NewHttpClient TODO
 func NewHttpClient() *HttpClient {
 	return &HttpClient{
 		httpCli: &http.Client{},
@@ -39,12 +42,14 @@ func NewHttpClient() *HttpClient {
 	}
 }
 
+// GetClient TODO
 func (client *HttpClient) GetClient() *http.Client {
 	return client.httpCli
 }
 
+// SetTlsNoVerity TODO
 func (client *HttpClient) SetTlsNoVerity() error {
-	tlsConf := ssl.ClientTslConfNoVerity()
+	tlsConf := ssl.ClientTLSConfNoVerify()
 
 	trans := client.NewTransPort()
 	trans.TLSClientConfig = tlsConf
@@ -53,6 +58,7 @@ func (client *HttpClient) SetTlsNoVerity() error {
 	return nil
 }
 
+// SetTlsVerityServer TODO
 func (client *HttpClient) SetTlsVerityServer(caFile string) error {
 	client.caFile = caFile
 
@@ -67,28 +73,28 @@ func (client *HttpClient) SetTlsVerityServer(caFile string) error {
 	return nil
 }
 
-func (client *HttpClient) SetTlsVerity(caFile, certFile, keyFile, passwd string) error {
-	client.caFile = caFile
-	client.certFile = certFile
-	client.keyFile = keyFile
-
+// SetTLSVerify set tls verify config
+func (client *HttpClient) SetTLSVerify(c *util.TLSClientConfig) error {
 	// load cert
-	tlsConf, err := ssl.ClientTLSConfVerity(caFile, certFile, keyFile, passwd)
+	tlsConf, err := ssl.ClientTLSConfVerity(c.CAFile, c.CertFile, c.KeyFile, c.Password)
 	if err != nil {
 		return err
 	}
+	tlsConf.InsecureSkipVerify = c.InsecureSkipVerify
 
 	client.SetTlsVerityConfig(tlsConf)
 
 	return nil
 }
 
+// SetTlsVerityConfig TODO
 func (client *HttpClient) SetTlsVerityConfig(tlsConf *tls.Config) {
 	trans := client.NewTransPort()
 	trans.TLSClientConfig = tlsConf
 	client.httpCli.Transport = trans
 }
 
+// NewTransPort TODO
 func (client *HttpClient) NewTransPort() *http.Transport {
 	return &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
@@ -101,52 +107,64 @@ func (client *HttpClient) NewTransPort() *http.Transport {
 	}
 }
 
+// SetTimeOut TODO
 func (client *HttpClient) SetTimeOut(timeOut time.Duration) {
 	client.httpCli.Timeout = timeOut
 }
 
+// SetHeader TODO
 func (client *HttpClient) SetHeader(key, value string) {
 	client.header[key] = value
 }
 
+// GetHeader TODO
 func (client *HttpClient) GetHeader(key string) string {
 	val, _ := client.header[key]
 	return val
 }
 
+// GET TODO
 func (client *HttpClient) GET(url string, header http.Header, data []byte) ([]byte, error) {
 	return client.Request(url, "GET", header, data)
 
 }
 
+// POST TODO
 func (client *HttpClient) POST(url string, header http.Header, data []byte) ([]byte, error) {
 	return client.Request(url, "POST", header, data)
 }
 
+// DELETE TODO
 func (client *HttpClient) DELETE(url string, header http.Header, data []byte) ([]byte, error) {
 	return client.Request(url, "DELETE", header, data)
 }
 
+// PUT TODO
 func (client *HttpClient) PUT(url string, header http.Header, data []byte) ([]byte, error) {
 	return client.Request(url, "PUT", header, data)
 }
 
+// GETEx TODO
 func (client *HttpClient) GETEx(url string, header http.Header, data []byte) (int, []byte, error) {
 	return client.RequestEx(url, "GET", header, data)
 }
 
+// POSTEx TODO
 func (client *HttpClient) POSTEx(url string, header http.Header, data []byte) (int, []byte, error) {
 	return client.RequestEx(url, "POST", header, data)
 }
 
+// DELETEEx TODO
 func (client *HttpClient) DELETEEx(url string, header http.Header, data []byte) (int, []byte, error) {
 	return client.RequestEx(url, "DELETE", header, data)
 }
 
+// PUTEx TODO
 func (client *HttpClient) PUTEx(url string, header http.Header, data []byte) (int, []byte, error) {
 	return client.RequestEx(url, "PUT", header, data)
 }
 
+// Request TODO
 func (client *HttpClient) Request(url, method string, header http.Header, data []byte) ([]byte, error) {
 	var req *http.Request
 	var errReq error
@@ -186,6 +204,7 @@ func (client *HttpClient) Request(url, method string, header http.Header, data [
 	return body, err
 }
 
+// RequestEx TODO
 func (client *HttpClient) RequestEx(url, method string, header http.Header, data []byte) (int, []byte, error) {
 	var req *http.Request
 	var errReq error
@@ -221,6 +240,7 @@ func (client *HttpClient) RequestEx(url, method string, header http.Header, data
 	return rsp.StatusCode, body, err
 }
 
+// DoWithTimeout TODO
 func (client *HttpClient) DoWithTimeout(timeout time.Duration, req *http.Request) (*http.Response, error) {
 	ctx, _ := context.WithTimeout(req.Context(), timeout)
 	req = req.WithContext(ctx)

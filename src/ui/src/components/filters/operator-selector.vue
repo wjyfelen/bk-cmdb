@@ -1,3 +1,15 @@
+<!--
+ * Tencent is pleased to support the open source community by making 蓝鲸 available.
+ * Copyright (C) 2017-2022 THL A29 Limited, a Tencent company. All rights reserved.
+ * Licensed under the MIT License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ * http://opensource.org/licenses/MIT
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+ * either express or implied. See the License for the specific language governing permissions and
+ * limitations under the License.
+-->
+
 <template>
   <bk-select
     v-model="localValue"
@@ -23,9 +35,9 @@
         type: String,
         default: ''
       },
-      type: {
-        type: String,
-        default: 'singlechar'
+      property: {
+        type: Object,
+        default: ({})
       }
     },
     computed: {
@@ -49,6 +61,7 @@
         const LTE = '$lte'
         const GTE = '$gte'
         const RANGE = '$range' // 前端构造的操作符，真实数据中会拆分数据为gte, lte向后台传递
+        const LIKE = '$regex'
         const typeMap = {
           bool: [EQ, NE],
           date: [GTE, LTE],
@@ -56,10 +69,10 @@
           float: [EQ, NE, GT, LT, RANGE],
           int: [EQ, NE, GT, LT, RANGE],
           list: [IN, NIN],
-          longchar: [IN, NIN],
+          longchar: [IN, NIN, LIKE],
           objuser: [IN, NIN],
           organization: [IN, NIN],
-          singlechar: [IN, NIN],
+          singlechar: [IN, NIN, LIKE],
           time: [GTE, LTE],
           timezone: [IN, NIN],
           foreignkey: [IN, NIN],
@@ -75,9 +88,13 @@
           [NIN]: this.$t('不包含'),
           [RANGE]: this.$t('数值范围'),
           [LTE]: this.$t('小于等于'),
-          [GTE]: this.$t('大于等于')
+          [GTE]: this.$t('大于等于'),
+          [LIKE]: this.$t('模糊')
         }
-        return typeMap[this.type].map(operator => ({
+
+        const { bk_property_type: propertyType } = this.property
+
+        return typeMap[propertyType].map(operator => ({
           id: operator,
           name: Utils.getOperatorSymbol(operator),
           title: nameDescription[operator]
