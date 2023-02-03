@@ -146,7 +146,7 @@ func (w *GameStatefulSet) BuildUpdateData(user string) (map[string]interface{}, 
 	}
 
 	now := time.Now().Unix()
-	opts := orm.NewFieldOptions().AddIgnoredFields(wlIgnoreField...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(GameStatefulSetFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
@@ -154,4 +154,11 @@ func (w *GameStatefulSet) BuildUpdateData(user string) (map[string]interface{}, 
 	updateData[common.LastTimeField] = now
 	updateData[common.ModifierField] = user
 	return updateData, err
+}
+
+// initGameStatefulSetUpdateIgnoreFields ignore non-updatable fields related to game statefulSet resources
+func initGameStatefulSetUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	namespace := new(Namespace)
+	GameStatefulSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
 }

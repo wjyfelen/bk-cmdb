@@ -19,7 +19,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 	"time"
 
 	"configcenter/src/common"
@@ -238,15 +237,7 @@ func (s *coreService) BatchCreateNode(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
-	bizStr := ctx.Request.PathParameter("bk_biz_id")
-	bizID, err := strconv.ParseInt(bizStr, 10, 64)
-	if err != nil {
-		blog.Error("url parameter bk_biz_id not integer, bizID: %s, rid: %s", bizStr, ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-	nodes, err := batchCreateNode(ctx.Kit, bizID, inputData.Nodes)
+	nodes, err := batchCreateNode(ctx.Kit, inputData.BizID, inputData.Nodes)
 
 	ctx.RespEntityWithError(nodes, err)
 }
@@ -286,22 +277,14 @@ func (s *coreService) BatchUpdateNode(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Error("url parameter bk_biz_id not integer, bizID: %s, rid: %s", ctx.Request.PathParameter("bk_biz_id"),
-			ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-
 	filter := map[string]interface{}{
-		types.BKBizIDField: bizID,
-	}
-	filter[types.BKIDField] = map[string]interface{}{
-		common.BKDBIN: input.IDs,
+		types.BKBizIDField: input.BizID,
+		types.BKIDField: map[string]interface{}{
+			common.BKDBIN: input.IDs,
+		},
 	}
 	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
-	opts := orm.NewFieldOptions().AddIgnoredFields(types.IgnoredUpdateNodeFields...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(types.NodeFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(input.Data, opts)
 	if err != nil {
 		blog.Errorf("get update data failed, data: %v, err: %v, rid: %s", input.Data, err, ctx.Kit.Rid)
@@ -333,18 +316,10 @@ func (s *coreService) BatchDeleteNode(ctx *rest.Contexts) {
 		return
 	}
 
-	bizStr := ctx.Request.PathParameter("bk_biz_id")
-	bizID, err := strconv.ParseInt(bizStr, 10, 64)
-	if err != nil {
-		blog.Error("url parameter bk_biz_id not integer, bizID: %s, rid: %s", bizStr, ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-
 	// obtain the hostID of the deleted node and the corresponding business ID.
 	query := map[string]interface{}{
 		types.BKIDField:     map[string]interface{}{common.BKDBIN: option.IDs},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: option.BizID,
 	}
 	util.SetQueryOwner(query, ctx.Kit.SupplierAccount)
 	nodes := make([]types.Node, 0)
@@ -359,7 +334,7 @@ func (s *coreService) BatchDeleteNode(ctx *rest.Contexts) {
 
 	// delete nodes.
 	filter := map[string]interface{}{
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: option.BizID,
 		types.BKIDField: map[string]interface{}{
 			common.BKDBIN: option.IDs,
 		},

@@ -18,6 +18,9 @@
 package table
 
 import (
+	"reflect"
+	"strings"
+
 	"configcenter/src/common/criteria/enumor"
 )
 
@@ -29,17 +32,54 @@ type Fields struct {
 	isEditable map[string]bool
 	// isRequired the type corresponding to the field.
 	isRequired map[string]bool
+	// ignoredClusterFields fields that need to be ignored in the update scenario.
+	ignoredUpdateFields []string
 }
 
 // FieldsDescriptors table of field descriptor.
 type FieldsDescriptors []FieldDescriptor
 
-// MergeFields 对表字段的合并
+func getIgnoredUpdateFields(data interface{}) []string {
+	typeOfOption := reflect.TypeOf(data)
+	fields := make([]string, 0)
+	for i := 0; i < typeOfOption.NumField(); i++ {
+		tags := strings.Split(typeOfOption.Field(i).Tag.Get("json"), ",")
+		if tags[0] == "" {
+			continue
+		}
+
+		fields = append(fields, tags[0])
+	}
+	return []string{}
+}
+
+// SetUpdateIgnoreFields  set the fields that need to be ignored in the update scene
+// 1、for this resource attribute itself, it is intercepted through the isEditable field
+// 2、for basic fields (such as bk_biz_id, bk_supplier_account...) and redundant fields
+// for convenient query, you need to use this method to set and ignore update fields.
+func (f *Fields) SetUpdateIgnoreFields(baseFields []string, data []interface{}) {
+	f.ignoredUpdateFields = append(f.ignoredUpdateFields, baseFields...)
+	if data == nil {
+		return
+	}
+	for _, d := range data {
+
+		fs := getIgnoredUpdateFields(d)
+		if len(fs) == 0 {
+			continue
+		}
+
+		f.ignoredUpdateFields = append(f.ignoredUpdateFields, fs...)
+	}
+}
+
+// MergeFields merging of table fields.
 func MergeFields(all ...FieldsDescriptors) *Fields {
 	result := &Fields{
-		fieldType:  make(map[string]enumor.FieldType),
-		isEditable: make(map[string]bool),
-		isRequired: make(map[string]bool),
+		fieldType:           make(map[string]enumor.FieldType),
+		isEditable:          make(map[string]bool),
+		isRequired:          make(map[string]bool),
+		ignoredUpdateFields: make([]string, 0),
 	}
 
 	if len(all) == 0 {
@@ -61,8 +101,13 @@ func (f Fields) FieldsType() map[string]enumor.FieldType {
 	for k, v := range f.fieldType {
 		copied[k] = v
 	}
-
 	return copied
+}
+
+// GetUpdateIgnoredFields returns the fields that need to be
+// ignored for the specified resource in the update scenario.
+func (f Fields) GetUpdateIgnoredFields() []string {
+	return f.ignoredUpdateFields
 }
 
 // FieldsEditable returns the corresponding editable of all fields.
@@ -71,7 +116,6 @@ func (f Fields) FieldsEditable() map[string]bool {
 	for k, v := range f.isEditable {
 		copied[k] = v
 	}
-
 	return copied
 }
 

@@ -162,13 +162,22 @@ type jsonWlData struct {
 
 // WlUpdateOption defines the workload update request common operation.
 type WlUpdateOption struct {
-	Kind WorkloadType      `json:"kind"`
-	IDs  []int64           `json:"ids"`
-	Data WorkloadInterface `json:"data"`
+	BizID int64             `json:"bk_biz_id"`
+	Kind  WorkloadType      `json:"kind"`
+	IDs   []int64           `json:"ids"`
+	Data  WorkloadInterface `json:"data"`
 }
 
 // Validate validate WlCommonUpdate
 func (w *WlUpdateOption) Validate() errors.RawErrorInfo {
+
+	if w.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if len(w.IDs) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsIsInvalid,
@@ -228,19 +237,27 @@ func (w *WlUpdateOption) UnmarshalJSON(data []byte) error {
 
 // WlDeleteOption workload delete request
 type WlDeleteOption struct {
-	IDs []int64 `json:"ids"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
 }
 
 // Validate validate WlDeleteOption
-func (ns *WlDeleteOption) Validate() errors.RawErrorInfo {
-	if len(ns.IDs) == 0 {
+func (option *WlDeleteOption) Validate() errors.RawErrorInfo {
+	if option.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
+	if len(option.IDs) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsIsInvalid,
 			Args:    []interface{}{"ids"},
 		}
 	}
 
-	if len(ns.IDs) > WlDeleteLimit {
+	if len(option.IDs) > WlDeleteLimit {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommXXExceedLimit,
 			Args:    []interface{}{"ids", WlDeleteLimit},
@@ -364,8 +381,9 @@ type WlInstResp struct {
 
 // WlCreateOption create workload request
 type WlCreateOption struct {
-	Kind WorkloadType        `json:"kind"`
-	Data []WorkloadInterface `json:"data"`
+	BizID int64               `json:"bk_biz_id"`
+	Kind  WorkloadType        `json:"kind"`
+	Data  []WorkloadInterface `json:"data"`
 }
 
 // UnmarshalJSON unmarshal WlCreateOption
@@ -465,22 +483,30 @@ func (w *WlCreateOption) UnmarshalJSON(data []byte) error {
 }
 
 // Validate validate WlCreateOption
-func (ns *WlCreateOption) Validate() errors.RawErrorInfo {
-	if len(ns.Data) == 0 {
+func (option *WlCreateOption) Validate() errors.RawErrorInfo {
+
+	if option.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
+	if len(option.Data) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
 			Args:    []interface{}{"data"},
 		}
 	}
 
-	if len(ns.Data) > WlCreateLimit {
+	if len(option.Data) > WlCreateLimit {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommXXExceedLimit,
 			Args:    []interface{}{"data", WlCreateLimit},
 		}
 	}
 
-	for _, data := range ns.Data {
+	for _, data := range option.Data {
 		if err := data.ValidateCreate(); err.ErrCode != 0 {
 			return err
 		}
@@ -495,13 +521,9 @@ type WlCreateResp struct {
 	Data              metadata.RspIDs `json:"data"`
 }
 
-var wlIgnoreField = []string{
-	common.BKAppIDField, BKClusterIDField, ClusterUIDField, BKNamespaceIDField, NamespaceField, common.BKFieldName,
-	common.BKFieldID, common.CreateTimeField,
-}
-
 // WlQueryOption workload query request
 type WlQueryOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Fields []string           `json:"fields,omitempty"`
 	Page   metadata.BasePage  `json:"page,omitempty"`
@@ -509,6 +531,14 @@ type WlQueryOption struct {
 
 // Validate validate WlQueryReq
 func (wl *WlQueryOption) Validate(kind WorkloadType) errors.RawErrorInfo {
+
+	if wl.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if err := wl.Page.ValidateWithEnableCount(false, WlQueryLimit); err.ErrCode != 0 {
 		return err
 	}

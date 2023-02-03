@@ -42,6 +42,10 @@ var CommonSpecFieldsDescriptor = table.FieldsDescriptors{
 	{Field: LastTimeField, Type: enumor.Timestamp, IsRequired: true, IsEditable: true},
 }
 
+// IgnoredUpdateBaseFields update the fields that need to be ignored in the kube scenario.
+var IgnoredUpdateBaseFields = []string{BKSupplierAccountField, BKBizIDField,
+	BKBizAsstIDField, CreatorField, ModifierField, CreateTimeField, LastTimeField}
+
 // BizIDDescriptor bizID descriptor is taken out separately and not placed in CommonSpecFieldsDescriptor because
 // bk_biz_id does not exist in the container table and needs to be processed separately.
 var BizIDDescriptor = table.FieldsDescriptors{
@@ -285,4 +289,20 @@ func (option *SpecSimpleInfo) validate() error {
 	}
 
 	return nil
+}
+
+// InitKubeUpdateIgnoreFields set the kube resources to ignore
+// the updated fields in the update scenario
+func InitKubeUpdateIgnoreFields() {
+	initClusterUpdateIgnoreFields()
+	initCronJobUpdateIgnoreFields()
+	initDaemonsetUpdateIgnoreFields()
+	initDeploymentUpdateIgnoreFields()
+	initGameDeploymentUpdateIgnoreFields()
+	initGameStatefulSetUpdateIgnoreFields()
+	initJobUpdateIgnoreFields()
+	initNamespaceUpdateIgnoreFields()
+	initNodeUpdateIgnoreFields()
+	initPodsWorkLoadUpdateIgnoreFields()
+	initStatefulSetUpdateIgnoreFields()
 }

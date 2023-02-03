@@ -72,7 +72,7 @@ type ClusterSpec struct {
 	// ClusterUID cluster id in third party platform
 	ClusterUID string `json:"cluster_uid,omitempty" bson:"cluster_uid"`
 
-	// ClusterType cluster id in third party platform
+	// ClusterType cluster type
 	ClusterType string `json:"cluster_type,omitempty" bson:"cluster_type"`
 }
 
@@ -130,9 +130,6 @@ type Cluster struct {
 	table.Revision `json:",inline" bson:",inline"`
 }
 
-// IgnoredUpdateClusterFields update the fields that need to be ignored in the cluster scenario.
-var IgnoredUpdateClusterFields = []string{common.BKFieldID, common.BKOwnerIDField, BKBizIDField, ClusterUIDField}
-
 // CreateClusterResult create cluster result for internal call.
 type CreateClusterResult struct {
 	metadata.BaseResp
@@ -141,7 +138,8 @@ type CreateClusterResult struct {
 
 // DeleteClusterOption delete cluster result.
 type DeleteClusterOption struct {
-	IDs []int64 `json:"ids"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
 }
 
 // CreateClusterRsp create cluster result for external call.
@@ -153,6 +151,12 @@ type CreateClusterRsp struct {
 // Validate validate the DeleteClusterOption
 func (option *DeleteClusterOption) Validate() ccErr.RawErrorInfo {
 
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 	if len(option.IDs) == 0 {
 		return ccErr.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
@@ -176,6 +180,13 @@ func (option *Cluster) ValidateCreate() ccErr.RawErrorInfo {
 		return ccErr.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
 			Args:    []interface{}{"data"},
+		}
+	}
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
 		}
 	}
 
@@ -204,6 +215,7 @@ func (option *Cluster) validateUpdate() ccErr.RawErrorInfo {
 
 // QueryClusterOption query cluster by query builder
 type QueryClusterOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Page   metadata.BasePage  `json:"page"`
 	Fields []string           `json:"fields"`
@@ -211,6 +223,14 @@ type QueryClusterOption struct {
 
 // Validate the QueryClusterOption
 func (option *QueryClusterOption) Validate() ccErr.RawErrorInfo {
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if err := option.Page.ValidateWithEnableCount(false, common.BKMaxLimitSize); err.ErrCode != 0 {
 		return err
 	}
@@ -229,13 +249,13 @@ func (option *QueryClusterOption) Validate() ccErr.RawErrorInfo {
 	return ccErr.RawErrorInfo{}
 }
 
-// ResponseNsClusterRelation query ns and cluster relation.
-type ResponseNsClusterRelation struct {
+// NsClusterRelationRsp query ns and cluster relation.
+type NsClusterRelationRsp struct {
 	Data []NsClusterRelation `json:"data"`
 }
 
-// ResponseNodeClusterRelation query node and cluster relation.
-type ResponseNodeClusterRelation struct {
+// NodeClusterRelationRsp query node and cluster relation.
+type NodeClusterRelationRsp struct {
 	Data []NodeClusterRelation `json:"data"`
 }
 
@@ -246,8 +266,9 @@ type ResponseCluster struct {
 
 // UpdateClusterOption update cluster request。
 type UpdateClusterOption struct {
-	IDs  []int64 `json:"ids"`
-	Data Cluster `json:"data"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
+	Data  Cluster `json:"data"`
 }
 
 // Validate validate the UpdateClusterOption
@@ -257,6 +278,12 @@ func (option *UpdateClusterOption) Validate() ccErr.RawErrorInfo {
 		return ccErr.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
 			Args:    []interface{}{"data"},
+		}
+	}
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
 		}
 	}
 
@@ -278,4 +305,9 @@ func (option *UpdateClusterOption) Validate() ccErr.RawErrorInfo {
 	}
 
 	return ccErr.RawErrorInfo{}
+}
+
+// initClusterUpdateIgnoreFields ignore non-updatable fields related to cluster resources
+func initClusterUpdateIgnoreFields() {
+	ClusterFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, nil)
 }

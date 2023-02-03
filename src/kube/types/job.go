@@ -101,7 +101,7 @@ func (w *Job) BuildUpdateData(user string) (map[string]interface{}, error) {
 	}
 
 	now := time.Now().Unix()
-	opts := orm.NewFieldOptions().AddIgnoredFields(wlIgnoreField...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(JobFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
@@ -109,4 +109,11 @@ func (w *Job) BuildUpdateData(user string) (map[string]interface{}, error) {
 	updateData[common.LastTimeField] = now
 	updateData[common.ModifierField] = user
 	return updateData, err
+}
+
+// initJobUpdateIgnoreFields ignore non-updatable fields related to job resources
+func initJobUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	namespace := new(Namespace)
+	JobFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
 }

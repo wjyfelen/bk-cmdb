@@ -162,12 +162,19 @@ type ScopedResourceSelectorRequirement struct {
 
 // NsUpdateOption update namespace request
 type NsUpdateOption struct {
-	IDs  []int64    `json:"ids"`
-	Data *Namespace `json:"data"`
+	BizID int64      `json:"bk_biz_id"`
+	IDs   []int64    `json:"ids"`
+	Data  *Namespace `json:"data"`
 }
 
 // Validate validate update namespace request
 func (ns *NsUpdateOption) Validate() errors.RawErrorInfo {
+	if ns.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 	if len(ns.IDs) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
@@ -197,11 +204,18 @@ func (ns *NsUpdateOption) Validate() errors.RawErrorInfo {
 
 // NsDeleteOption delete namespace request
 type NsDeleteOption struct {
-	IDs []int64 `json:"ids"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
 }
 
 // Validate validate NsDeleteReq
 func (ns *NsDeleteOption) Validate() errors.RawErrorInfo {
+	if ns.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 	if len(ns.IDs) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
@@ -221,11 +235,18 @@ func (ns *NsDeleteOption) Validate() errors.RawErrorInfo {
 
 // NsCreateOption create namespace request
 type NsCreateOption struct {
-	Data []Namespace `json:"data"`
+	BizID int64       `json:"bk_biz_id"`
+	Data  []Namespace `json:"data"`
 }
 
 // Validate validate NsCreateReq
 func (ns *NsCreateOption) Validate() errors.RawErrorInfo {
+	if ns.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 	if len(ns.Data) == 0 {
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSet,
@@ -257,6 +278,7 @@ type NsCreateResp struct {
 
 // NsQueryOption namespace query request
 type NsQueryOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Fields []string           `json:"fields,omitempty"`
 	Page   metadata.BasePage  `json:"page,omitempty"`
@@ -264,6 +286,14 @@ type NsQueryOption struct {
 
 // Validate validate NsQueryReq
 func (ns *NsQueryOption) Validate() errors.RawErrorInfo {
+
+	if ns.BizID == 0 {
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if err := ns.Page.ValidateWithEnableCount(false, NsQueryLimit); err.ErrCode != 0 {
 		return err
 	}
@@ -307,4 +337,10 @@ type NsInstResp struct {
 // NsDataResp namespace data
 type NsDataResp struct {
 	Data []Namespace `json:"data"`
+}
+
+// initNamespaceUpdateIgnoreFields ignore non-updatable fields related to namespace resources
+func initNamespaceUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	NamespaceFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster})
 }

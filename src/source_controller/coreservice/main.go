@@ -21,6 +21,8 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/types"
+	kubeTypes "configcenter/src/kube/types"
+
 	"configcenter/src/common/util"
 	"configcenter/src/source_controller/coreservice/app"
 	"configcenter/src/source_controller/coreservice/app/options"
@@ -39,7 +41,7 @@ func main() {
 	op.AddFlags(pflag.CommandLine)
 
 	util.InitFlags()
-
+	kubeTypes.InitKubeUpdateIgnoreFields()
 	ctx, cancel := context.WithCancel(context.Background())
 	if err := app.Run(ctx, cancel, op); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)

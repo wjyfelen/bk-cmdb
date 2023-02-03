@@ -109,7 +109,6 @@ func (s *coreService) SetConfig(cfg options.Config, engine *backbone.Engine, err
 	s.core = core.New(
 		model.New(s, lang),
 		instance,
-		//kube.New(),
 		association.New(s),
 		datasynchronize.New(s),
 		mainline.New(lang),

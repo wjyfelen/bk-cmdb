@@ -139,7 +139,7 @@ func (w *GameDeployment) BuildUpdateData(user string) (map[string]interface{}, e
 	}
 
 	now := time.Now().Unix()
-	opts := orm.NewFieldOptions().AddIgnoredFields(wlIgnoreField...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(GameDeploymentFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
@@ -147,4 +147,11 @@ func (w *GameDeployment) BuildUpdateData(user string) (map[string]interface{}, e
 	updateData[common.LastTimeField] = now
 	updateData[common.ModifierField] = user
 	return updateData, err
+}
+
+// initGameDeploymentUpdateIgnoreFields ignore non-updatable fields related to game deployment resources
+func initGameDeploymentUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	namespace := new(Namespace)
+	GameDeploymentFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
 }

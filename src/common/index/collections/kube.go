@@ -270,15 +270,6 @@ var commNodeIndexes = []types.Index{
 		Background: true,
 	},
 	{
-		Name: common.CCLogicIndexNamePrefix + "biz_id_cluster_uid",
-		Keys: bson.D{
-			{common.BKAppIDField, 1},
-			{kubetypes.ClusterUIDField, 1},
-			{common.BkSupplierAccount, 1},
-		},
-		Background: true,
-	},
-	{
 		Name: common.CCLogicIndexNamePrefix + "biz_id_cluster_id",
 		Keys: bson.D{
 			{common.BKAppIDField, 1},

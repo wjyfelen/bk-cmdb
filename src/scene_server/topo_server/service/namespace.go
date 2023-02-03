@@ -18,8 +18,6 @@
 package service
 
 import (
-	"strconv"
-
 	"configcenter/src/common"
 	"configcenter/src/common/auditlog"
 	"configcenter/src/common/blog"
@@ -32,12 +30,6 @@ import (
 
 // CreateNamespace create namespace
 func (s *Service) CreateNamespace(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsCreateOption)
 	if err := ctx.DecodeInto(req); err != nil {
@@ -50,19 +42,19 @@ func (s *Service) CreateNamespace(ctx *rest.Contexts) {
 		return
 	}
 
-	var data *metadata.RspIDs
+	var ids *metadata.RspIDs
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		data, err = s.Engine.CoreAPI.CoreService().Kube().CreateNamespace(ctx.Kit.Ctx, ctx.Kit.Header, bizID, req)
+		data, err := s.Engine.CoreAPI.CoreService().Kube().CreateNamespace(ctx.Kit.Ctx, ctx.Kit.Header, req)
 		if err != nil {
 			blog.Errorf("create namespace failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
 		}
-
+		ids = data
 		// audit log.
 		audit := auditlog.NewKubeAudit(s.Engine.CoreAPI.CoreService())
 		auditParam := auditlog.NewGenerateAuditCommonParameter(ctx.Kit, metadata.AuditCreate)
 		for idx := range req.Data {
-			req.Data[idx].BizID = bizID
+			req.Data[idx].BizID = req.BizID
 			req.Data[idx].ID = data.IDs[idx]
 			req.Data[idx].SupplierAccount = ctx.Kit.SupplierAccount
 		}
@@ -83,17 +75,11 @@ func (s *Service) CreateNamespace(ctx *rest.Contexts) {
 		return
 	}
 
-	ctx.RespEntity(data)
+	ctx.RespEntity(ids)
 }
 
 // UpdateNamespace update namespace
 func (s *Service) UpdateNamespace(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsUpdateOption)
 	if err := ctx.DecodeInto(req); err != nil {
@@ -114,25 +100,25 @@ func (s *Service) UpdateNamespace(ctx *rest.Contexts) {
 	}
 	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListNamespace(ctx.Kit.Ctx, ctx.Kit.Header, query)
 	if err != nil {
-		blog.Errorf("list namespace failed, bizID: %d, data: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
+		blog.Errorf("list namespace failed, =data: %v, err: %v, rid: %s", *req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 
 	if len(resp.Data) == 0 {
-		blog.Errorf("no namespace founded, bizID: %d, query: %+v, rid: %s", bizID, query, ctx.Kit.Rid)
+		blog.Errorf("no namespace founded, bizID: %d, query: %+v, rid: %s", req.BizID, query, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 
 	for _, namespace := range resp.Data {
 		ids := make([]int64, 0)
-		if namespace.BizID != bizID {
+		if namespace.BizID != req.BizID {
 			ids = append(ids, namespace.ID)
 		}
 
 		if len(ids) != 0 {
-			blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %s, rid: %s", ids, bizID,
+			blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %s, rid: %s", ids, req.BizID,
 				ctx.Kit.Rid)
 			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, ids))
 			return
@@ -140,7 +126,7 @@ func (s *Service) UpdateNamespace(ctx *rest.Contexts) {
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err := s.Engine.CoreAPI.CoreService().Kube().UpdateNamespace(ctx.Kit.Ctx, ctx.Kit.Header, bizID, req)
+		err := s.Engine.CoreAPI.CoreService().Kube().UpdateNamespace(ctx.Kit.Ctx, ctx.Kit.Header, req)
 		if err != nil {
 			blog.Errorf("update namespace failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
@@ -177,12 +163,6 @@ func (s *Service) UpdateNamespace(ctx *rest.Contexts) {
 // DeleteNamespace delete namespace
 func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
-
 	req := new(types.NsDeleteOption)
 	if err := ctx.DecodeInto(req); err != nil {
 		ctx.RespAutoError(err)
@@ -200,7 +180,7 @@ func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 
 	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListNamespace(ctx.Kit.Ctx, ctx.Kit.Header, query)
 	if err != nil {
-		blog.Errorf("list namespace failed, bizID: %d, data: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
+		blog.Errorf("list namespace failed, data: %v, err: %v, rid: %s", *req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
@@ -211,19 +191,20 @@ func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 
 	ids := make([]int64, 0)
 	for _, namespace := range resp.Data {
-		if namespace.BizID != bizID {
+		if namespace.BizID != req.BizID {
 			ids = append(ids, namespace.ID)
 		}
 	}
 	if len(ids) != 0 {
-		blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %d, rid: %s", ids, bizID, ctx.Kit.Rid)
+		blog.Errorf("namespace does not belong to this business, ids: %v, bizID: %d, rid: %s",
+			ids, req.BizID, ctx.Kit.Rid)
 		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, ids))
 		return
 	}
 
-	hasRes, err := s.hasNextLevelResource(ctx.Kit, types.KubeNamespace, bizID, req.IDs)
-	if err != nil {
-		ctx.RespAutoError(err)
+	hasRes, e := s.hasNextLevelResource(ctx.Kit, types.KubeNamespace, req.BizID, req.IDs)
+	if e != nil {
+		ctx.RespAutoError(e)
 		return
 	}
 	if hasRes {
@@ -232,7 +213,7 @@ func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err := s.Engine.CoreAPI.CoreService().Kube().DeleteNamespace(ctx.Kit.Ctx, ctx.Kit.Header, bizID, req)
+		err := s.Engine.CoreAPI.CoreService().Kube().DeleteNamespace(ctx.Kit.Ctx, ctx.Kit.Header, req)
 		if err != nil {
 			blog.Errorf("delete namespace failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
@@ -263,12 +244,6 @@ func (s *Service) DeleteNamespace(ctx *rest.Contexts) {
 
 // ListNamespace list namespace
 func (s *Service) ListNamespace(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsQueryOption)
 	if err := ctx.DecodeInto(req); err != nil {
@@ -281,13 +256,13 @@ func (s *Service) ListNamespace(ctx *rest.Contexts) {
 		return
 	}
 
-	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, req.BizID)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
-	bizIDs := []int64{bizID}
+	bizIDs := []int64{req.BizID}
 	if len(nsBizIDs) != 0 {
 		bizIDs = append(bizIDs, nsBizIDs...)
 	}
@@ -308,7 +283,7 @@ func (s *Service) ListNamespace(ctx *rest.Contexts) {
 	}
 
 	if req.Page.EnableCount {
-		count, err := s.countNamespace(ctx.Kit, bizID, cond, req.Page, nsBizIDs)
+		count, err := s.countNamespace(ctx.Kit, req.BizID, cond, req.Page, nsBizIDs)
 		if err != nil {
 			ctx.RespAutoError(err)
 			return
@@ -317,9 +292,9 @@ func (s *Service) ListNamespace(ctx *rest.Contexts) {
 		return
 	}
 
-	result, err := s.getNamespaceDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs)
+	result, err := s.getNamespaceDetails(ctx.Kit, req.BizID, cond, req.Page, req.Fields, nsBizIDs)
 	if err != nil {
-		blog.Errorf("list namespace failed, bizID: %s, data: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
+		blog.Errorf("list namespace failed, bizID: %s, data: %v, err: %v, rid: %s", req.BizID, req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}

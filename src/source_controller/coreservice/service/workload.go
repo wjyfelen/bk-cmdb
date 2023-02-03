@@ -19,7 +19,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 	"time"
 
 	"configcenter/src/common"
@@ -35,12 +34,6 @@ import (
 
 // CreateWorkload create workload
 func (s *coreService) CreateWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	tableName, err := kind.Table()
@@ -71,10 +64,10 @@ func (s *coreService) CreateWorkload(ctx *rest.Contexts) {
 	for _, data := range req.Data {
 		nsIDs = append(nsIDs, data.GetWorkloadBase().NamespaceID)
 	}
-	nsSpecs, err := s.GetNamespaceSpec(ctx.Kit, bizID, nsIDs)
+	nsSpecs, err := s.GetNamespaceSpec(ctx.Kit, req.BizID, nsIDs)
 	if err != nil {
-		blog.Errorf("get namespace spec message failed, bizID: %s, namespaceIDs: %v, err: %v, rid: %s", bizID, nsIDs,
-			err, ctx.Kit.Rid)
+		blog.Errorf("get namespace spec message failed, bizID: %s, namespaceIDs: %v, err: %v, rid: %s", req.BizID,
+			nsIDs, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
@@ -204,12 +197,6 @@ func (s *coreService) GetNamespaceSpec(kit *rest.Kit, bizID int64, nsIDs []int64
 
 // UpdateWorkload update workload
 func (s *coreService) UpdateWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	table, err := kind.Table()
@@ -231,7 +218,7 @@ func (s *coreService) UpdateWorkload(ctx *rest.Contexts) {
 
 	cond := map[string]interface{}{
 		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: req.BizID,
 	}
 	util.SetModOwner(cond, ctx.Kit.SupplierAccount)
 	updateData, err := req.Data.BuildUpdateData(ctx.Kit.User)
@@ -254,12 +241,6 @@ func (s *coreService) UpdateWorkload(ctx *rest.Contexts) {
 
 // DeleteWorkload delete workload
 func (s *coreService) DeleteWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	table, err := kind.Table()
@@ -281,7 +262,7 @@ func (s *coreService) DeleteWorkload(ctx *rest.Contexts) {
 
 	filter := mapstr.MapStr{
 		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: req.BizID,
 	}
 	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
 	if err := mongodb.Client().Table(table).Delete(ctx.Kit.Ctx, filter); err != nil {

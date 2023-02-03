@@ -18,7 +18,6 @@
 package service
 
 import (
-	"strconv"
 	"time"
 
 	"configcenter/src/common"
@@ -84,7 +83,7 @@ func (s *coreService) SearchNodeClusterRelation(ctx *rest.Contexts) {
 		return
 	}
 
-	result := &types.ResponseNodeClusterRelation{Data: relations}
+	result := &types.NodeClusterRelationRsp{Data: relations}
 
 	ctx.RespEntity(result)
 }
@@ -112,7 +111,7 @@ func (s *coreService) SearchNsClusterRelation(ctx *rest.Contexts) {
 		return
 	}
 
-	result := &types.ResponseNsClusterRelation{Data: relations}
+	result := &types.NsClusterRelationRsp{Data: relations}
 
 	ctx.RespEntity(result)
 }
@@ -120,8 +119,7 @@ func (s *coreService) SearchNsClusterRelation(ctx *rest.Contexts) {
 // validateUpdateClusterType for shared cluster scenarios, if you need to change the type
 // field from non-share to share then it is necessary to judge whether there is an associated
 // relationship table between ns and node. If there is a relationship table, it cannot be deleted.
-func validateUpdateClusterType(kit *rest.Kit, input *types.UpdateClusterOption, bizID int64,
-	filter map[string]interface{}) error {
+func validateUpdateClusterType(kit *rest.Kit, input *types.UpdateClusterOption, filter map[string]interface{}) error {
 	if input.Data.Type == nil || *input.Data.Type == types.ClusterShareTypeField {
 		return nil
 	}
@@ -152,7 +150,7 @@ func validateUpdateClusterType(kit *rest.Kit, input *types.UpdateClusterOption, 
 		types.BKClusterIDField: map[string]interface{}{
 			common.BKDBIN: ids,
 		},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: input.BizID,
 	}
 	count, err := mongodb.Client().Table(types.BKTableNsClusterRelation).Find(nsFilter).Count(kit.Ctx)
 	if err != nil {
@@ -168,7 +166,7 @@ func validateUpdateClusterType(kit *rest.Kit, input *types.UpdateClusterOption, 
 		types.BKClusterIDField: map[string]interface{}{
 			common.BKDBIN: ids,
 		},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: input.BizID,
 	}
 	count, err = mongodb.Client().Table(types.BKTableNodeClusterRelation).Find(nodeFilter).Count(kit.Ctx)
 	if err != nil {
@@ -192,16 +190,8 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Error("url parameter bk_biz_id not integer, bizID: %s, err: %v, rid: %s",
-			ctx.Request.PathParameter("bk_biz_id"), err, ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-
 	filter := map[string]interface{}{
-		types.BKBizIDField: bizID,
+		types.BKBizIDField: input.BizID,
 		types.BKIDField: map[string]interface{}{
 			common.BKDBIN: input.IDs,
 		},
@@ -209,7 +199,7 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 
 	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
 
-	opts := orm.NewFieldOptions().AddIgnoredFields(types.IgnoredUpdateClusterFields...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(types.ClusterFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(input.Data, opts)
 	if err != nil {
 		blog.Errorf("get update data failed, data: %v, err: %v, rid: %s", input, err, ctx.Kit.Rid)
@@ -217,7 +207,7 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 		return
 	}
 
-	if err := validateUpdateClusterType(ctx.Kit, input, bizID, filter); err != nil {
+	if err := validateUpdateClusterType(ctx.Kit, input, filter); err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
@@ -235,20 +225,62 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 // CreateCluster create kube cluster.
 func (s *coreService) CreateCluster(ctx *rest.Contexts) {
 
-	inputData := new(types.Cluster)
-	if err := ctx.DecodeInto(inputData); nil != err {
+	data := new(types.Cluster)
+	if err := ctx.DecodeInto(data); nil != err {
 		ctx.RespAutoError(err)
 		return
 	}
-	bizStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizStr, 10, 64)
-	if err != nil {
-		blog.Error("url param bk_biz_id not integer, bizID: %s, rid: %s", bizStr, ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
+
+	// it is necessary to judge whether there is duplicate data here,
+	// to prevent subsequent calls to coreservice directly and lack of verification.
+	if err := data.ValidateCreate(); err.ErrCode != 0 {
+		blog.Errorf("create cluster failed, data: %+v, err: %+v, rid: %s", data, err, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommParamsInvalid))
 		return
 	}
 
-	cluster, err := createCluster(ctx.Kit, bizID, inputData)
+	if err := checkClusterInfoDuplicatedOrNot(ctx.Kit, data.BizID, data); err != nil {
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, err.Error()))
+		return
+	}
+
+	// generate id field
+	id, err := mongodb.Client().NextSequence(ctx.Kit.Ctx, types.BKTableNameBaseCluster)
+	if err != nil {
+		blog.Errorf("create cluster failed, generate id failed, err: %+v, rid: %s", err, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommGenerateRecordIDFailed, err.Error()))
+		return
+	}
+
+	now := time.Now().Unix()
+	cluster := &types.Cluster{
+		ID:               int64(id),
+		BizID:            data.BizID,
+		SupplierAccount:  ctx.Kit.SupplierAccount,
+		Name:             data.Name,
+		SchedulingEngine: data.SchedulingEngine,
+		Uid:              data.Uid,
+		Xid:              data.Xid,
+		Version:          data.Version,
+		NetworkType:      data.NetworkType,
+		Region:           data.Region,
+		Vpc:              data.Vpc,
+		Environment:      data.Environment,
+		NetWork:          data.NetWork,
+		Type:             data.Type,
+		Revision: table.Revision{
+			CreateTime: now,
+			LastTime:   now,
+			Creator:    ctx.Kit.User,
+			Modifier:   ctx.Kit.User,
+		},
+	}
+
+	if err := mongodb.Client().Table(types.BKTableNameBaseCluster).Insert(ctx.Kit.Ctx, cluster); err != nil {
+		blog.Errorf("create cluster failed, db insert failed, doc: %+v, err: %+v, rid: %s", cluster, err, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommDBInsertFailed, err.Error()))
+		return
+	}
 
 	ctx.RespEntityWithError(cluster, err)
 }
@@ -286,59 +318,6 @@ func checkClusterInfoDuplicatedOrNot(kit *rest.Kit, bizID int64, data *types.Clu
 	return nil
 }
 
-// createCluster create cluster instance.
-func createCluster(kit *rest.Kit, bizID int64, data *types.Cluster) (*types.Cluster,
-	ccErr.CCErrorCoder) {
-
-	// it is necessary to judge whether there is duplicate data here,
-	// to prevent subsequent calls to coreservice directly and lack of verification.
-	if err := data.ValidateCreate(); err.ErrCode != 0 {
-		blog.Errorf("create cluster failed, data: %+v, err: %+v, rid: %s", data, err, kit.Rid)
-		return nil, kit.CCError.CCError(common.CCErrCommParamsInvalid)
-	}
-
-	if err := checkClusterInfoDuplicatedOrNot(kit, bizID, data); err != nil {
-		return nil, kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, err.Error())
-	}
-
-	// generate id field
-	id, err := mongodb.Client().NextSequence(kit.Ctx, types.BKTableNameBaseCluster)
-	if err != nil {
-		blog.Errorf("create cluster failed, generate id failed, err: %+v, rid: %s", err, kit.Rid)
-		return nil, kit.CCError.CCErrorf(common.CCErrCommGenerateRecordIDFailed)
-	}
-
-	now := time.Now().Unix()
-	cluster := &types.Cluster{
-		ID:               int64(id),
-		BizID:            bizID,
-		SupplierAccount:  kit.SupplierAccount,
-		Name:             data.Name,
-		SchedulingEngine: data.SchedulingEngine,
-		Uid:              data.Uid,
-		Xid:              data.Xid,
-		Version:          data.Version,
-		NetworkType:      data.NetworkType,
-		Region:           data.Region,
-		Vpc:              data.Vpc,
-		Environment:      data.Environment,
-		NetWork:          data.NetWork,
-		Type:             data.Type,
-		Revision: table.Revision{
-			CreateTime: now,
-			LastTime:   now,
-			Creator:    kit.User,
-			Modifier:   kit.User,
-		},
-	}
-
-	if err := mongodb.Client().Table(types.BKTableNameBaseCluster).Insert(kit.Ctx, cluster); err != nil {
-		blog.Errorf("create cluster failed, db insert failed, doc: %+v, err: %+v, rid: %s", cluster, err, kit.Rid)
-		return nil, kit.CCError.CCErrorf(common.CCErrCommDBInsertFailed, "cluster")
-	}
-	return cluster, nil
-}
-
 // BatchDeleteCluster delete clusters.
 func (s *coreService) BatchDeleteCluster(ctx *rest.Contexts) {
 
@@ -348,18 +327,10 @@ func (s *coreService) BatchDeleteCluster(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Errorf("url parameter bk_biz_id not integer, bizID: %s, rid: %s", ctx.Request.PathParameter("bk_biz_id"),
-			ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-
 	filter := make(map[string]interface{}, 0)
 	if len(option.IDs) > 0 {
 		filter = map[string]interface{}{
-			common.BKAppIDField:   bizID,
+			common.BKAppIDField:   option.BizID,
 			common.BKOwnerIDField: ctx.Kit.SupplierAccount,
 			types.BKIDField: map[string]interface{}{
 				common.BKDBIN: option.IDs,

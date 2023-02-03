@@ -128,7 +128,7 @@ func (w *Deployment) BuildUpdateData(user string) (map[string]interface{}, error
 	}
 
 	now := time.Now().Unix()
-	opts := orm.NewFieldOptions().AddIgnoredFields(wlIgnoreField...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(DeploymentFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
@@ -136,4 +136,11 @@ func (w *Deployment) BuildUpdateData(user string) (map[string]interface{}, error
 	updateData[common.LastTimeField] = now
 	updateData[common.ModifierField] = user
 	return updateData, err
+}
+
+// initDeploymentUpdateIgnoreFields ignore non-updatable fields related to deployment resources
+func initDeploymentUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	namespace := new(Namespace)
+	DeploymentFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
 }

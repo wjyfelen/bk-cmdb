@@ -36,9 +36,9 @@ import (
 
 // KubeOperationInterface container cluster operation methods
 type KubeOperationInterface interface {
-	CreateCluster(kit *rest.Kit, data *types.Cluster, bizID int64) (int64, error)
-	DeleteCluster(kit *rest.Kit, bizID int64, option *types.DeleteClusterOption) error
-	BatchDeleteNode(kit *rest.Kit, bizID int64, option *types.BatchDeleteNodeOption) error
+	CreateCluster(kit *rest.Kit, data *types.Cluster) (int64, error)
+	DeleteCluster(kit *rest.Kit, option *types.DeleteClusterOption) error
+	BatchDeleteNode(kit *rest.Kit, option *types.BatchDeleteNodeOption) error
 	BatchCreateNode(kit *rest.Kit, data *types.CreateNodesOption, bizID int64) ([]int64, error)
 	BatchCreatePod(kit *rest.Kit, data *types.CreatePodsOption) ([]int64, error)
 }
@@ -95,9 +95,9 @@ func (b *kube) getDeleteNodeInfo(kit *rest.Kit, ids []int64, bizID int64) ([]typ
 }
 
 // BatchDeleteNode batch delete node.
-func (b *kube) BatchDeleteNode(kit *rest.Kit, bizID int64, option *types.BatchDeleteNodeOption) error {
+func (b *kube) BatchDeleteNode(kit *rest.Kit, option *types.BatchDeleteNodeOption) error {
 
-	nodes, err := b.getDeleteNodeInfo(kit, option.IDs, bizID)
+	nodes, err := b.getDeleteNodeInfo(kit, option.IDs, option.BizID)
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (b *kube) BatchDeleteNode(kit *rest.Kit, bizID int64, option *types.BatchDe
 	// otherwise an error will be returned.
 	podCond := []map[string]interface{}{
 		{
-			types.BKBizIDField:  bizID,
+			types.BKBizIDField:  option.BizID,
 			types.BKNodeIDField: map[string]interface{}{common.BKDBIN: option.IDs},
 		},
 	}
@@ -123,7 +123,7 @@ func (b *kube) BatchDeleteNode(kit *rest.Kit, bizID int64, option *types.BatchDe
 	}
 
 	// 3、batch delete nodes
-	if err := b.clientSet.CoreService().Kube().BatchDeleteNode(kit.Ctx, kit.Header, bizID, option); err != nil {
+	if err := b.clientSet.CoreService().Kube().BatchDeleteNode(kit.Ctx, kit.Header, option); err != nil {
 		blog.Errorf("delete node failed, option: %#v, err: %v, rid: %s", option, err, kit.Rid)
 		return err
 	}
@@ -183,17 +183,17 @@ func (b *kube) getDeleteClusterInfo(kit *rest.Kit, ids []int64, bizID int64) ([]
 }
 
 // DeleteCluster delete cluster.
-func (b *kube) DeleteCluster(kit *rest.Kit, bizID int64, option *types.DeleteClusterOption) error {
+func (b *kube) DeleteCluster(kit *rest.Kit, option *types.DeleteClusterOption) error {
 
-	clusters, err := b.getDeleteClusterInfo(kit, option.IDs, bizID)
+	clusters, err := b.getDeleteClusterInfo(kit, option.IDs, option.BizID)
 	if err != nil {
 		return err
 	}
 	// whether the associated resources under the cluster have been deleted. such as namespace, node, deployment, pod.
-	exist, cErr := b.isExistKubeResourceUnderCluster(kit, option, bizID)
+	exist, cErr := b.isExistKubeResourceUnderCluster(kit, option)
 	if cErr != nil {
 		blog.Errorf("failed to obtain resources under the cluster, bizID: %d, cluster IDs: %+v, err: %v, rid: %s",
-			bizID, option.IDs, cErr, kit.Rid)
+			option.BizID, option.IDs, cErr, kit.Rid)
 		return cErr
 	}
 	if exist {
@@ -202,7 +202,7 @@ func (b *kube) DeleteCluster(kit *rest.Kit, bizID int64, option *types.DeleteClu
 		return kit.CCError.CCErrorf(common.CCErrCommParamsInvalid)
 	}
 
-	if err := b.clientSet.CoreService().Kube().DeleteCluster(kit.Ctx, kit.Header, bizID, option); err != nil {
+	if err := b.clientSet.CoreService().Kube().DeleteCluster(kit.Ctx, kit.Header, option); err != nil {
 		blog.Errorf("delete cluster failed, cluster IDs: %#v, err: %v, rid: %s", option.IDs, err, kit.Rid)
 		return err
 	}
@@ -224,7 +224,7 @@ func (b *kube) DeleteCluster(kit *rest.Kit, bizID int64, option *types.DeleteClu
 	return nil
 }
 
-func (b *kube) isExistKubeResourceUnderCluster(kit *rest.Kit, option *types.DeleteClusterOption, bizID int64) (
+func (b *kube) isExistKubeResourceUnderCluster(kit *rest.Kit, option *types.DeleteClusterOption) (
 	bool, error) {
 
 	if len(option.IDs) == 0 {
@@ -244,7 +244,7 @@ func (b *kube) isExistKubeResourceUnderCluster(kit *rest.Kit, option *types.Dele
 	filter = []map[string]interface{}{
 		{
 			types.BKClusterIDField: map[string]interface{}{common.BKDBIN: option.IDs},
-			common.BKAppIDField:    bizID,
+			common.BKAppIDField:    option.BizID,
 		},
 	}
 
@@ -268,7 +268,7 @@ func (b *kube) isExistKubeResourceUnderCluster(kit *rest.Kit, option *types.Dele
 				return
 			}
 
-		}(table, bizID)
+		}(table, option.BizID)
 	}
 	wg.Wait()
 	if firstErr != nil {
@@ -339,7 +339,7 @@ func (b *kube) BatchCreateNode(kit *rest.Kit, data *types.CreateNodesOption, biz
 		return nil, kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, "duplicate node name has been created")
 	}
 
-	result, err := b.clientSet.CoreService().Kube().BatchCreateNode(kit.Ctx, kit.Header, bizID, data)
+	result, err := b.clientSet.CoreService().Kube().BatchCreateNode(kit.Ctx, kit.Header, data)
 	if err != nil {
 		blog.Errorf("create nodes failed, data: %#v, err: %v, rid: %s", data, err, kit.Rid)
 		return nil, err
@@ -367,7 +367,7 @@ func (b *kube) BatchCreateNode(kit *rest.Kit, data *types.CreateNodesOption, biz
 }
 
 // CreateCluster create container cluster
-func (b *kube) CreateCluster(kit *rest.Kit, data *types.Cluster, bizID int64) (int64, error) {
+func (b *kube) CreateCluster(kit *rest.Kit, data *types.Cluster) (int64, error) {
 
 	if data.Name == nil || data.Uid == nil {
 		return 0, kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, "cluster name or uid must be set")
@@ -375,12 +375,12 @@ func (b *kube) CreateCluster(kit *rest.Kit, data *types.Cluster, bizID int64) (i
 
 	filterName := map[string]interface{}{
 		common.BKFieldName:  *data.Name,
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: data.BizID,
 	}
 
 	filterUid := map[string]interface{}{
 		common.BKFieldName:  *data.Uid,
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: data.BizID,
 	}
 
 	cond := map[string]interface{}{
@@ -398,7 +398,7 @@ func (b *kube) CreateCluster(kit *rest.Kit, data *types.Cluster, bizID int64) (i
 		return 0, kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, "cluster name or uid has been created")
 	}
 
-	result, err := b.clientSet.CoreService().Kube().CreateCluster(kit.Ctx, kit.Header, bizID, data)
+	result, err := b.clientSet.CoreService().Kube().CreateCluster(kit.Ctx, kit.Header, data)
 	if err != nil {
 		blog.Errorf("create cluster failed, data: %#v, err: %v, rid: %s", data, err, kit.Rid)
 		return 0, err

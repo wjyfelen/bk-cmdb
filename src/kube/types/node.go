@@ -90,10 +90,6 @@ type Node struct {
 	table.Revision `json:",inline" bson:",inline"`
 }
 
-// IgnoredUpdateNodeFields  update fields that need to be ignored in node scenarios
-var IgnoredUpdateNodeFields = []string{common.BKFieldID, common.BKAppIDField, ClusterUIDField,
-	common.BKFieldName, common.BKOwnerIDField, BKClusterIDField, common.BKHostIDField, HasPodField}
-
 // createValidate validate the NodeBaseFields
 func (option *Node) createValidate() ccErr.RawErrorInfo {
 
@@ -149,11 +145,26 @@ func (option *Node) updateValidate() ccErr.RawErrorInfo {
 
 // BatchDeleteNodeOption delete nodes option.
 type BatchDeleteNodeOption struct {
-	IDs []int64 `json:"ids"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
 }
 
 // Validate validate the BatchDeleteNodeOption
 func (option *BatchDeleteNodeOption) Validate() ccErr.RawErrorInfo {
+
+	if option == nil {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"data"},
+		}
+	}
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 
 	if len(option.IDs) == 0 {
 		return ccErr.RawErrorInfo{
@@ -197,6 +208,7 @@ func (option *OneNodeCreateOption) validateCreate() ccErr.RawErrorInfo {
 
 // CreateNodesOption create node requests in batches.
 type CreateNodesOption struct {
+	BizID int64                 `json:"bk_biz_id"`
 	Nodes []OneNodeCreateOption `json:"data"`
 }
 
@@ -209,6 +221,20 @@ type CreateNodesRsp struct {
 
 // ValidateCreate validate the create nodes request
 func (option *CreateNodesOption) ValidateCreate() ccErr.RawErrorInfo {
+
+	if option == nil {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"data"},
+		}
+	}
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 
 	if len(option.Nodes) == 0 {
 		return ccErr.RawErrorInfo{
@@ -240,6 +266,7 @@ type CreateNodesResult struct {
 
 // QueryNodeOption query node by query builder
 type QueryNodeOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Page   metadata.BasePage  `json:"page"`
 	Fields []string           `json:"fields"`
@@ -247,6 +274,14 @@ type QueryNodeOption struct {
 
 // Validate validate the param QueryNodeReq
 func (option *QueryNodeOption) Validate() ccErr.RawErrorInfo {
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if err := option.Page.ValidateWithEnableCount(false, common.BKMaxLimitSize); err.ErrCode != 0 {
 		return err
 	}
@@ -276,20 +311,22 @@ type NodeKubeOption struct {
 	Name       string `json:"name"`
 }
 
-// UpdateNodeInfo update individual node details.
-type UpdateNodeInfo struct {
-	NodeIDs []int64 `json:"ids"`
-	Data    Node    `json:"node"`
-}
-
 // UpdateNodeOption update node field option
 type UpdateNodeOption struct {
-	IDs  []int64 `json:"ids"`
-	Data Node    `json:"data"`
+	BizID int64   `json:"bk_biz_id"`
+	IDs   []int64 `json:"ids"`
+	Data  Node    `json:"data"`
 }
 
 // UpdateValidate check whether the request parameters for updating the node are legal.
 func (option *UpdateNodeOption) UpdateValidate() ccErr.RawErrorInfo {
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
 
 	if len(option.IDs) == 0 {
 		return ccErr.RawErrorInfo{
@@ -322,4 +359,10 @@ func (option *UpdateNodeOption) UpdateValidate() ccErr.RawErrorInfo {
 type NodeCondition struct {
 	Filter *filter.Expression `json:"filter"`
 	Fields []string           `json:"fields"`
+}
+
+// initNodeUpdateIgnoreFields ignore non-updatable fields related to node resources
+func initNodeUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	NodeFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster})
 }

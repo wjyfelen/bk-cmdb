@@ -19,7 +19,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 	"time"
 
 	"configcenter/src/common"
@@ -36,12 +35,6 @@ import (
 
 // CreateNamespace create namespace
 func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
-
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsCreateOption)
 	if err := ctx.DecodeInto(req); nil != err {
@@ -66,9 +59,9 @@ func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
 		clusterIDs = append(clusterIDs, data.ClusterID)
 	}
 
-	clusterSpecs, err := s.GetClusterSpec(ctx.Kit, bizID, clusterIDs)
+	clusterSpecs, err := s.GetClusterSpec(ctx.Kit, req.BizID, clusterIDs)
 	if err != nil {
-		blog.Errorf("get cluster spec failed, bizID: %d, clusterIDs: %v, err: %v, rid: %s", bizID, clusterIDs, err,
+		blog.Errorf("get cluster spec failed, bizID: %d, clusterIDs: %v, err: %v, rid: %s", req.BizID, clusterIDs, err,
 			ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
@@ -98,7 +91,7 @@ func (s *coreService) CreateNamespace(ctx *rest.Contexts) {
 		if data.ClusterSpec.BizID != data.ClusterSpec.BizAsstID &&
 			data.ClusterSpec.ClusterType == types.ClusterShareTypeField {
 			nsRelationData = append(nsRelationData, types.NsClusterRelation{
-				BizID:           bizID,
+				BizID:           req.BizID,
 				BizAsstID:       data.ClusterSpec.BizAsstID,
 				ClusterID:       data.ClusterSpec.ClusterID,
 				ClusterUID:      data.ClusterSpec.ClusterUID,
@@ -191,12 +184,6 @@ func (s *coreService) GetClusterSpec(kit *rest.Kit, bizID int64, clusterIDs []in
 
 // UpdateNamespace update namespace
 func (s *coreService) UpdateNamespace(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsUpdateOption)
 	if err := ctx.DecodeInto(req); nil != err {
@@ -212,14 +199,14 @@ func (s *coreService) UpdateNamespace(ctx *rest.Contexts) {
 	// build filter
 	filter := mapstr.MapStr{
 		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: req.BizID,
 	}
 	filter = util.SetModOwner(filter, ctx.Kit.SupplierAccount)
 	now := time.Now().Unix()
 	req.Data.LastTime = now
 	req.Data.Modifier = ctx.Kit.User
 	// build update data
-	opts := orm.NewFieldOptions().AddIgnoredFields(common.BKFieldID, types.ClusterUIDField, common.BKFieldName)
+	opts := orm.NewFieldOptions().AddIgnoredFields(types.NamespaceFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(req.Data, opts)
 	if err != nil {
 		blog.Errorf("get update data failed, data: %v, err: %v, rid: %s", req.Data, err, ctx.Kit.Rid)
@@ -241,12 +228,6 @@ func (s *coreService) UpdateNamespace(ctx *rest.Contexts) {
 
 // DeleteNamespace delete namespace
 func (s *coreService) DeleteNamespace(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.NsDeleteOption)
 	if err := ctx.DecodeInto(req); nil != err {
@@ -266,7 +247,7 @@ func (s *coreService) DeleteNamespace(ctx *rest.Contexts) {
 
 	namespaces := make([]types.Namespace, 0)
 	fields := []string{common.BKFieldID, types.BKClusterIDField, types.BKBizAsstIDField, types.BKBizIDField}
-	err = mongodb.Client().Table(types.BKTableNameBaseNamespace).Find(queryFilter).
+	err := mongodb.Client().Table(types.BKTableNameBaseNamespace).Find(queryFilter).
 		Fields(fields...).All(ctx.Kit.Ctx, &namespaces)
 	if err != nil {
 		blog.Errorf("query namespace info failed, filter: %+v, err: %v, rid: %s", queryFilter, err, ctx.Kit.Rid)
@@ -280,7 +261,7 @@ func (s *coreService) DeleteNamespace(ctx *rest.Contexts) {
 	}
 	filter := mapstr.MapStr{
 		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: bizID,
+		common.BKAppIDField: req.BizID,
 	}
 	filter = util.SetModOwner(filter, ctx.Kit.SupplierAccount)
 	if err := mongodb.Client().Table(types.BKTableNameBaseNamespace).Delete(ctx.Kit.Ctx, filter); err != nil {

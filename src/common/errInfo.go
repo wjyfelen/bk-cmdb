@@ -854,7 +854,9 @@ const (
 	// CCErrCoreServiceCreateDBUniqueIndex 创建唯一索引失败,现有数据有重复值
 	CCErrCoreServiceCreateDBUniqueIndexDuplicateValue = 1113039
 
-	CCErrCoreServiceNsRelaitionExist   = 1113040
+	// CCErrCoreServiceNsRelaitionExist 共享集群场景下创建namespace关联关系表失败,现有数据有重复值
+	CCErrCoreServiceNsRelaitionExist = 1113040
+	// CCErrCoreServiceNodeRelaitionExist 共享集群场景下创建node关联关系表失败,现有数据有重复值
 	CCErrCoreServiceNodeRelaitionExist = 1113041
 
 	// synchronize data core service  11139xx

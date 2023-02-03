@@ -84,6 +84,7 @@ const (
 
 // PodQueryOption pod query request
 type PodQueryOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Fields []string           `json:"fields,omitempty"`
 	Page   metadata.BasePage  `json:"page,omitempty"`
@@ -91,6 +92,14 @@ type PodQueryOption struct {
 
 // Validate validate PodQueryOption
 func (p *PodQueryOption) Validate() ccErr.RawErrorInfo {
+
+	if p.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
 	if err := p.Page.ValidateWithEnableCount(false, podQueryLimit); err.ErrCode != 0 {
 		return err
 	}
@@ -318,23 +327,32 @@ func (option *CreatePodsOption) Validate() ccErr.RawErrorInfo {
 
 // ContainerQueryOption container query request
 type ContainerQueryOption struct {
+	BizID  int64              `json:"bk_biz_id"`
 	Filter *filter.Expression `json:"filter"`
 	Fields []string           `json:"fields,omitempty"`
 	Page   metadata.BasePage  `json:"page,omitempty"`
 }
 
 // Validate validate ContainerQueryOption
-func (p *ContainerQueryOption) Validate() ccErr.RawErrorInfo {
-	if err := p.Page.ValidateWithEnableCount(false, containerQueryLimit); err.ErrCode != 0 {
+func (option *ContainerQueryOption) Validate() ccErr.RawErrorInfo {
+
+	if option.BizID == 0 {
+		return ccErr.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"bk_biz_id"},
+		}
+	}
+
+	if err := option.Page.ValidateWithEnableCount(false, containerQueryLimit); err.ErrCode != 0 {
 		return err
 	}
 
-	if p.Filter == nil {
+	if option.Filter == nil {
 		return ccErr.RawErrorInfo{}
 	}
 
 	op := filter.NewDefaultExprOpt(ContainerFields.FieldsType())
-	if err := p.Filter.Validate(op); err != nil {
+	if err := option.Filter.Validate(op); err != nil {
 		return ccErr.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsInvalid,
 			Args:    []interface{}{err.Error()},

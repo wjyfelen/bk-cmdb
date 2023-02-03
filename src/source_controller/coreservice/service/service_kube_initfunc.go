@@ -32,14 +32,14 @@ func (s *coreService) initKube(web *restful.WebService) {
 	})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodPost,
-		Path:    "/create/kube/cluster/{bk_biz_id}",
+		Path:    "/create/kube/cluster",
 		Handler: s.CreateCluster})
 	utility.AddHandler(rest.Action{Verb: http.MethodPut,
-		Path:    "/updatemany/kube/cluster/{bk_biz_id}",
+		Path:    "/updatemany/kube/cluster",
 		Handler: s.BatchUpdateCluster})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete,
-		Path:    "/deletemany/kube/cluster/{bk_biz_id}",
+		Path:    "/deletemany/kube/cluster",
 		Handler: s.BatchDeleteCluster})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodPost,
@@ -55,15 +55,15 @@ func (s *coreService) initKube(web *restful.WebService) {
 		Handler: s.SearchNodeClusterRelation})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodPut,
-		Path:    "/updatemany/kube/node/{bk_biz_id}",
+		Path:    "/updatemany/kube/node",
 		Handler: s.BatchUpdateNode})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete,
-		Path:    "/deletemany/kube/node/{bk_biz_id}",
+		Path:    "/deletemany/kube/node",
 		Handler: s.BatchDeleteNode})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodPost,
-		Path:    "/createmany/kube/node/{bk_biz_id}",
+		Path:    "/createmany/kube/node",
 		Handler: s.BatchCreateNode})
 
 	utility.AddHandler(rest.Action{Verb: http.MethodPost,
@@ -75,20 +75,25 @@ func (s *coreService) initKube(web *restful.WebService) {
 		Handler: s.SearchNodes})
 
 	// namespace
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/createmany/namespace/bk_biz_id/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/createmany/namespace",
 		Handler: s.CreateNamespace})
-	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/updatemany/namespace/bk_biz_id/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodPut,
+		Path:    "/updatemany/namespace",
 		Handler: s.UpdateNamespace})
-	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/deletemany/namespace/bk_biz_id/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodDelete,
+		Path:    "/deletemany/namespace",
 		Handler: s.DeleteNamespace})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/namespace", Handler: s.ListNamespace})
 
 	// workload
-	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/createmany/workload/{kind}/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodPost,
+		Path:    "/createmany/workload/{kind}",
 		Handler: s.CreateWorkload})
-	utility.AddHandler(rest.Action{Verb: http.MethodPut, Path: "/updatemany/workload/{kind}/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodPut,
+		Path:    "/updatemany/workload/{kind}",
 		Handler: s.UpdateWorkload})
-	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/deletemany/workload/{kind}/{bk_biz_id}",
+	utility.AddHandler(rest.Action{Verb: http.MethodDelete,
+		Path:    "/deletemany/workload/{kind}",
 		Handler: s.DeleteWorkload})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/findmany/workload/{kind}", Handler: s.ListWorkload})
 

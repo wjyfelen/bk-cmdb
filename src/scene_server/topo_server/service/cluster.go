@@ -19,7 +19,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 
 	"configcenter/src/common"
 	"configcenter/src/common/auditlog"
@@ -46,13 +45,6 @@ func (s *Service) SearchClusters(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
 	filter := mapstr.New()
 	if searchCond.Filter != nil {
 		cond, rawErr := searchCond.Filter.ToMgo()
@@ -64,7 +56,7 @@ func (s *Service) SearchClusters(ctx *rest.Contexts) {
 		filter = cond
 	}
 
-	filter[types.BKBizIDField] = bizID
+	filter[types.BKBizIDField] = searchCond.BizID
 
 	// get the number of clusters
 	if searchCond.Page.EnableCount {
@@ -134,21 +126,14 @@ func (s *Service) UpdateClusterFields(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
-	clusters, err := s.getUpdateClustersInfo(ctx.Kit, bizID, data.IDs)
+	clusters, err := s.getUpdateClustersInfo(ctx.Kit, data.BizID, data.IDs)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err := s.Engine.CoreAPI.CoreService().Kube().UpdateClusterFields(ctx.Kit.Ctx, ctx.Kit.Header, bizID, data)
+		err := s.Engine.CoreAPI.CoreService().Kube().UpdateClusterFields(ctx.Kit.Ctx, ctx.Kit.Header, data)
 		if err != nil {
 			blog.Errorf("create cluster failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 			return err
@@ -201,17 +186,10 @@ func (s *Service) CreateCluster(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
 	var id int64
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 		var err error
-		id, err = s.Logics.KubeOperation().CreateCluster(ctx.Kit, data, bizID)
+		id, err = s.Logics.KubeOperation().CreateCluster(ctx.Kit, data)
 		if err != nil {
 			blog.Errorf("create cluster failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 			return err
@@ -240,18 +218,12 @@ func (s *Service) DeleteCluster(ctx *rest.Contexts) {
 		ctx.RespAutoError(err.ToCCError(ctx.Kit.CCError))
 		return
 	}
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 		var err error
-		err = s.Logics.KubeOperation().DeleteCluster(ctx.Kit, bizID, option)
+		err = s.Logics.KubeOperation().DeleteCluster(ctx.Kit, option)
 		if err != nil {
-			blog.Errorf("delete cluster failed, biz: %d, option: %+v, err: %v, rid: %s", bizID, option, err,
+			blog.Errorf("delete cluster failed,option: %+v, err: %v, rid: %s", option, err,
 				ctx.Kit.Rid)
 			return err
 		}

@@ -225,7 +225,7 @@ var _ = Describe("kube cluster test", func() {
 					InternalIP: &internalIP,
 				},
 			}
-			result, err := kubeClient.UpdateNodeFields(ctx, header, bizId, createNode)
+			result, err := kubeClient.UpdateNodeFields(ctx, header, createNode)
 			util.RegisterResponse(result)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(result.Result).To(Equal(true))
@@ -240,7 +240,7 @@ var _ = Describe("kube cluster test", func() {
 					Name: &name,
 				},
 			}
-			result, err := kubeClient.UpdateNodeFields(ctx, header, bizId, option)
+			result, err := kubeClient.UpdateNodeFields(ctx, header, option)
 			util.RegisterResponse(result)
 			Expect(err.Error()).Should(ContainSubstring("name"))
 		}()

@@ -227,18 +227,11 @@ func (s *Service) BatchDeleteNode(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 		var err error
-		err = s.Logics.KubeOperation().BatchDeleteNode(ctx.Kit, bizID, option)
+		err = s.Logics.KubeOperation().BatchDeleteNode(ctx.Kit, option)
 		if err != nil {
-			blog.Errorf("delete node failed, biz: %d, option: %+v, err: %v, rid: %s", bizID, option, err, ctx.Kit.Rid)
+			blog.Errorf("delete node failed, biz: %d, option: %+v, err: %v, rid: %s", *option, err, ctx.Kit.Rid)
 			return err
 		}
 		return nil
@@ -267,17 +260,10 @@ func (s *Service) BatchCreateNode(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
 	var ids []int64
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 		var err error
-		ids, err = s.Logics.KubeOperation().BatchCreateNode(ctx.Kit, data, bizID)
+		ids, err = s.Logics.KubeOperation().BatchCreateNode(ctx.Kit, data, data.BizID)
 		if err != nil {
 			blog.Errorf("create node failed, err: %v, rid: %s", err, ctx.Kit.Rid)
 			return err
@@ -309,13 +295,6 @@ func (s *Service) SearchNodes(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter("bk_biz_id"), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
 	filter := mapstr.New()
 	if searchCond.Filter != nil {
 		cond, rawErr := searchCond.Filter.ToMgo()
@@ -327,13 +306,13 @@ func (s *Service) SearchNodes(ctx *rest.Contexts) {
 		filter = cond
 	}
 
-	nodeBizIDs, err := s.searchNodeBizIDWithBizAsstID(ctx.Kit, bizID)
+	nodeBizIDs, err := s.searchNodeBizIDWithBizAsstID(ctx.Kit, searchCond.BizID)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
-	bizIDs := []int64{bizID}
+	bizIDs := []int64{searchCond.BizID}
 	if len(nodeBizIDs) != 0 {
 		bizIDs = append(bizIDs, nodeBizIDs...)
 	}
@@ -345,7 +324,7 @@ func (s *Service) SearchNodes(ctx *rest.Contexts) {
 	// 这里获取到node信息，然后还得看一下各个node信息中的cluster信息中的assID是否是传入的ID并且对应的cluster type需要是共享集群
 	// count biz in cluster enable count is set
 	if searchCond.Page.EnableCount {
-		count, err := s.countNodes(ctx.Kit, bizID, filter, searchCond.Page, nodeBizIDs)
+		count, err := s.countNodes(ctx.Kit, searchCond.BizID, filter, searchCond.Page, nodeBizIDs)
 		if err != nil {
 			ctx.RespAutoError(err)
 			return
@@ -354,7 +333,7 @@ func (s *Service) SearchNodes(ctx *rest.Contexts) {
 		return
 	}
 
-	nodes, err := s.getNodeDetails(ctx.Kit, bizID, filter, searchCond.Page, searchCond.Fields, nodeBizIDs)
+	nodes, err := s.getNodeDetails(ctx.Kit, searchCond.BizID, filter, searchCond.Page, searchCond.Fields, nodeBizIDs)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
@@ -474,21 +453,14 @@ func (s *Service) UpdateNodeFields(ctx *rest.Contexts) {
 		return
 	}
 
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		blog.Errorf("failed to parse the biz id, err: %v, rid: %s", err, ctx.Kit.Rid)
-		ctx.RespAutoError(err)
-		return
-	}
-
-	nodes, err := s.getUpdateNodeInfo(ctx.Kit, bizID, data.IDs)
+	nodes, err := s.getUpdateNodeInfo(ctx.Kit, data.BizID, data.IDs)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		if err := s.Engine.CoreAPI.CoreService().Kube().UpdateNodeFields(ctx.Kit.Ctx, ctx.Kit.Header, bizID,
+		if err := s.Engine.CoreAPI.CoreService().Kube().UpdateNodeFields(ctx.Kit.Ctx, ctx.Kit.Header,
 			data); err != nil {
 			blog.Errorf("update node failed, data: %+v, err: %v, rid: %s", data, err, ctx.Kit.Rid)
 			return err

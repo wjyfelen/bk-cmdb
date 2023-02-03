@@ -19,7 +19,6 @@ package service
 
 import (
 	"errors"
-	"strconv"
 
 	"configcenter/src/common"
 	"configcenter/src/common/auditlog"
@@ -33,12 +32,6 @@ import (
 
 // CreateWorkload create workload
 func (s *Service) CreateWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	if err := kind.Validate(); err != nil {
@@ -58,20 +51,20 @@ func (s *Service) CreateWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	var data *metadata.RspIDs
+	var ids *metadata.RspIDs
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		data, err = s.Engine.CoreAPI.CoreService().Kube().CreateWorkload(ctx.Kit.Ctx, ctx.Kit.Header, bizID, kind, &req)
+		data, err := s.Engine.CoreAPI.CoreService().Kube().CreateWorkload(ctx.Kit.Ctx, ctx.Kit.Header, kind, &req)
 		if err != nil {
 			blog.Errorf("create workload failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
 		}
-
+		ids = data
 		// audit log.
 		audit := auditlog.NewKubeAudit(s.Engine.CoreAPI.CoreService())
 		auditParam := auditlog.NewGenerateAuditCommonParameter(ctx.Kit, metadata.AuditCreate)
 		for idx := range req.Data {
 			wlBase := req.Data[idx].GetWorkloadBase()
-			wlBase.BizID = bizID
+			wlBase.BizID = req.BizID
 			wlBase.ID = data.IDs[idx]
 			wlBase.SupplierAccount = ctx.Kit.SupplierAccount
 			req.Data[idx].SetWorkloadBase(wlBase)
@@ -93,17 +86,11 @@ func (s *Service) CreateWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	ctx.RespEntity(data)
+	ctx.RespEntity(ids)
 }
 
 // UpdateWorkload update workload
 func (s *Service) UpdateWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	if err := kind.Validate(); err != nil {
@@ -127,31 +114,31 @@ func (s *Service) UpdateWorkload(ctx *rest.Contexts) {
 	}
 	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListWorkload(ctx.Kit.Ctx, ctx.Kit.Header, query, kind)
 	if err != nil {
-		blog.Errorf("list workload failed, bizID: %s, data: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
+		blog.Errorf("list workload failed, bizID: %s, data: %v, err: %v, rid: %s", req.BizID, req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 	if len(resp.Info) == 0 {
-		blog.Errorf("no workload founded, bizID: %s, data: %v, rid: %s", bizID, req, ctx.Kit.Rid)
+		blog.Errorf("no workload founded, bizID: %s, data: %v, rid: %s", req.BizID, req, ctx.Kit.Rid)
 		ctx.RespAutoError(errors.New("no workload founded"))
 		return
 	}
 	for _, workload := range resp.Info {
 		ids := make([]int64, 0)
-		if workload.GetWorkloadBase().BizID != bizID {
+		if workload.GetWorkloadBase().BizID != req.BizID {
 			ids = append(ids, workload.GetWorkloadBase().ID)
 		}
 
 		if len(ids) != 0 {
 			blog.Errorf("workload does not belong to this business, kind: %v, ids: %v, bizID: %s, rid: %s", kind, ids,
-				bizID, ctx.Kit.Rid)
+				req.BizID, ctx.Kit.Rid)
 			ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, ids))
 			return
 		}
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err := s.Engine.CoreAPI.CoreService().Kube().UpdateWorkload(ctx.Kit.Ctx, ctx.Kit.Header, bizID, kind, &req)
+		err := s.Engine.CoreAPI.CoreService().Kube().UpdateWorkload(ctx.Kit.Ctx, ctx.Kit.Header, kind, &req)
 		if err != nil {
 			blog.Errorf("update workload failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
@@ -188,11 +175,6 @@ func (s *Service) UpdateWorkload(ctx *rest.Contexts) {
 
 // DeleteWorkload delete workload
 func (s *Service) DeleteWorkload(ctx *rest.Contexts) {
-	bizID, err := strconv.ParseInt(ctx.Request.PathParameter(common.BKAppIDField), 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	if err := kind.Validate(); err != nil {
@@ -216,33 +198,33 @@ func (s *Service) DeleteWorkload(ctx *rest.Contexts) {
 	}
 	resp, err := s.Engine.CoreAPI.CoreService().Kube().ListWorkload(ctx.Kit.Ctx, ctx.Kit.Header, query, kind)
 	if err != nil {
-		blog.Errorf("list workload failed, bizID: %s, req: %v, err: %v, rid: %s", bizID, req, err, ctx.Kit.Rid)
+		blog.Errorf("list workload failed, req: %v, err: %v, rid: %s", *req, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
 		return
 	}
 
 	if len(resp.Info) == 0 {
-		blog.Errorf("no workload founded, bizID: %s, data: %v, rid: %s", bizID, req, ctx.Kit.Rid)
+		blog.Errorf("no workload founded, data: %v, rid: %s", *req, ctx.Kit.Rid)
 		ctx.RespAutoError(errors.New("no workload founded"))
 		return
 	}
 
 	ids := make([]int64, 0)
 	for _, workload := range resp.Info {
-		if workload.GetWorkloadBase().BizID != bizID {
+		if workload.GetWorkloadBase().BizID != req.BizID {
 			ids = append(ids, workload.GetWorkloadBase().ID)
 		}
 	}
 	if len(ids) != 0 {
 		blog.Errorf("workload does not belong to this business, kind: %v, ids: %v, bizID: %s, rid: %s", kind, ids,
-			bizID, ctx.Kit.Rid)
+			req.BizID, ctx.Kit.Rid)
 		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKFieldID))
 		return
 	}
 
-	hasRes, err := s.hasNextLevelResource(ctx.Kit, string(kind), bizID, req.IDs)
-	if err != nil {
-		ctx.RespAutoError(err)
+	hasRes, e := s.hasNextLevelResource(ctx.Kit, string(kind), req.BizID, req.IDs)
+	if e != nil {
+		ctx.RespAutoError(e)
 		return
 	}
 	if hasRes {
@@ -251,7 +233,7 @@ func (s *Service) DeleteWorkload(ctx *rest.Contexts) {
 	}
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
-		err := s.Engine.CoreAPI.CoreService().Kube().DeleteWorkload(ctx.Kit.Ctx, ctx.Kit.Header, bizID, kind, req)
+		err := s.Engine.CoreAPI.CoreService().Kube().DeleteWorkload(ctx.Kit.Ctx, ctx.Kit.Header, kind, req)
 		if err != nil {
 			blog.Errorf("delete workload failed, data: %v, err: %v, rid: %s", req, err, ctx.Kit.Rid)
 			return err
@@ -281,12 +263,6 @@ func (s *Service) DeleteWorkload(ctx *rest.Contexts) {
 
 // ListWorkload list workload
 func (s *Service) ListWorkload(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	kind := types.WorkloadType(ctx.Request.PathParameter(types.KindField))
 	table, err := kind.Table()
@@ -306,13 +282,13 @@ func (s *Service) ListWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, req.BizID)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
-	bizIDs := []int64{bizID}
+	bizIDs := []int64{req.BizID}
 	if len(nsBizIDs) != 0 {
 		bizIDs = append(bizIDs, nsBizIDs...)
 	}
@@ -333,7 +309,7 @@ func (s *Service) ListWorkload(ctx *rest.Contexts) {
 	}
 
 	if req.Page.EnableCount {
-		count, err := s.countWorkload(ctx.Kit, bizID, cond, req.Page, nsBizIDs, kind)
+		count, err := s.countWorkload(ctx.Kit, req.BizID, cond, req.Page, nsBizIDs, kind)
 		if err != nil {
 			blog.Errorf("count workload failed, table: %s, cond: %v, err: %v, rid: %s", table, cond, err, ctx.Kit.Rid)
 			ctx.RespAutoError(err)
@@ -343,7 +319,7 @@ func (s *Service) ListWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	info, err := s.getWorkloadDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs, kind)
+	info, err := s.getWorkloadDetails(ctx.Kit, req.BizID, cond, req.Page, req.Fields, nsBizIDs, kind)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return

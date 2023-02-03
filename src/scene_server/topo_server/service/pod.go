@@ -18,7 +18,6 @@
 package service
 
 import (
-	"configcenter/src/common/util"
 	"errors"
 	"fmt"
 	"strconv"
@@ -29,6 +28,7 @@ import (
 	"configcenter/src/common/http/rest"
 	"configcenter/src/common/mapstr"
 	"configcenter/src/common/metadata"
+	"configcenter/src/common/util"
 	"configcenter/src/kube/types"
 )
 
@@ -163,12 +163,6 @@ func (s *Service) buildPodPaths(kit *rest.Kit, bizName string, pods []types.Pod)
 
 // ListPod list pod
 func (s *Service) ListPod(ctx *rest.Contexts) {
-	bizIDStr := ctx.Request.PathParameter(common.BKAppIDField)
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		ctx.RespAutoError(ctx.Kit.CCError.CCErrorf(common.CCErrCommParamsInvalid, common.BKAppIDField))
-		return
-	}
 
 	req := new(types.PodQueryOption)
 	if err := ctx.DecodeInto(req); err != nil {
@@ -181,13 +175,13 @@ func (s *Service) ListPod(ctx *rest.Contexts) {
 		return
 	}
 
-	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, bizID)
+	nsBizIDs, err := s.searchNsBizIDWithBizAsstID(ctx.Kit, req.BizID)
 	if err != nil {
 		ctx.RespAutoError(err)
 		return
 	}
 
-	bizIDs := []int64{bizID}
+	bizIDs := []int64{req.BizID}
 	if len(nsBizIDs) != 0 {
 		bizIDs = append(bizIDs, nsBizIDs...)
 	}
@@ -210,7 +204,7 @@ func (s *Service) ListPod(ctx *rest.Contexts) {
 		return
 	}
 
-	pods, err := s.getPodDetails(ctx.Kit, bizID, cond, req.Page, req.Fields, nsBizIDs)
+	pods, err := s.getPodDetails(ctx.Kit, req.BizID, cond, req.Page, req.Fields, nsBizIDs)
 	if err != nil {
 		blog.Errorf("count pod failed, cond: %v, err: %v, rid: %s", cond, err, ctx.Kit.Rid)
 		ctx.RespAutoError(err)
@@ -219,7 +213,8 @@ func (s *Service) ListPod(ctx *rest.Contexts) {
 	ctx.RespEntityWithCount(0, pods)
 }
 
-func (s *Service) countPod(kit *rest.Kit, bizID int64, filter mapstr.MapStr, page metadata.BasePage,
+// todo: 获取pods数量
+func (s *Service) countPods(kit *rest.Kit, bizID int64, filter mapstr.MapStr, page metadata.BasePage,
 	nsBizIDs []int64) (int64, error) {
 
 	query := &metadata.QueryCondition{

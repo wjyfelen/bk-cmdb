@@ -40,7 +40,7 @@ type KubeOperationInterface interface {
 		option *types.BatchDeleteNodeOption) (*metadata.Response, errors.CCErrorCoder)
 	BatchCreateNode(ctx context.Context, header http.Header, bizID int64,
 		data *types.CreateNodesOption) ([]int64, errors.CCErrorCoder)
-	UpdateNodeFields(ctx context.Context, header http.Header, bizID int64, data *types.UpdateNodeOption) (
+	UpdateNodeFields(ctx context.Context, header http.Header, data *types.UpdateNodeOption) (
 		*metadata.Response, errors.CCErrorCoder)
 	SearchNode(ctx context.Context, header http.Header, bizID int64, input *types.QueryNodeOption) (
 		*metadata.Response, errors.CCErrorCoder)

@@ -101,7 +101,7 @@ func (w *PodsWorkload) BuildUpdateData(user string) (map[string]interface{}, err
 	}
 
 	now := time.Now().Unix()
-	opts := orm.NewFieldOptions().AddIgnoredFields(wlIgnoreField...)
+	opts := orm.NewFieldOptions().AddIgnoredFields(PodsWorkloadFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
@@ -109,4 +109,11 @@ func (w *PodsWorkload) BuildUpdateData(user string) (map[string]interface{}, err
 	updateData[common.LastTimeField] = now
 	updateData[common.ModifierField] = user
 	return updateData, err
+}
+
+// initPodsWorkLoadUpdateIgnoreFields ignore non-updatable fields related to pods workload resources
+func initPodsWorkLoadUpdateIgnoreFields() {
+	cluster := new(ClusterSpec)
+	namespace := new(Namespace)
+	PodsWorkloadFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
 }
