@@ -100,20 +100,22 @@ func (w *Job) BuildUpdateData(user string) (map[string]interface{}, error) {
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(JobFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initJobUpdateIgnoreFields ignore non-updatable fields related to job resources
 func initJobUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	JobFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+
+	JobFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

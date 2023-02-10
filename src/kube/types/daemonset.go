@@ -126,20 +126,21 @@ func (w *DaemonSet) BuildUpdateData(user string) (map[string]interface{}, error)
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(DaemonSetFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initDaemonsetUpdateIgnoreFields ignore non-updatable fields related to daemonSet resources
-func initDaemonsetUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	DaemonSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+func initDaemonSetUpdateIgnoreFields() {
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+	DaemonSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

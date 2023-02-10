@@ -21,9 +21,8 @@ import (
 	"configcenter/src/common"
 	"configcenter/src/common/blog"
 	"configcenter/src/common/types"
-	kubeTypes "configcenter/src/kube/types"
-
 	"configcenter/src/common/util"
+	kubeTypes "configcenter/src/kube/types"
 	"configcenter/src/source_controller/coreservice/app"
 	"configcenter/src/source_controller/coreservice/app/options"
 

@@ -296,7 +296,7 @@ func (option *SpecSimpleInfo) validate() error {
 func InitKubeUpdateIgnoreFields() {
 	initClusterUpdateIgnoreFields()
 	initCronJobUpdateIgnoreFields()
-	initDaemonsetUpdateIgnoreFields()
+	initDaemonSetUpdateIgnoreFields()
 	initDeploymentUpdateIgnoreFields()
 	initGameDeploymentUpdateIgnoreFields()
 	initGameStatefulSetUpdateIgnoreFields()

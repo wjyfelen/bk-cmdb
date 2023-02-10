@@ -127,20 +127,22 @@ func (w *Deployment) BuildUpdateData(user string) (map[string]interface{}, error
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(DeploymentFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initDeploymentUpdateIgnoreFields ignore non-updatable fields related to deployment resources
 func initDeploymentUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	DeploymentFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+
+	DeploymentFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

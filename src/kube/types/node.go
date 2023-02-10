@@ -363,6 +363,6 @@ type NodeCondition struct {
 
 // initNodeUpdateIgnoreFields ignore non-updatable fields related to node resources
 func initNodeUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	NodeFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster})
+	var cluster ClusterSpec
+	NodeFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster)
 }

@@ -198,7 +198,6 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 	}
 
 	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
-
 	opts := orm.NewFieldOptions().AddIgnoredFields(types.ClusterFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(input.Data, opts)
 	if err != nil {
@@ -211,7 +210,8 @@ func (s *coreService) BatchUpdateCluster(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-
+	updateData[types.LastTimeField] = time.Now().Unix()
+	updateData[types.ModifierField] = ctx.Kit.User
 	err = mongodb.Client().Table(types.BKTableNameBaseCluster).Update(ctx.Kit.Ctx, filter, updateData)
 	if err != nil {
 		blog.Errorf("update cluster failed, filter: %v, updateData: %v, err: %v, rid: %s", filter, updateData,

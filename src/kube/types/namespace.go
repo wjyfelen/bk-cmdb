@@ -341,6 +341,7 @@ type NsDataResp struct {
 
 // initNamespaceUpdateIgnoreFields ignore non-updatable fields related to namespace resources
 func initNamespaceUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	NamespaceFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster})
+	var u ClusterSpec
+
+	NamespaceFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, u)
 }

@@ -145,20 +145,22 @@ func (w *GameStatefulSet) BuildUpdateData(user string) (map[string]interface{}, 
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(GameStatefulSetFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initGameStatefulSetUpdateIgnoreFields ignore non-updatable fields related to game statefulSet resources
 func initGameStatefulSetUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	GameStatefulSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+
+	GameStatefulSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

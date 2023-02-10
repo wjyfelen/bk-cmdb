@@ -100,20 +100,21 @@ func (w *CronJob) BuildUpdateData(user string) (map[string]interface{}, error) {
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(CronJobFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initCronJobUpdateIgnoreFields ignore non-updatable fields related to cronjob resources
 func initCronJobUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	CronJobFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+	CronJobFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

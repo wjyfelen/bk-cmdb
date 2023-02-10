@@ -126,20 +126,22 @@ func (w *StatefulSet) BuildUpdateData(user string) (map[string]interface{}, erro
 		return nil, errors.New("update param is invalid")
 	}
 
-	now := time.Now().Unix()
 	opts := orm.NewFieldOptions().AddIgnoredFields(StatefulSetFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(w, opts)
 	if err != nil {
 		return nil, err
 	}
-	updateData[common.LastTimeField] = now
+	updateData[common.LastTimeField] = time.Now().Unix()
 	updateData[common.ModifierField] = user
 	return updateData, err
 }
 
 // initStatefulSetUpdateIgnoreFields ignore non-updatable fields related to statefulset resources.
 func initStatefulSetUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	StatefulSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+
+	StatefulSetFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

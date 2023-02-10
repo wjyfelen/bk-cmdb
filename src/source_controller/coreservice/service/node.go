@@ -277,13 +277,6 @@ func (s *coreService) BatchUpdateNode(ctx *rest.Contexts) {
 		return
 	}
 
-	filter := map[string]interface{}{
-		types.BKBizIDField: input.BizID,
-		types.BKIDField: map[string]interface{}{
-			common.BKDBIN: input.IDs,
-		},
-	}
-	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
 	opts := orm.NewFieldOptions().AddIgnoredFields(types.NodeFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(input.Data, opts)
 	if err != nil {
@@ -291,6 +284,16 @@ func (s *coreService) BatchUpdateNode(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
+
+	filter := map[string]interface{}{
+		types.BKBizIDField: input.BizID,
+		types.BKIDField: map[string]interface{}{
+			common.BKDBIN: input.IDs,
+		},
+	}
+	util.SetModOwner(filter, ctx.Kit.SupplierAccount)
+	updateData[types.LastTimeField] = time.Now().Unix()
+	updateData[types.ModifierField] = ctx.Kit.User
 
 	err = mongodb.Client().Table(types.BKTableNameBaseNode).Update(ctx.Kit.Ctx, filter, updateData)
 	if err != nil {

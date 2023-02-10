@@ -216,17 +216,18 @@ func (s *coreService) UpdateWorkload(ctx *rest.Contexts) {
 		return
 	}
 
-	cond := map[string]interface{}{
-		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: req.BizID,
-	}
-	util.SetModOwner(cond, ctx.Kit.SupplierAccount)
 	updateData, err := req.Data.BuildUpdateData(ctx.Kit.User)
 	if err != nil {
 		blog.Errorf("get update data failed, kind: %s, info: %v, err: %v, rid: %s", kind, req.Data, err, ctx.Kit.Rid)
 		ctx.RespAutoError(ctx.Kit.CCError.CCError(common.CCErrCommDBUpdateFailed))
 		return
 	}
+
+	cond := map[string]interface{}{
+		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
+		common.BKAppIDField: req.BizID,
+	}
+	util.SetModOwner(cond, ctx.Kit.SupplierAccount)
 
 	err = mongodb.Client().Table(table).Update(ctx.Kit.Ctx, cond, updateData)
 	if err != nil {

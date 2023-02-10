@@ -113,7 +113,11 @@ func (w *PodsWorkload) BuildUpdateData(user string) (map[string]interface{}, err
 
 // initPodsWorkLoadUpdateIgnoreFields ignore non-updatable fields related to pods workload resources
 func initPodsWorkLoadUpdateIgnoreFields() {
-	cluster := new(ClusterSpec)
-	namespace := new(Namespace)
-	PodsWorkloadFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, []interface{}{cluster, namespace})
+
+	var (
+		cluster   ClusterSpec
+		namespace Namespace
+	)
+
+	PodsWorkloadFields.SetUpdateIgnoreFields(IgnoredUpdateBaseFields, cluster, namespace)
 }

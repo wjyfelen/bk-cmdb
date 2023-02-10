@@ -195,16 +195,6 @@ func (s *coreService) UpdateNamespace(ctx *rest.Contexts) {
 		ctx.RespAutoError(rawErr.ToCCError(ctx.Kit.CCError))
 		return
 	}
-
-	// build filter
-	filter := mapstr.MapStr{
-		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
-		common.BKAppIDField: req.BizID,
-	}
-	filter = util.SetModOwner(filter, ctx.Kit.SupplierAccount)
-	now := time.Now().Unix()
-	req.Data.LastTime = now
-	req.Data.Modifier = ctx.Kit.User
 	// build update data
 	opts := orm.NewFieldOptions().AddIgnoredFields(types.NamespaceFields.GetUpdateIgnoredFields()...)
 	updateData, err := orm.GetUpdateFieldsWithOption(req.Data, opts)
@@ -214,6 +204,14 @@ func (s *coreService) UpdateNamespace(ctx *rest.Contexts) {
 		return
 	}
 
+	// build filter
+	filter := mapstr.MapStr{
+		common.BKFieldID:    mapstr.MapStr{common.BKDBIN: req.IDs},
+		common.BKAppIDField: req.BizID,
+	}
+	filter = util.SetModOwner(filter, ctx.Kit.SupplierAccount)
+	updateData[types.LastTimeField] = time.Now().Unix()
+	updateData[types.ModifierField] = ctx.Kit.User
 	// update namespace
 	err = mongodb.Client().Table(types.BKTableNameBaseNamespace).Update(ctx.Kit.Ctx, filter, updateData)
 	if err != nil {
