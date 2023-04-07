@@ -529,6 +529,44 @@ func (s *coreService) DeleteModelAttribute(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().DeleteModelAttributes(ctx.Kit, ctx.Request.PathParameter("bk_obj_id"), inputData))
 }
 
+// SearchModelAttrsWithWebByCondition front-end dedicated interface for obtaining model attributes,
+// this interface supports querying form fields
+func (s *coreService) SearchModelAttrsWithWebByCondition(ctx *rest.Contexts) {
+
+	inputData := metadata.QueryCondition{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+	bizIDStr := ctx.Request.PathParameter("bk_biz_id")
+	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
+	if err != nil {
+		blog.Error("url parameter bk_biz_id not integer, bizID: %s, rid: %s", bizIDStr, ctx.Kit.Rid)
+		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
+		return
+	}
+	result, err := s.core.ModelOperation().SearchModelAttrsWithTableByCondition(ctx.Kit, bizID, inputData)
+	if err != nil {
+		ctx.RespEntityWithError(result, err)
+		return
+	}
+
+	// translate
+	lang := s.Language(ctx.Kit.Header)
+	for index := range result.Info {
+		if result.Info[index].IsPre || needTranslateObjMap[result.Info[index].ObjectID] {
+			result.Info[index].PropertyName = s.TranslatePropertyName(lang, &result.Info[index])
+			result.Info[index].Placeholder = s.TranslatePlaceholder(lang, &result.Info[index])
+			if result.Info[index].PropertyType == common.FieldTypeEnumMulti {
+				result.Info[index].Option = s.TranslateEnumName(ctx.Kit.Ctx, lang, &result.Info[index],
+					result.Info[index].Option)
+			}
+		}
+	}
+
+	ctx.RespEntity(result)
+}
+
 // SearchModelAttributesByCondition TODO
 func (s *coreService) SearchModelAttributesByCondition(ctx *rest.Contexts) {
 

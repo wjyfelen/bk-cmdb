@@ -65,6 +65,8 @@ type ModelClientInterface interface {
 		resp *metadata.DeletedOptionResult, err error)
 	ReadModelAttr(ctx context.Context, h http.Header, objID string, input *metadata.QueryCondition) (
 		*metadata.QueryModelAttributeDataResult, error)
+	ReadModelAttrByConditionForWeb(ctx context.Context, h http.Header, bizID int64, input *metadata.QueryCondition) (
+		*metadata.QueryModelAttributeDataResult, error)
 	// ReadModelAttrByCondition TODO
 	// deprecated, only for old api
 	ReadModelAttrByCondition(ctx context.Context, h http.Header, input *metadata.QueryCondition) (

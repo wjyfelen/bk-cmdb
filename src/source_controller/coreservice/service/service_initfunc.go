@@ -73,6 +73,9 @@ func (s *coreService) initModel(web *restful.WebService) {
 	utility.AddHandler(rest.Action{Verb: http.MethodDelete, Path: "/delete/model/{bk_obj_id}/attributes", Handler: s.DeleteModelAttribute})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/read/model/{bk_obj_id}/attributes", Handler: s.SearchModelAttributes})
 	utility.AddHandler(rest.Action{Verb: http.MethodPost, Path: "/read/model/attributes", Handler: s.SearchModelAttributesByCondition})
+	utility.AddHandler(rest.Action{Verb: http.MethodPost,
+		Path:    "/read/{bk_biz_id}/model/attributes/web",
+		Handler: s.SearchModelAttrsWithWebByCondition})
 
 	utility.AddToRestfulWebService(web)
 }
