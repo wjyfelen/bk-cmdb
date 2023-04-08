@@ -137,18 +137,6 @@ func GetInstNameFieldName(objID string) string {
 	}
 }
 
-// InnerTableFieldTypeIsValid determine the basic type supported by the form field.
-func InnerTableFieldTypeIsValid(fieldType string) bool {
-
-	switch fieldType {
-	case common.FieldTypeSingleChar, common.FieldTypeLongChar, common.FieldTypeBool,
-		common.FieldTypeEnumMulti, common.FieldTypeFloat, common.FieldTypeInt:
-		return true
-	default:
-		return false
-	}
-}
-
 // GetInstNameFieldName get the inst name
 func (o *Object) GetInstNameFieldName() string {
 	return GetInstNameFieldName(o.ObjectID)

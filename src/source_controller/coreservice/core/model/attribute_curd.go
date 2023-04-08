@@ -62,6 +62,39 @@ func (m *modelAttribute) Count(kit *rest.Kit, cond universalsql.Condition) (cnt 
 	return cnt, err
 }
 
+func (m *modelAttribute) saveTableAttr(kit *rest.Kit, attribute metadata.Attribute) (id uint64, err error) {
+
+	id, err = mongodb.Client().NextSequence(kit.Ctx, common.BKTableNameObjAttDes)
+	if err != nil {
+		return id, kit.CCError.New(common.CCErrObjectDBOpErrno, err.Error())
+	}
+
+	index, err := m.GetAttrLastIndex(kit, attribute)
+	if err != nil {
+		return id, err
+	}
+
+	attribute.PropertyIndex = index
+	attribute.ID = int64(id)
+	attribute.OwnerID = kit.SupplierAccount
+
+	if attribute.CreateTime == nil {
+		attribute.CreateTime = &metadata.Time{}
+		attribute.CreateTime.Time = time.Now()
+	}
+
+	if attribute.LastTime == nil {
+		attribute.LastTime = &metadata.Time{}
+		attribute.LastTime.Time = time.Now()
+	}
+
+	if err = m.saveTableAttrCheck(kit, attribute); err != nil {
+		return 0, err
+	}
+	err = mongodb.Client().Table(common.BKTableNameObjAttDes).Insert(kit.Ctx, attribute)
+	return id, err
+}
+
 func (m *modelAttribute) save(kit *rest.Kit, attribute metadata.Attribute) (id uint64, err error) {
 
 	id, err = mongodb.Client().NextSequence(kit.Ctx, common.BKTableNameObjAttDes)
@@ -211,25 +244,37 @@ func (m *modelAttribute) checkUnique(kit *rest.Kit, isCreate bool, objID, proper
 
 	resultAttrs := make([]metadata.Attribute, 0)
 	err := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(cond).All(kit.Ctx, &resultAttrs)
-	blog.V(5).Infof("checkUnique db cond:%#v, result:%#v, rid:%s", cond, resultAttrs, kit.Rid)
+	blog.V(5).Infof("check unique db cond: %#v, result: %#v, rid: %s", cond, resultAttrs, kit.Rid)
 	if err != nil {
-		blog.ErrorJSON("checkUnique select error. err:%s, cond:%s, rid:%s", err.Error(), cond, kit.Rid)
+		blog.Errorf("check unique select error, cond: %v, err: %v, rid:%s", err, cond, kit.Rid)
 		return kit.CCError.Error(common.CCErrCommDBSelectFailed)
 	}
 
-	language := util.GetLanguage(kit.Header)
-	lang := m.language.CreateDefaultCCLanguageIf(language)
+	lang := m.language.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header))
 	for _, attrItem := range resultAttrs {
 		if attrItem.PropertyID == propertyID {
-			blog.ErrorJSON("check unique attribute id duplicate. attr: %s, rid: %s", attrItem, kit.Rid)
+			blog.Errorf("check unique attribute id duplicate, attr: %v, rid: %s", attrItem, kit.Rid)
 			return kit.CCError.Errorf(common.CCErrCommDuplicateItem, lang.Language("model_attr_bk_property_id"))
 		}
 		if attrItem.PropertyName == propertyName {
-			blog.ErrorJSON("check unique attribute id duplicate. attr: %s, rid: %s", attrItem, kit.Rid)
+			blog.Errorf("check unique attribute id duplicate, attr: %v, rid: %s", attrItem, kit.Rid)
 			return kit.CCError.Errorf(common.CCErrCommDuplicateItem, lang.Language("model_attr_bk_property_name"))
 		}
 	}
 
+	return nil
+}
+
+func (m *modelAttribute) checkTableAttributeMustNotEmpty(kit *rest.Kit, attribute metadata.Attribute) error {
+	if attribute.PropertyID == "" {
+		return kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.AttributeFieldPropertyID)
+	}
+	if attribute.PropertyName == "" {
+		return kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.AttributeFieldPropertyName)
+	}
+	if attribute.PropertyType != common.FieldTypeInnerTable {
+		return kit.CCError.Errorf(common.CCErrCommParamsInvalid, metadata.AttributeFieldPropertyType)
+	}
 	return nil
 }
 
@@ -247,33 +292,25 @@ func (m *modelAttribute) checkAttributeMustNotEmpty(kit *rest.Kit, attribute met
 	return nil
 }
 
-func (m *modelAttribute) checkTableAttributeValidity(kit *rest.Kit, attribute metadata.Attribute,
-	propertyType string) error {
-	language := util.GetLanguage(kit.Header)
-	lang := m.language.CreateDefaultCCLanguageIf(language)
+func (m *modelAttribute) checkTableAttributeValidity(kit *rest.Kit, attribute metadata.Attribute) error {
+
+	lang := m.language.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header))
+
 	if attribute.PropertyID != "" {
 		attribute.PropertyID = strings.TrimSpace(attribute.PropertyID)
 		if common.AttributeIDMaxLength < utf8.RuneCountInString(attribute.PropertyID) {
+
 			return kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed, lang.Language("model_attr_bk_property_id"),
 				common.AttributeIDMaxLength)
 		}
 
 		if !SatisfyMongoFieldLimit(attribute.PropertyID) {
-			blog.Errorf("attribute.PropertyID:%s not SatisfyMongoFieldLimit", attribute.PropertyID)
 			return kit.CCError.Errorf(common.CCErrCommParamsIsInvalid, metadata.AttributeFieldPropertyID)
-		}
-
-		// check only preset attribute's property id can start with bk_ or _bk
-		if !attribute.IsPre {
-			if strings.HasPrefix(attribute.PropertyID, "bk_") ||
-				strings.HasPrefix(attribute.PropertyID, "_bk") {
-				return kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, metadata.AttributeFieldPropertyID)
-			}
 		}
 	}
 
-	if attribute.PropertyName = strings.TrimSpace(attribute.PropertyName); common.AttributeNameMaxLength <
-		utf8.RuneCountInString(attribute.PropertyName) {
+	attribute.PropertyName = strings.TrimSpace(attribute.PropertyName)
+	if common.AttributeNameMaxLength < utf8.RuneCountInString(attribute.PropertyName) {
 		return kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed, lang.Language("model_attr_bk_property_name"),
 			common.AttributeNameMaxLength)
 	}
@@ -286,45 +323,10 @@ func (m *modelAttribute) checkTableAttributeValidity(kit *rest.Kit, attribute me
 				common.AttributePlaceHolderMaxLength)
 		}
 		match, err := regexp.MatchString(common.FieldTypeLongCharRegexp, attribute.Placeholder)
-		if err != nil || !match {
+		if nil != err || !match {
 			return kit.CCError.Errorf(common.CCErrCommParamsIsInvalid, metadata.AttributeFieldPlaceHolder)
-
 		}
 	}
-
-	if attribute.Unit != "" {
-		attribute.Unit = strings.TrimSpace(attribute.Unit)
-		if common.AttributeUnitMaxLength < utf8.RuneCountInString(attribute.Unit) {
-			return kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed, lang.Language("model_attr_uint"),
-				common.AttributeUnitMaxLength)
-		}
-	}
-
-	if attribute.PropertyType != "" {
-		switch attribute.PropertyType {
-		case common.FieldTypeSingleChar, common.FieldTypeLongChar, common.FieldTypeInt, common.FieldTypeFloat,
-			common.FieldTypeEnum, common.FieldTypeEnumMulti, common.FieldTypeDate, common.FieldTypeTime,
-			common.FieldTypeUser, common.FieldTypeOrganization, common.FieldTypeTimeZone, common.FieldTypeBool,
-			common.FieldTypeList, common.FieldTypeEnumQuote:
-		default:
-			return kit.CCError.Errorf(common.CCErrCommParamsIsInvalid, metadata.AttributeFieldPropertyType)
-		}
-	}
-
-	if attribute.Default != nil {
-		// 枚举，枚举多选，枚举引用字段,默认值是放在option中的，如果default的值不为nil,进入该逻辑，枚举，枚举多选，枚举引用的默认值设置错误
-		if err := m.checkTableAttributeDefaultValue(kit, attribute, propertyType); err != nil {
-			return err
-		}
-	}
-
-	if opt, ok := attribute.Option.(string); ok && opt != "" {
-		if common.AttributeOptionMaxLength < utf8.RuneCountInString(opt) {
-			return kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed, lang.Language("model_attr_option_regex"),
-				common.AttributeOptionMaxLength)
-		}
-	}
-
 	return nil
 }
 
@@ -989,6 +991,26 @@ func isBizObject(objectID string) bool {
 	}
 }
 
+//  saveTableAttrCheck form new field check
+func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.Attribute) error {
+
+	if err := m.checkTableAttributeMustNotEmpty(kit, attribute); err != nil {
+		return err
+	}
+
+	if err := m.checkTableAttributeValidity(kit, attribute); err != nil {
+		return err
+	}
+
+	// check name duplicate
+	if err := m.checkUnique(kit, true, attribute.ObjectID, attribute.PropertyID, attribute.PropertyName,
+		attribute.BizID); err != nil {
+		blog.Errorf("save attribute check unique input: %+v, err: %v, rid: %s", attribute, err, kit.Rid)
+		return err
+	}
+	return nil
+}
+
 //  saveCheck 新加字段检查
 func (m *modelAttribute) saveCheck(kit *rest.Kit, attribute metadata.Attribute) error {
 
@@ -1122,7 +1144,7 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 		return err
 	}
 
-	if err = m.checkTableAttributeValidity(kit, attr, dbAttributeArr[0].PropertyType); err != nil {
+	if err = m.checkTableAttributeValidity(kit, attr); err != nil {
 		blog.Errorf("check attribute validity failed, err: %v, rid: %s", err, kit.Rid)
 		return err
 	}

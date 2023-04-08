@@ -1421,6 +1421,16 @@ const (
 )
 
 const (
+	// TableLongCharMaxNum the maximum number of long
+	// characters supported by a form field.
+	TableLongCharMaxNum = 2
+	// TableHeaderMaxNum the maximum length of the table header field.
+	TableHeaderMaxNum = 8
+	// TableDefaultMaxLines the maximum length of the table default lines.
+	TableDefaultMaxLines = 10
+)
+
+const (
 	// AttributePlaceHolderMaxLength TODO
 	AttributePlaceHolderMaxLength = 2000
 	// AttributeOptionMaxLength TODO
