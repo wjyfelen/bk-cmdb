@@ -78,6 +78,8 @@ type ModelAttribute interface {
 		*metadata.QueryModelAttributeDataResult, error)
 	SearchModelAttributesByCondition(kit *rest.Kit, inputParam metadata.QueryCondition) (
 		*metadata.QueryModelAttributeDataResult, error)
+	SearchModelAttrsWithTableByCondition(kit *rest.Kit, bizID int64, inputParam metadata.QueryCondition) (
+		*metadata.QueryModelAttributeDataResult, error)
 }
 
 // ModelAttrUnique model attribute  unique methods definitions

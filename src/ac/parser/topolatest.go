@@ -2365,8 +2365,14 @@ func (ps *parseStream) objectAttributeGroupLatest() *parseStream {
 }
 
 const (
-	createObjectAttributeLatestPattern   = "/api/v3/create/objectattr"
-	findObjectAttributeLatestPattern     = "/api/v3/find/objectattr"
+	createObjectAttributeLatestPattern = "/api/v3/create/objectattr"
+	findObjectAttributeLatestPattern   = "/api/v3/find/objectattr"
+	// findObjectAttributeForWebLatestPattern for the first phase of the form field,
+	// the interface for the full query of model attributes is provided separately
+	// for the front end. After the subsequent word function is released to esb,
+	// this interface will be considered to be dropped.
+	findObjectAttributeForWebLatestPattern = "/api/v3/find/objectattr/web"
+
 	findHostObjectAttributeLatestPattern = "/api/v3/find/objectattr/host"
 )
 
@@ -2551,6 +2557,43 @@ func (ps *parseStream) objectAttributeLatest() *parseStream {
 				},
 				Layers: []meta.Item{{Type: meta.Model, InstanceID: model.ID}},
 			},
+		}
+		return ps
+	}
+
+	// get object's attribute operation.
+	if ps.hitPattern(findObjectAttributeForWebLatestPattern, http.MethodPost) {
+		val, err := ps.RequestCtx.getValueFromBody(common.BKObjIDField)
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+		modelCond := val.Value()
+		models, err := ps.searchModels(mapstr.MapStr{common.BKObjIDField: modelCond})
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+
+		bizID, err := ps.RequestCtx.getBizIDFromBody()
+		if err != nil {
+			ps.err = err
+			return ps
+		}
+
+		for _, model := range models {
+			ps.Attribute.Resources = append(ps.Attribute.Resources,
+				meta.ResourceAttribute{
+					// 注意：业务ID是否为0表示两种不同的操作
+					// case 0: 读取模型的公有属性
+					// case ~0: 读取业务私有属性+公有属性
+					BusinessID: bizID,
+					Basic: meta.Basic{
+						Type:   meta.ModelAttribute,
+						Action: meta.FindMany,
+					},
+					Layers: []meta.Item{{Type: meta.Model, InstanceID: model.ID}},
+				})
 		}
 		return ps
 	}

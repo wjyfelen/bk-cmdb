@@ -579,6 +579,32 @@ func (m *model) ReadModelAttrByCondition(ctx context.Context, h http.Header, inp
 	return &resp.Data, nil
 }
 
+// ReadModelAttrByConditionForWeb search object attrs by condition for web
+func (m *model) ReadModelAttrByConditionForWeb(ctx context.Context, h http.Header, bizID int64, input *metadata.QueryCondition) (
+	*metadata.QueryModelAttributeDataResult, error) {
+
+	resp := new(metadata.ReadModelAttrResult)
+	subPath := "/read/%d/model/attributes/web"
+
+	err := m.client.Post().
+		WithContext(ctx).
+		Body(input).
+		SubResourcef(subPath, bizID).
+		WithHeaders(h).
+		Do().
+		Into(resp)
+
+	if err != nil {
+		return nil, errors.CCHttpError
+	}
+
+	if err = resp.CCError(); err != nil {
+		return nil, err
+	}
+
+	return &resp.Data, nil
+}
+
 // ReadAttributeGroup search attribute group
 func (m *model) ReadAttributeGroup(ctx context.Context, h http.Header, objID string, input metadata.QueryCondition) (
 	*metadata.QueryModelAttributeGroupDataResult, error) {

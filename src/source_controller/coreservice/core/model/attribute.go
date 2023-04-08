@@ -470,3 +470,72 @@ func (m *modelAttribute) SearchModelAttributesByCondition(kit *rest.Kit, inputPa
 	dataResult.Info = attrResult
 	return dataResult, nil
 }
+
+// SearchModelAttrsWithTableByCondition query includes form field model properties.
+func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, bizID int64, inputParam metadata.QueryCondition) (
+	*metadata.QueryModelAttributeDataResult, error) {
+
+	dataResult := &metadata.QueryModelAttributeDataResult{
+		Info: []metadata.Attribute{},
+	}
+
+	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
+
+	attrs, err := m.searchWithSort(kit, inputParam)
+	if nil != err {
+		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
+		return &metadata.QueryModelAttributeDataResult{}, err
+	}
+
+	objMap := make(map[string]struct{})
+	objs := make([]string, 0)
+	for _, attr := range attrs {
+		objMap[attr.ObjectID] = struct{}{}
+	}
+	for o := range objMap {
+		objs = append(objs, o)
+	}
+
+	if len(objs) == 0 {
+		return &metadata.QueryModelAttributeDataResult{}, kit.CCError.Error(common.CCErrCommDBSelectFailed)
+	}
+
+	relations := make([]metadata.ModelQuoteRelation, 0)
+	filter := mapstr.MapStr{
+		common.BKSrcModelField: mapstr.MapStr{
+			common.BKDBIN: objs,
+		}}
+
+	filter = util.SetQueryOwner(filter, kit.SupplierAccount)
+	err = mongodb.Client().Table(common.BKTableNameModelQuoteRelation).Find(filter).All(kit.Ctx, &relations)
+	if err != nil {
+		blog.Errorf("list model quote relations failed, err: %v, filter: %+v, rid: %v", err, filter, kit.Rid)
+		return &metadata.QueryModelAttributeDataResult{}, err
+	}
+
+	tableObjs := make([]string, 0)
+	for _, relation := range relations {
+		tableObjs = append(tableObjs, relation.DestModel)
+	}
+
+	// 如果obj存在表格字段那么需要重新组合一下
+	if len(tableObjs) > 0 {
+		objIDs := append(objs, tableObjs...)
+		inputParam.Condition = mapstr.MapStr{
+			common.BKObjIDField: mapstr.MapStr{
+				common.BKDBIN: objIDs,
+			},
+		}
+		util.AddModelBizIDCondition(inputParam.Condition, bizID)
+	}
+
+	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
+	attrResult, err := m.searchWithSort(kit, inputParam)
+	if nil != err {
+		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
+		return &metadata.QueryModelAttributeDataResult{}, err
+	}
+	dataResult.Count = int64(len(attrResult))
+	dataResult.Info = attrResult
+	return dataResult, nil
+}
