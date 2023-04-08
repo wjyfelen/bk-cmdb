@@ -112,6 +112,61 @@ type Attribute struct {
 	LastTime          *Time       `json:"last_time" bson:"last_time" mapstructure:"last_time"`
 }
 
+const (
+	// TableLongCharMaxNum the maximum number of long
+	// characters supported by a form field.
+	TableLongCharMaxNum = 2
+	// TableHeaderMaxNum the maximum length of the table header field.
+	TableHeaderMaxNum = 8
+	// TableDefaultMaxLines the maximum length of the table default lines.
+	TableDefaultMaxLines = 10
+)
+
+// TableAttrsOption the option of the form field,
+// including the header and the default value.
+type TableAttrsOption struct {
+	Header  []Attribute              `json:"header" bson:"header" mapstructure:"header"`
+	Default []map[string]interface{} `json:"default" bson:"default" mapstructure:"default"`
+}
+
+// ValidTableDefaultAttr legality judgment of the default field of the form field.
+func (attribute *Attribute) ValidTableDefaultAttr(ctx context.Context, val interface{}) errors.RawErrorInfo {
+
+	rid := util.ExtractRequestIDFromContext(ctx)
+	if attribute == nil {
+		blog.Errorf("the key of the default value is illegal and not in the header list, rid: %s", rid)
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsNeedSet,
+			Args:    []interface{}{"default key"},
+		}
+	}
+
+	switch attribute.PropertyType {
+	case common.FieldTypeInt:
+		return attribute.validInt(ctx, val, attribute.PropertyID)
+	case common.FieldTypeFloat:
+		return attribute.validFloat(ctx, val, attribute.PropertyID)
+	case common.FieldTypeSingleChar:
+		return attribute.validChar(ctx, val, attribute.PropertyID)
+
+	case common.FieldTypeLongChar:
+		return attribute.validLongChar(ctx, val, attribute.PropertyID)
+
+	case common.FieldTypeEnum:
+		return attribute.validEnum(ctx, val, attribute.PropertyID)
+
+	case common.FieldTypeBool:
+		return attribute.validBool(ctx, val, attribute.PropertyID)
+
+	default:
+		blog.Errorf("type error, type: %v, rid: %s", attribute.PropertyType, rid)
+		return errors.RawErrorInfo{
+			ErrCode: common.CCErrCommParamsInvalid,
+			Args:    []interface{}{attribute.PropertyType},
+		}
+	}
+}
+
 // AttributeGroup attribute metadata definition
 type AttributeGroup struct {
 	ID         int64  `field:"id" json:"id" bson:"id"`

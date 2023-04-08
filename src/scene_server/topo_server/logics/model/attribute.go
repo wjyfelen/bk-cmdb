@@ -13,6 +13,9 @@
 package model
 
 import (
+	ccErr "configcenter/src/common/errors"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"regexp"
 	"unicode/utf8"
@@ -37,6 +40,7 @@ type AttributeOperationInterface interface {
 	UpdateObjectAttribute(kit *rest.Kit, data mapstr.MapStr, attID int64, modelBizID int64) error
 	// CreateObjectBatch upsert object attributes
 	CreateObjectBatch(kit *rest.Kit, data map[string]metadata.ImportObjectData) (mapstr.MapStr, error)
+	UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, attID int64, modelBizID int64) error
 	// FindObjectBatch find object to attributes mapping
 	FindObjectBatch(kit *rest.Kit, objIDs []string) (mapstr.MapStr, error)
 	ValidObjIDAndInstID(kit *rest.Kit, objID string, option interface{}, isMultiple bool) error
@@ -562,6 +566,206 @@ func (a *attribute) DeleteObjectAttribute(kit *rest.Kit, cond mapstr.MapStr, mod
 	// save audit log.
 	if err := audit.SaveAuditLog(kit, auditLogArr...); err != nil {
 		blog.Errorf("delete object attribute success, but save audit log failed, err: %v, rid: %s", err, kit.Rid)
+		return err
+	}
+
+	return nil
+}
+
+func validTableTypeOption(propertyType string, defaultValue, option interface{}, errProxy ccErr.DefaultCCErrorIf) error {
+
+	switch propertyType {
+	case common.FieldTypeInt:
+		return util.ValidFieldTypeInt(option, defaultValue, "", errProxy)
+	case common.FieldTypeEnumMulti:
+		return util.ValidFieldTypeEnumOption(option, true, "", errProxy)
+	case common.FieldTypeLongChar, common.FieldTypeSingleChar:
+		return util.ValidFieldTypeString(option, defaultValue, "", errProxy)
+	case common.FieldTypeFloat:
+		return util.ValidFieldTypeFloat(option, defaultValue, "", errProxy)
+	case common.FieldTypeBool:
+		// todo:
+	default:
+		return fmt.Errorf("type error, type is %v", propertyType)
+	}
+	return nil
+}
+
+func getTableAttrOption(option interface{}) (*metadata.TableAttrsOption, error) {
+	marshaledOptions, err := json.Marshal(option)
+	if err != nil {
+		return nil, err
+	}
+
+	tableAttrs := new(metadata.TableAttrsOption)
+	if err := json.Unmarshal(marshaledOptions, tableAttrs); err != nil {
+		return nil, err
+	}
+	return tableAttrs, nil
+}
+
+// getTableHeaderDetail in the creation and update scenarios,
+// the full amount of header content needs to be passed.
+func (a *attribute) getTableHeaderDetail(kit *rest.Kit, header []metadata.Attribute) (
+	map[string]*metadata.Attribute, error) {
+
+	if len(header) == 0 {
+		return nil, errors.New("table header must be set")
+	}
+
+	if len(header) > metadata.TableHeaderMaxNum {
+		return nil, fmt.Errorf("the header field length of the table cannot exceed %d", metadata.TableHeaderMaxNum)
+	}
+
+	propertyAttr := make(map[string]*metadata.Attribute)
+	var longCharNum int
+	for _, h := range header {
+		// determine whether the underlying type is legal
+		if !metadata.InnerTableFieldTypeIsValid(h.PropertyType) {
+			return nil, fmt.Errorf("table header type is invalid, type : %v", h.PropertyType)
+		}
+		// the number of long characters in the basic type of the table
+		// field type cannot exceed the maximum value supported by the system.
+		if h.PropertyType == common.FieldTypeLongChar {
+			longCharNum++
+		}
+		if longCharNum > metadata.TableLongCharMaxNum {
+			return nil, fmt.Errorf("exceeds the maximum number(%d) of long characters supported by the table"+
+				" field header", metadata.TableLongCharMaxNum)
+		}
+		// check if property type for creation is valid, can't update property type
+		if h.PropertyType == "" {
+			return nil, kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.AttributeFieldPropertyType)
+		}
+
+		if h.PropertyID == "" {
+			return nil, kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.AttributeFieldPropertyID)
+		}
+
+		if common.AttributeIDMaxLength < utf8.RuneCountInString(h.PropertyID) {
+			return nil, kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed,
+				a.lang.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header)).Language(
+					"model_attr_bk_property_id"), common.AttributeIDMaxLength)
+		}
+
+		match, err := regexp.MatchString(common.FieldTypeStrictCharRegexp, h.PropertyID)
+		if err != nil {
+			return nil, err
+		}
+
+		if !match {
+			return nil, kit.CCError.Errorf(common.CCErrCommParamsIsInvalid, h.PropertyID)
+		}
+		if h.PropertyName == "" {
+			return nil, kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.AttributeFieldPropertyName)
+		}
+		if common.AttributeNameMaxLength < utf8.RuneCountInString(h.PropertyName) {
+			return nil, kit.CCError.Errorf(common.CCErrCommValExceedMaxFailed,
+				a.lang.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header)).Language(
+					"model_attr_bk_property_name"), common.AttributeNameMaxLength)
+		}
+
+		if err := validTableTypeOption(h.PropertyType, h.Default, h.Option, kit.CCError); err != nil {
+			return nil, err
+		}
+		propertyAttr[h.PropertyID] = &h
+	}
+	return propertyAttr, nil
+}
+
+// tableDefaultIsValid attr: key is property_id, value is the corresponding header content.
+func (a *attribute) tableDefaultIsValid(kit *rest.Kit, defaultValue []map[string]interface{},
+	attr map[string]*metadata.Attribute) error {
+
+	if len(defaultValue) == 0 {
+		return nil
+	}
+
+	if len(defaultValue) > metadata.TableDefaultMaxLines {
+		return fmt.Errorf("the number of rows of the default value in the table attribute exceeds the maximum "+
+			"value(%v) supported by the system", metadata.TableDefaultMaxLines)
+	}
+	// judge the legality of each field of the default
+	// value according to the attributes of the header.
+	for _, value := range defaultValue {
+		for k, v := range value {
+			if err := attr[k].ValidTableDefaultAttr(kit.Ctx, v); err.ErrCode != 0 {
+				return err.ToCCError(kit.CCError)
+			}
+		}
+	}
+	return nil
+}
+
+// todo: 这里需要增加一个识别前端的表头中如果是有id 那么是更新 如果没有id那么是新加，如果发现和数据库数据对比少了 就是删除，
+// 删除场景下需要调用删除实例的接口
+// 1、这里得区分一下更新场景还是创建场景。
+// 2、如果是更新场景需要后台分类，然后分别做插入和更新 删除操作，这个在内存中做就可以，然后整体更新。
+// 删除之后但是需要调用实例的删除接口
+func (a *attribute) tableAttrIsValid(kit *rest.Kit, attr *metadata.Attribute) error {
+
+	if attr.Option == nil {
+		return errors.New("option params is invalid")
+	}
+
+	tableAttrs, err := getTableAttrOption(attr.Option)
+	if err != nil {
+		blog.Errorf("get attribute option failed, error: %v, option: %v, rid: %s", err, kit.Rid)
+		return err
+	}
+
+	headerAttrMap, err := a.getTableHeaderDetail(kit, tableAttrs.Header)
+	if err != nil {
+		return err
+	}
+
+	if err := a.tableDefaultIsValid(kit, tableAttrs.Default, headerAttrMap); err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateTableObjectAttr update object table attribute
+func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, attID int64, modelBizID int64) error {
+
+	attr := new(metadata.Attribute)
+	if err := mapstruct.Decode2Struct(data, attr); err != nil {
+		blog.Errorf("unmarshal mapstr data into attribute failed, attribute: %s, err: %s, rid: %s", attr, err, kit.Rid)
+		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	}
+
+	if err := a.tableAttrIsValid(kit, attr); err != nil {
+		return err
+	}
+
+	// generate audit log of model attribute.
+	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
+	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)
+	auditLog, err := audit.GenerateAuditLog(generateAuditParameter, attID, nil)
+	if err != nil {
+		blog.Errorf("generate audit log failed before update model attribute, attID: %d, err: %v, rid: %s",
+			attID, err, kit.Rid)
+		return err
+	}
+
+	// to update.
+	cond := mapstr.MapStr{
+		common.BKFieldID: attID,
+	}
+	util.AddModelBizIDCondition(cond, modelBizID)
+	input := metadata.UpdateOption{
+		Condition: cond,
+		Data:      data,
+	}
+	_, err = a.clientSet.CoreService().Model().UpdateTableModelAttrsByCondition(kit.Ctx, kit.Header, &input)
+	if err != nil {
+		blog.Errorf("failed to update model attr, err: %s, rid: %s", err, kit.Rid)
+		return err
+	}
+
+	// save audit log.
+	if err := audit.SaveAuditLog(kit, *auditLog); err != nil {
+		blog.Errorf("save audit log failed, attID: %d, err: %v, rid: %s", attID, err, kit.Rid)
 		return err
 	}
 

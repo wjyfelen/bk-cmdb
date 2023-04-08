@@ -518,6 +518,18 @@ func (s *coreService) UpdateModelAttributesByCondition(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().UpdateModelAttributesByCondition(ctx.Kit, inputData))
 }
 
+// UpdateTableModelAttrByCondition update properties of form fields based on conditions.
+func (s *coreService) UpdateTableModelAttrByCondition(ctx *rest.Contexts) {
+
+	inputData := metadata.UpdateOption{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	ctx.RespEntityWithError(s.core.ModelOperation().UpdateTableModelAttributes(ctx.Kit, inputData))
+}
+
 // DeleteModelAttribute TODO
 func (s *coreService) DeleteModelAttribute(ctx *rest.Contexts) {
 

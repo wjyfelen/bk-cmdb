@@ -301,6 +301,27 @@ func (m *modelAttribute) UpdateModelAttributesByCondition(kit *rest.Kit, inputPa
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
+// UpdateTableModelAttributes TODO
+func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateOption) (
+	*metadata.UpdatedCount, error) {
+	inputParamCond := util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount)
+	cond, err := mongo.NewConditionFromMapStr(inputParamCond)
+	if nil != err {
+		blog.Errorf("failed to convert mapstr(%#v) into a condition object, err: %v, rid: %s",
+			inputParam.Condition, err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+
+	cnt, err := m.updateTableAttr(kit, inputParam.Data, cond)
+	if nil != err {
+		blog.Errorf("failed to update fields (%#v) by condition(%#v), err: %s, rid: %s",
+			inputParam.Data, cond.ToMapStr(), err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+
+	return &metadata.UpdatedCount{Count: cnt}, nil
+}
+
 // DeleteModelAttributes TODO
 func (m *modelAttribute) DeleteModelAttributes(kit *rest.Kit, objID string, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error) {
 
