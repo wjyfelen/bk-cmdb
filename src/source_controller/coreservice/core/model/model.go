@@ -75,12 +75,17 @@ func (m *modelManager) CreateInnerTableModel(kit *rest.Kit, inputParam metadata.
 	}
 	blog.V(5).Infof("create table model redis lock info, key: %s, bl: %v, err: %v, rid: %s",
 		redisKey, locked, err, kit.Rid)
-
 	// check the model attributes value
 	if len(inputParam.Spec.ObjectID) == 0 {
 		blog.Errorf("table model object %s is not set, rid: %s", inputParam.Spec.ObjectID, kit.Rid)
 		return nil, kit.CCError.Errorf(common.CCErrCommParamsNeedSet, metadata.ModelFieldObjectID)
 	}
+
+	originObjID := inputParam.Spec.ObjectID
+	inputParam.Spec.ObjectID = metadata.GenerateModelQuoteObjID(inputParam.Spec.ObjectID,
+		inputParam.Attributes[0].PropertyID)
+	inputParam.Spec.ObjectName = metadata.GenerateModelQuoteObjID(inputParam.Spec.ObjectName,
+		inputParam.Attributes[0].PropertyID)
 
 	// check the model if it is exists
 	condCheckModelMap := util.SetModOwner(make(map[string]interface{}), kit.SupplierAccount)
@@ -120,15 +125,23 @@ func (m *modelManager) CreateInnerTableModel(kit *rest.Kit, inputParam metadata.
 		return nil, err
 	}
 
-	// create initial phase model attributes.
-	if len(inputParam.Attributes) != 0 {
-		_, err = m.modelAttribute.CreateTableModelAttributes(kit, inputParam.Spec.ObjectID,
-			metadata.CreateModelAttributes{Attributes: inputParam.Attributes})
-		if nil != err {
-			blog.Errorf("it is failed to create some attributes (%#v) for the model (%s), err: %v, rid: %s",
-				inputParam.Attributes, inputParam.Spec.ObjectID, err, kit.Rid)
-			return nil, err
-		}
+	//if len(inputParam.Attributes) > 0 {
+	//	// create initial phase model attributes.
+	//	_, err = m.modelAttribute.CreateTableModelAttributes(kit, inputParam.Spec.ObjectID,
+	//		metadata.CreateModelAttributes{Attributes: inputParam.Attributes})
+	//	if nil != err {
+	//		blog.Errorf("it is failed to create some attributes (%#v) for the model (%s), err: %v, rid: %s",
+	//			inputParam.Attributes, inputParam.Spec.ObjectID, err, kit.Rid)
+	//		return nil, err
+	//	}
+	//}
+	// 这里在创建一个源模型的模型属性就可以了
+	_, err = m.modelAttribute.CreateTableModelAttributes(kit, originObjID,
+		metadata.CreateModelAttributes{Attributes: inputParam.Attributes})
+	if nil != err {
+		blog.Errorf("it is failed to create some attributes (%#v) for the model (%s), err: %v, rid: %s",
+			inputParam.Attributes, inputParam.Spec.ObjectID, err, kit.Rid)
+		return nil, err
 	}
 
 	return &metadata.CreateOneDataResult{Created: metadata.CreatedDataResult{ID: id}}, nil

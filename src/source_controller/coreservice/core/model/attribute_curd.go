@@ -68,7 +68,7 @@ func (m *modelAttribute) saveTableAttr(kit *rest.Kit, attribute metadata.Attribu
 	if err != nil {
 		return id, kit.CCError.New(common.CCErrObjectDBOpErrno, err.Error())
 	}
-
+	blog.Errorf("99999999999 attribute: %+v", attribute)
 	index, err := m.GetAttrLastIndex(kit, attribute)
 	if err != nil {
 		return id, err
@@ -567,18 +567,24 @@ func (m *modelAttribute) checkOrganizationTypeDefaultValue(kit *rest.Kit, attrib
 	return nil
 }
 
-func (m *modelAttribute) updateTableAttr(kit *rest.Kit, data mapstr.MapStr, cond universalsql.Condition) (cnt uint64, err error) {
-	err = m.checkTableAttrUpdate(kit, data, cond)
-	if err != nil {
-		blog.ErrorJSON("checkUpdate error. data:%s, cond:%s, rid:%s", data, cond, kit.Rid)
-		return cnt, err
+func (m *modelAttribute) updateTableAttr(kit *rest.Kit, data mapstr.MapStr, cond universalsql.Condition) (
+	uint64, error) {
+
+	if len(data) == 0 {
+		return 0, nil
 	}
-	cnt, err = mongodb.Client().Table(common.BKTableNameObjAttDes).UpdateMany(kit.Ctx, cond.ToMapStr(), data)
-	if nil != err {
-		blog.Errorf("request(%s): database operation is failed, error info is %s", kit.Rid, err.Error())
+	blog.Errorf("0000000000000 data: %v", data)
+	err := m.checkTableAttrUpdate(kit, data, cond)
+	if err != nil {
+		blog.Errorf("checkUpdate error. data: %+v, cond: %+v, err: %v, rid:%s", data, cond, err, kit.Rid)
 		return 0, err
 	}
 
+	cnt, err := mongodb.Client().Table(common.BKTableNameObjAttDes).UpdateMany(kit.Ctx, cond.ToMapStr(), data)
+	if err != nil {
+		blog.Errorf("request(%s): database operation is failed, error info is %s", kit.Rid, err.Error())
+		return 0, err
+	}
 	return cnt, err
 }
 
@@ -997,10 +1003,11 @@ func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.At
 	if err := m.checkTableAttributeMustNotEmpty(kit, attribute); err != nil {
 		return err
 	}
-
+	blog.Errorf("11111111111111111111")
 	if err := m.checkTableAttributeValidity(kit, attribute); err != nil {
 		return err
 	}
+	blog.Errorf("2222222222222222")
 
 	// check name duplicate
 	if err := m.checkUnique(kit, true, attribute.ObjectID, attribute.PropertyID, attribute.PropertyName,
@@ -1008,6 +1015,8 @@ func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.At
 		blog.Errorf("save attribute check unique input: %+v, err: %v, rid: %s", attribute, err, kit.Rid)
 		return err
 	}
+	blog.Errorf("2222222222222222")
+
 	return nil
 }
 
@@ -1035,16 +1044,17 @@ func (m *modelAttribute) saveCheck(kit *rest.Kit, attribute metadata.Attribute) 
 	return nil
 }
 
-// checkUpdate 删除不可以更新字段，检验字段是否重复， 返回更新的行数，错误
-func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr, cond universalsql.Condition) (err error) {
+// checkTableAttrUpdate 删除不可以更新字段，检验字段是否重复， 返回更新的行数，错误
+func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
+	cond universalsql.Condition) (err error) {
 
 	dbAttributeArr, err := m.search(kit, cond)
 	if err != nil {
-		blog.Errorf("request(%s): find nothing by the condition(%#v)  error(%s)", kit.Rid, cond.ToMapStr(), err)
+		blog.Errorf("find nothing by the condition: %+v, err: %v, rid: %s", cond.ToMapStr(), err, kit.Rid)
 		return err
 	}
 	if len(dbAttributeArr) == 0 {
-		blog.Errorf("request(%s): find nothing by the condition(%#v)", kit.Rid, cond.ToMapStr())
+		blog.Errorf("find nothing by the condition(%#v), rid: %s", cond.ToMapStr(), kit.Rid)
 		return nil
 	}
 
@@ -1070,7 +1080,7 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 			return nil
 		})
 	}
-
+	blog.Errorf("999999999999999 data: %v", data)
 	if option, exists := data.Get(metadata.AttributeFieldOption); exists {
 		propertyType := dbAttributeArr[0].PropertyType
 		for _, dbAttribute := range dbAttributeArr {
@@ -1091,6 +1101,7 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 			isMultiple = &ismultiple
 		}
 
+		// todo: 这里报错是不是合理？
 		if isMultiple == nil {
 			return kit.CCError.Errorf(common.CCErrCommParamsInvalid, common.BKIsMultipleField)
 		}
@@ -1110,11 +1121,8 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 	data.Remove(metadata.AttributeFieldCreateTime)
 	data.Remove(metadata.AttributeFieldIsPre)
 	data.Set(metadata.AttributeFieldLastTime, time.Now())
-
 	if grp, exists := data.Get(metadata.AttributeFieldPropertyGroup); exists {
-		if grp == "" {
-			data.Remove(metadata.AttributeFieldPropertyGroup)
-		}
+
 		// check if property group exists in object
 		objIDs := make([]string, 0)
 		for _, dbAttribute := range dbAttributeArr {
@@ -1125,8 +1133,11 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 			common.BKObjIDField: map[string]interface{}{
 				common.BKDBIN: objIDs,
 			},
-			common.BKPropertyGroupIDField: grp,
 		}
+		if grp != "" {
+			cond[common.BKPropertyGroupIDField] = grp
+		}
+
 		cnt, err := mongodb.Client().Table(common.BKTableNamePropertyGroup).Find(cond).Count(kit.Ctx)
 		if err != nil {
 			blog.ErrorJSON("property group count failed, err: %s, condition: %s, rid: %s", err, cond, kit.Rid)
@@ -1143,14 +1154,13 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 		blog.Errorf("marshal json into attribute failed, data: %+v, err: %v, rid: %s", data, err, kit.Rid)
 		return err
 	}
-
 	if err = m.checkTableAttributeValidity(kit, attr); err != nil {
 		blog.Errorf("check attribute validity failed, err: %v, rid: %s", err, kit.Rid)
 		return err
 	}
 
 	for _, dbAttr := range dbAttributeArr {
-		err = m.checkTableUnique(kit, false, dbAttr.ObjectID, dbAttr.PropertyID, attr.PropertyName, attr.BizID)
+		err = m.checkUnique(kit, false, dbAttr.ObjectID, dbAttr.PropertyID, attr.PropertyName, attr.BizID)
 		if err != nil {
 			blog.Errorf("save attribute check unique err: %v, input: %+v, rid: %s", err, attr, kit.Rid)
 			return err
@@ -1375,6 +1385,7 @@ func (m *modelAttribute) GetAttrLastIndex(kit *rest.Kit, attribute metadata.Attr
 	opt[common.BKObjIDField] = attribute.ObjectID
 	opt[common.BKPropertyGroupField] = attribute.PropertyGroup
 	opt = util.SetModOwner(opt, attribute.OwnerID)
+	blog.Errorf("111111111111 opt: %+v", opt)
 	count, err := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(opt).Count(kit.Ctx)
 	if err != nil {
 		blog.Error("GetAttrLastIndex, request(%s): database operation is failed, error info is %v", kit.Rid, err)
@@ -1390,6 +1401,7 @@ func (m *modelAttribute) GetAttrLastIndex(kit *rest.Kit, attribute metadata.Attr
 		blog.Error("GetAttrLastIndex, database operation is failed, err: %v, rid: %s", err, kit.Rid)
 		return 0, kit.CCError.Error(common.CCErrCommDBSelectFailed)
 	}
+	blog.Errorf("22222222222222222 index: %+v", attrs[0].PropertyIndex)
 
 	if len(attrs) <= 0 {
 		return 0, nil

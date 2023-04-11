@@ -472,8 +472,8 @@ func (m *model) UpdateModelAttrsByCondition(ctx context.Context, h http.Header, 
 }
 
 // UpdateTableModelAttrsByCondition update table object table attrs by condition
-func (m *model) UpdateTableModelAttrsByCondition(ctx context.Context, h http.Header, input *metadata.UpdateOption) (
-	*metadata.UpdatedCount, error) {
+func (m *model) UpdateTableModelAttrsByCondition(ctx context.Context, h http.Header,
+	input *metadata.UpdateTableOption) (*metadata.UpdatedCount, error) {
 
 	resp := new(metadata.UpdatedOptionResult)
 	subPath := "/update/model/table/attributes"

@@ -548,7 +548,7 @@ func (s *coreService) UpdateModelAttributesByCondition(ctx *rest.Contexts) {
 // UpdateTableModelAttrByCondition update properties of form fields based on conditions.
 func (s *coreService) UpdateTableModelAttrByCondition(ctx *rest.Contexts) {
 
-	inputData := metadata.UpdateOption{}
+	inputData := metadata.UpdateTableOption{}
 	if err := ctx.DecodeInto(&inputData); nil != err {
 		ctx.RespAutoError(err)
 		return

@@ -22,6 +22,21 @@ type UpdateOption struct {
 	CanEditAll bool `json:"can_edit_all" mapstructure:"can_edit_all"`
 }
 
+// CreateDataOption newly added headers and default values the user update scenario
+type CreateDataOption struct {
+	ObjID string      `json:"bk_obj_id" mapstructure:"bk_obj_id"`
+	Data  []Attribute `json:"data" mapstructure:"data"`
+}
+
+// UpdateTableOption common update options
+type UpdateTableOption struct {
+	CreateData CreateDataOption `json:"create_data" mapstructure:"update_data"`
+	UpdateData mapstr.MapStr    `json:"update_data" mapstructure:"update_data"`
+	Condition  mapstr.MapStr    `json:"condition" mapstructure:"condition"`
+	// can edit all fields, including not editable properties, used by collectors
+	CanEditAll bool `json:"can_edit_all" mapstructure:"can_edit_all"`
+}
+
 // UpdatedOptionResult common update result
 type UpdatedOptionResult struct {
 	BaseResp `json:",inline"`

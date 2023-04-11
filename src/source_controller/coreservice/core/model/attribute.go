@@ -51,7 +51,6 @@ func (m *modelAttribute) CreateTableModelAttributes(kit *rest.Kit, objID string,
 			Exceptions: []metadata.ExceptionResult{},
 		},
 	}
-
 	if err := m.model.isValid(kit, objID); err != nil {
 		blog.Errorf("validate model(%s) failed, err: %v, rid: %s", objID, err, kit.Rid)
 		return dataResult, err
@@ -90,7 +89,7 @@ func (m *modelAttribute) CreateTableModelAttributes(kit *rest.Kit, objID string,
 					attr.PropertyName, attr.PropertyID)
 			}
 		}
-
+		attr.ObjectID = objID
 		attr.OwnerID = kit.SupplierAccount
 		_, exists, err := m.isExists(kit, attr.ObjectID, attr.PropertyID, attr.BizID)
 		blog.V(5).Infof("table model attributes, property id: %s, bizID: %d, exists: %v, rid: %s", attr.PropertyID,
@@ -115,7 +114,6 @@ func (m *modelAttribute) CreateTableModelAttributes(kit *rest.Kit, objID string,
 			addExceptionFunc(int64(attrIdx), err.(errors.CCErrorCoder), &attr)
 			continue
 		}
-
 		dataResult.CreateManyInfoResult.Created = append(dataResult.CreateManyInfoResult.Created,
 			metadata.CreatedDataResult{
 				OriginIndex: int64(attrIdx),
@@ -387,24 +385,83 @@ func (m *modelAttribute) UpdateModelAttributesByCondition(kit *rest.Kit, inputPa
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
-// UpdateTableModelAttributes TODO
-func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateOption) (
+func removeUnchangeableFields(data mapstr.MapStr) mapstr.MapStr {
+
+	data.Remove(metadata.BKMetadata)
+	data.Remove(common.BKAppIDField)
+
+	// UpdateObjectAttribute should not update bk_property_index、bk_property_group
+	data.Remove(common.BKPropertyIndexField)
+	data.Remove(common.BKPropertyGroupField)
+	data.Remove(common.BKFieldID)
+	return data
+}
+
+// UpdateTableModelAttributes 更新表格字段的属性内容，
+func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateTableOption) (
 	*metadata.UpdatedCount, error) {
 	inputParamCond := util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount)
 	cond, err := mongo.NewConditionFromMapStr(inputParamCond)
-	if nil != err {
+	if err != nil {
 		blog.Errorf("failed to convert mapstr(%#v) into a condition object, err: %v, rid: %s",
 			inputParam.Condition, err, kit.Rid)
 		return &metadata.UpdatedCount{}, err
 	}
+	inputParam.UpdateData = removeUnchangeableFields(inputParam.UpdateData)
 
-	cnt, err := m.updateTableAttr(kit, inputParam.Data, cond)
-	if nil != err {
-		blog.Errorf("failed to update fields (%#v) by condition(%#v), err: %s, rid: %s",
-			inputParam.Data, cond.ToMapStr(), err, kit.Rid)
+	cnt, err := m.updateTableAttr(kit, inputParam.UpdateData, cond)
+	if err != nil {
+		blog.Errorf("failed to update fields (%#v) by condition(%#v), err: %v, rid: %s",
+			inputParam.UpdateData, cond.ToMapStr(), err, kit.Rid)
 		return &metadata.UpdatedCount{}, err
 	}
+	if len(inputParam.CreateData.Data) > 0 {
 
+		if err := m.model.isValid(kit, inputParam.CreateData.ObjID); err != nil {
+			blog.Errorf("validate model(%s) failed, err: %v, rid: %s", inputParam.CreateData.ObjID, err, kit.Rid)
+			return &metadata.UpdatedCount{}, err
+		}
+		for _, attr := range inputParam.CreateData.Data {
+
+			if attr.IsPre {
+				if attr.PropertyID == common.BKInstNameField {
+					lang := m.language.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header))
+					attr.PropertyName = util.FirstNotEmptyString(lang.Language("common_property_"+attr.PropertyID),
+						attr.PropertyName, attr.PropertyID)
+				}
+			}
+
+			attr.OwnerID = kit.SupplierAccount
+			_, exists, err := m.isExists(kit, attr.ObjectID, attr.PropertyID, attr.BizID)
+			blog.V(5).Infof("table model attributes, property id: %s, bizID: %d, exists: %v, rid: %s", attr.PropertyID,
+				attr.BizID, exists, kit.Rid)
+			if err != nil {
+				blog.Errorf("create model attrs failed, property id(%s), err: %s, rid: %s", attr.PropertyID, err, kit.Rid)
+				continue
+			}
+
+			if exists {
+				continue
+			}
+			if err = m.saveTableAttrCheck(kit, attr); err != nil {
+				return &metadata.UpdatedCount{}, err
+			}
+		}
+		// 两个map合成一个
+	}
+
+	blog.Errorf("8888888888888888888888 ObjID: %v, data: %+v", inputParam.CreateData.ObjID, inputParam.CreateData.Data)
+	createAttrOp := metadata.CreateModelAttributes{
+		Attributes: inputParam.CreateData.Data,
+	}
+
+	result, err := m.CreateTableModelAttributes(kit, inputParam.CreateData.ObjID, createAttrOp)
+	if err != nil {
+		blog.Errorf("failed to create fields (%#v) by condition(%#v), err: %s, rid: %s",
+			inputParam.CreateData, cond.ToMapStr(), err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+	cnt += uint64(len(result.Created))
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
@@ -457,9 +514,13 @@ func (m *modelAttribute) SearchModelAttributesByCondition(kit *rest.Kit, inputPa
 	dataResult := &metadata.QueryModelAttributeDataResult{
 		Info: []metadata.Attribute{},
 	}
+	// todo:需要将table类型屏蔽
 
+	inputParam.Condition = map[string]interface{}{
+		common.BKDBAND: []map[string]interface{}{inputParam.Condition,
+			{common.BKPropertyTypeField: mapstr.MapStr{common.BKDBNE: common.FieldTypeInnerTable}}},
+	}
 	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
-
 	attrResult, err := m.searchWithSort(kit, inputParam)
 	if nil != err {
 		blog.Errorf("request(%s): it is failed to search the attributes of the model(%+v), error info is %s", kit.Rid, inputParam, err.Error())
@@ -475,67 +536,70 @@ func (m *modelAttribute) SearchModelAttributesByCondition(kit *rest.Kit, inputPa
 func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, bizID int64, inputParam metadata.QueryCondition) (
 	*metadata.QueryModelAttributeDataResult, error) {
 
-	dataResult := &metadata.QueryModelAttributeDataResult{
-		Info: []metadata.Attribute{},
-	}
-
 	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
 
+	blog.Errorf("uuuuuuuuuuuuuuuuuuuuu cond: %+v", inputParam.Condition)
 	attrs, err := m.searchWithSort(kit, inputParam)
 	if nil != err {
 		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
 		return &metadata.QueryModelAttributeDataResult{}, err
 	}
+	//blog.Errorf("uuuuuuuuuuuuuuuuuuuuu cond: %+v, attrs: %+v", inputParam.Condition, attrs)
 
-	objMap := make(map[string]struct{})
-	objs := make([]string, 0)
-	for _, attr := range attrs {
-		objMap[attr.ObjectID] = struct{}{}
+	//objMap := make(map[string]struct{})
+	//objs := make([]string, 0)
+	//for _, attr := range attrs {
+	//	objMap[attr.ObjectID] = struct{}{}
+	//}
+	//for o := range objMap {
+	//	objs = append(objs, o)
+	//}
+	//blog.Errorf("1111111111111111 objs: %+v", objs)
+	//if len(objs) == 0 {
+	//	return &metadata.QueryModelAttributeDataResult{}, kit.CCError.Error(common.CCErrCommDBSelectFailed)
+	//}
+	//
+	//relations := make([]metadata.ModelQuoteRelation, 0)
+	//filter := mapstr.MapStr{
+	//	common.BKSrcModelField: mapstr.MapStr{
+	//		common.BKDBIN: objs,
+	//	}}
+	//
+	//filter = util.SetQueryOwner(filter, kit.SupplierAccount)
+	//err = mongodb.Client().Table(common.BKTableNameModelQuoteRelation).Find(filter).All(kit.Ctx, &relations)
+	//if err != nil {
+	//	blog.Errorf("list model quote relations failed, err: %v, filter: %+v, rid: %v", err, filter, kit.Rid)
+	//	return &metadata.QueryModelAttributeDataResult{}, err
+	//}
+	//
+	//tableObjs := make([]string, 0)
+	//for _, relation := range relations {
+	//	tableObjs = append(tableObjs, relation.DestModel)
+	//}
+	//blog.Errorf("88888888888888 tableObjs: %+v", tableObjs)
+	//// 如果obj存在表格字段那么需要重新组合一下
+	//if len(tableObjs) > 0 {
+	//	objIDs := append(objs, tableObjs...)
+	//	inputParam.Condition = mapstr.MapStr{
+	//		common.BKObjIDField: mapstr.MapStr{
+	//			common.BKDBIN: objIDs,
+	//		},
+	//	}
+	//	util.AddModelBizIDCondition(inputParam.Condition, bizID)
+	//}
+	//
+	//inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
+	//blog.Errorf("mmmmmmmmmmmmmmmmmmmmm cond: %+v", inputParam.Condition)
+	//attrResult, err := m.searchWithSort(kit, inputParam)
+	//if nil != err {
+	//	blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
+	//	return &metadata.QueryModelAttributeDataResult{}, err
+	//}
+	dataResult := &metadata.QueryModelAttributeDataResult{
+		Info: []metadata.Attribute{},
 	}
-	for o := range objMap {
-		objs = append(objs, o)
-	}
-
-	if len(objs) == 0 {
-		return &metadata.QueryModelAttributeDataResult{}, kit.CCError.Error(common.CCErrCommDBSelectFailed)
-	}
-
-	relations := make([]metadata.ModelQuoteRelation, 0)
-	filter := mapstr.MapStr{
-		common.BKSrcModelField: mapstr.MapStr{
-			common.BKDBIN: objs,
-		}}
-
-	filter = util.SetQueryOwner(filter, kit.SupplierAccount)
-	err = mongodb.Client().Table(common.BKTableNameModelQuoteRelation).Find(filter).All(kit.Ctx, &relations)
-	if err != nil {
-		blog.Errorf("list model quote relations failed, err: %v, filter: %+v, rid: %v", err, filter, kit.Rid)
-		return &metadata.QueryModelAttributeDataResult{}, err
-	}
-
-	tableObjs := make([]string, 0)
-	for _, relation := range relations {
-		tableObjs = append(tableObjs, relation.DestModel)
-	}
-
-	// 如果obj存在表格字段那么需要重新组合一下
-	if len(tableObjs) > 0 {
-		objIDs := append(objs, tableObjs...)
-		inputParam.Condition = mapstr.MapStr{
-			common.BKObjIDField: mapstr.MapStr{
-				common.BKDBIN: objIDs,
-			},
-		}
-		util.AddModelBizIDCondition(inputParam.Condition, bizID)
-	}
-
-	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
-	attrResult, err := m.searchWithSort(kit, inputParam)
-	if nil != err {
-		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
-		return &metadata.QueryModelAttributeDataResult{}, err
-	}
-	dataResult.Count = int64(len(attrResult))
-	dataResult.Info = attrResult
+	dataResult.Count = int64(len(attrs))
+	dataResult.Info = attrs
+	blog.Errorf("666666666666666666666 dataResult: %+v", dataResult)
 	return dataResult, nil
 }

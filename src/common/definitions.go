@@ -935,7 +935,7 @@ const (
 	FieldTypeTable string = "table"
 
 	// FieldTypeInnerTable the inner table type, inner type.
-	FieldTypeInnerTable string = "inner_table"
+	FieldTypeInnerTable string = "innertable"
 
 	// FieldTypeOrganization the organization field type
 	FieldTypeOrganization string = "organization"

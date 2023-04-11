@@ -366,33 +366,28 @@ func getTableAttrOption(option interface{}) (*metadata.TableAttrsOption, error) 
 	return tableAttrs, nil
 }
 
-// todo:
-// 删除场景下需要调用删除实例的接口
-// 1、这里得区分一下更新场景还是创建场景。
-// 2、如果是更新场景需要后台分类，然后分别做插入和更新 删除操作，这个在内存中做就可以，然后整体更新。
-// 删除之后但是需要调用实例的删除接口
+// todo: tableAttrIsValid
+func (a *attribute) tableAttrIsValid(kit *rest.Kit, option interface{}) (*metadata.TableAttrsOption, error) {
 
-func (a *attribute) tableAttrIsValid(kit *rest.Kit, attr *metadata.Attribute) error {
-
-	if attr.Option == nil {
-		return errors.New("option params is invalid")
+	if option == nil {
+		return nil, errors.New("option params is invalid")
 	}
 
-	tableAttrs, err := getTableAttrOption(attr.Option)
+	tableAttrs, err := getTableAttrOption(option)
 	if err != nil {
 		blog.Errorf("get attribute option failed, error: %v, option: %v, rid: %s", err, kit.Rid)
-		return err
+		return nil, err
 	}
 
 	headerAttrMap, err := a.getTableAttrHeaderDetail(kit, tableAttrs.Header)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := a.tableAttrDefaultIsValid(kit, tableAttrs.Default, headerAttrMap); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return tableAttrs, nil
 }
 
 func (a *attribute) getModelAttribute(kit *rest.Kit, id int64) (*metadata.Attribute, error) {
@@ -598,37 +593,38 @@ func (a *attribute) checkAttributeGroupExist(kit *rest.Kit, data *metadata.Attri
 	return nil
 }
 
-func (a *attribute) checkTableAttribute(kit *rest.Kit, data *metadata.Attribute) error {
+func (a *attribute) checkTableAttribute(kit *rest.Kit, data *metadata.Attribute) (*metadata.TableAttrsOption, error) {
 	// check if the object is mainline object, if yes. then user can not create required attribute.
 	yes, err := a.isMainlineModel(kit, data.ObjectID)
 	if err != nil {
 		blog.Errorf("not allow to add required attribute to mainline object: %+v. "+"rid: %d.", data, kit.Rid)
-		return err
+		return nil, err
 	}
 
 	if yes && data.IsRequired {
-		return kit.CCError.Error(common.CCErrTopoCanNotAddRequiredAttributeForMainlineModel)
+		return nil, kit.CCError.Error(common.CCErrTopoCanNotAddRequiredAttributeForMainlineModel)
 	}
 
 	// check the object id
 	exist, err := a.obj.IsObjectExist(kit, data.ObjectID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !exist {
 		blog.Errorf("obj id is not exist, obj id: %s, rid: %s", data.ObjectID, kit.Rid)
-		return kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, common.BKObjIDField)
+		return nil, kit.CCError.CCErrorf(common.CCErrCommParamsIsInvalid, common.BKObjIDField)
 	}
 
 	if err = a.checkAttributeGroupExist(kit, data); err != nil {
 		blog.Errorf("failed to create the default group, err: %s, rid: %s", err, kit.Rid)
-		return err
+		return nil, err
 	}
 
-	if err := a.tableAttrIsValid(kit, data); err != nil {
-		return err
+	tableAttrs, err := a.tableAttrIsValid(kit, data.Option)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return tableAttrs, nil
 }
 
 func (a *attribute) createInnerTableModel(kit *rest.Kit, data *metadata.Attribute) error {
@@ -637,8 +633,8 @@ func (a *attribute) createInnerTableModel(kit *rest.Kit, data *metadata.Attribut
 	obj := metadata.Object{
 		ObjCls:     metadata.ClassificationTableID,
 		ObjIcon:    "icon-cc-inner-table",
-		ObjectID:   metadata.GenerateModelQuoteObjID(data.ObjectID, data.PropertyID),
-		ObjectName: metadata.GenerateModelQuoteObjName(data.ObjectID, data.PropertyName),
+		ObjectID:   data.ObjectID,
+		ObjectName: data.PropertyName,
 		IsHidden:   true,
 		Creator:    string(metadata.FromCCSystem),
 		Modifier:   string(metadata.FromCCSystem),
@@ -648,26 +644,26 @@ func (a *attribute) createInnerTableModel(kit *rest.Kit, data *metadata.Attribut
 	}
 
 	objRsp, err := a.clientSet.CoreService().Model().CreateInnerTableModel(kit.Ctx, kit.Header,
-		&metadata.CreateModel{Spec: obj})
+		&metadata.CreateModel{Spec: obj, Attributes: []metadata.Attribute{*data}})
 	if err != nil {
 		blog.Errorf("create table object(%s) failed, err: %v, rid: %s", obj.ObjectID, err, kit.Rid)
 		return err
 	}
 
 	obj.ID = int64(objRsp.Created.ID)
-
+	objID := metadata.GenerateModelQuoteObjName(data.ObjectID, data.PropertyID)
 	// create the default group
 	groupData := metadata.Group{
 		IsDefault:  true,
 		GroupIndex: -1,
 		GroupName:  "Default",
 		GroupID:    NewGroupID(true),
-		ObjectID:   obj.ObjectID,
+		ObjectID:   objID,
 		OwnerID:    obj.OwnerID,
 	}
 
 	_, err = a.clientSet.CoreService().Model().CreateAttributeGroup(kit.Ctx, kit.Header,
-		obj.ObjectID, metadata.CreateModelAttributeGroup{Data: groupData})
+		objID, metadata.CreateModelAttributeGroup{Data: groupData})
 	if err != nil {
 		blog.Errorf("create attribute group[%s] failed, err: %v, rid: %s", groupData.GroupID, err, kit.Rid)
 		return err
@@ -701,7 +697,8 @@ func (a *attribute) CreateInnerTableObjectAttribute(kit *rest.Kit, data *metadat
 		data.PropertyGroup = "default"
 	}
 
-	if err := a.checkTableAttribute(kit, data); err != nil {
+	_, err := a.checkTableAttribute(kit, data)
+	if err != nil {
 		return nil, err
 	}
 
@@ -710,32 +707,11 @@ func (a *attribute) CreateInnerTableObjectAttribute(kit *rest.Kit, data *metadat
 	}
 
 	data.OwnerID = kit.SupplierAccount
-	obj := data.ObjectID
-	data.ObjectID = metadata.GenerateModelQuoteObjID(data.ObjectID, data.PropertyID)
-	input := metadata.CreateModelAttributes{Attributes: []metadata.Attribute{*data}}
-	resp, err := a.clientSet.CoreService().Model().CreateTableModelAttrs(kit.Ctx, kit.Header, data.ObjectID, &input)
-	if err != nil {
-		blog.Errorf("failed to create model attrs, err: %v, input: %#v, rid: %s", err, input, kit.Rid)
-		return nil, kit.CCError.CCError(common.CCErrCommHTTPDoRequestFailed)
-	}
-	for _, exception := range resp.Exceptions {
-		return nil, kit.CCError.New(int(exception.Code), exception.Message)
-	}
-
-	if len(resp.Repeated) > 0 {
-		blog.Errorf("create model(%s) attr but it is duplicated, input: %#v, rid: %s", data.ObjectID, input, kit.Rid)
-		return nil, kit.CCError.CCError(common.CCErrorAttributeNameDuplicated)
-	}
-
-	if len(resp.Created) != 1 {
-		blog.Errorf("created model(%s) attr amount is not one, input: %#v, rid: %s", data.ObjectID, input, kit.Rid)
-		return nil, kit.CCError.CCError(common.CCErrTopoObjectAttributeCreateFailed)
-	}
-
 	relation := metadata.ModelQuoteRelation{
-		DestModel:  metadata.GenerateModelQuoteObjID(obj, data.PropertyID),
-		SrcModel:   obj,
+		DestModel:  metadata.GenerateModelQuoteObjID(data.ObjectID, data.PropertyID),
+		SrcModel:   data.ObjectID,
 		PropertyID: data.PropertyID,
+		Type:       common.ModelQuoteType(common.FieldTypeInnerTable),
 	}
 	if cErr := a.clientSet.CoreService().ModelQuote().CreateModelQuoteRelation(kit.Ctx, kit.Header,
 		[]metadata.ModelQuoteRelation{relation}); cErr != nil {
@@ -743,23 +719,6 @@ func (a *attribute) CreateInnerTableObjectAttribute(kit *rest.Kit, data *metadat
 		return nil, kit.CCError.CCError(common.CCErrTopoObjectAttributeCreateFailed)
 	}
 
-	// get current model attribute data by id.
-	attrReq := &metadata.QueryCondition{Condition: mapstr.MapStr{metadata.AttributeFieldID: int64(resp.Created[0].ID)}}
-	attrRes, err := a.clientSet.CoreService().Model().ReadModelAttr(kit.Ctx, kit.Header, data.ObjectID, attrReq)
-	if err != nil {
-		blog.Errorf("get created model attribute by id(%d) failed, err: %v, rid: %s", resp.Created[0].ID, err, kit.Rid)
-		return nil, err
-	}
-
-	if len(attrRes.Info) != 1 {
-		blog.Errorf("get created model attribute by id(%d) returns not one attr, rid: %s", resp.Created[0].ID, kit.Rid)
-		return nil, kit.CCError.CCError(common.CCErrCommNotFound)
-	}
-
-	data = &attrRes.Info[0]
-	if err := a.saveAuditLogForInnerTableAttr(kit, data); err != nil {
-		return nil, err
-	}
 	return data, nil
 }
 
@@ -1034,57 +993,263 @@ func (a *attribute) tableDefaultIsValid(kit *rest.Kit, defaultValue []map[string
 	return nil
 }
 
+func (a *attribute) getTableAttrOptionFromDB(kit *rest.Kit, attID, bizID int64) (*metadata.TableAttrsOption, string, error) {
+	cond := &metadata.QueryCondition{
+		Condition: mapstr.MapStr{
+			common.BKFieldID: attID,
+		},
+		Page: metadata.BasePage{
+			Limit: common.BKNoLimit,
+		},
+		DisableCounter: true,
+	}
+	resp, err := a.clientSet.CoreService().Model().ReadModelAttrByConditionForWeb(kit.Ctx, kit.Header, bizID, cond)
+	if nil != err {
+		blog.Errorf("search table attr failed, cond: %+v, bizID: %d, err: %v, rid: %s", cond, bizID, err, kit.Rid)
+		return nil, "", err
+	}
+
+	if len(resp.Info) == 0 {
+		blog.Errorf("no table attr found, cond: %+v, bizID: %d, err: %v, rid: %s", cond, bizID, err, kit.Rid)
+		return nil, "", kit.CCError.CCError(common.CCErrCommNotFound)
+	}
+
+	if len(resp.Info) > 1 {
+		blog.Errorf("multi table attr found, cond: %+v, bizID: %d, err: %v, rid: %s", cond, bizID, err, kit.Rid)
+		return nil, "", kit.CCError.CCError(common.CCErrCommDBSelectFailed)
+	}
+
+	if resp.Info[0].PropertyType != common.FieldTypeInnerTable {
+		blog.Errorf("attr type error, property: %v, cond: %+v, bizID: %d, err: %v, rid: %s", resp.Info[0].PropertyType,
+			cond, bizID, err, kit.Rid)
+		return nil, "", kit.CCError.CCError(common.CCErrCommDBSelectFailed)
+	}
+
+	dbAttrsOp, err := getTableAttrOption(resp.Info[0].Option)
+	if err != nil {
+		blog.Errorf("get attribute option failed, error: %v, option: %v, rid: %s", err, kit.Rid)
+		return nil, "", err
+	}
+
+	return dbAttrsOp, resp.Info[0].ObjectID, nil
+}
+
+func remove() {
+
+}
+func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAttrsOption) (
+	*metadata.TableAttrsOption, *metadata.TableAttrsOption, []string, error) {
+	// 根据这个来判断是更新、新建还是删除场景
+	curHeaderPropertyIDMap := make(map[string]metadata.Attribute)
+	updated := new(metadata.TableAttrsOption)
+	for _, attr := range curAttrsOp.Header {
+		curHeaderPropertyIDMap[attr.PropertyID] = attr
+	}
+
+	deletePropertyIDs := make([]string, 0)
+	blog.Errorf("00000000000 dbAttrsOp.Header: %+v", dbAttrsOp.Header)
+	blog.Errorf("11111111111 curAttrsOp.Header: %+v", curAttrsOp.Header)
+
+	createAttrMap := make(map[string]metadata.Attribute)
+	for _, value := range curAttrsOp.Header {
+		createAttrMap[value.PropertyID] = value
+	}
+
+	for idx := range dbAttrsOp.Header {
+		if value, ok := curHeaderPropertyIDMap[dbAttrsOp.Header[idx].PropertyID]; ok {
+			// 更新场景把新的header放到更新中
+			updated.Header = append(updated.Header, value)
+			// 查对应的default
+			for id := range curAttrsOp.Default {
+				value, ok := curAttrsOp.Default[id][dbAttrsOp.Header[idx].PropertyID]
+				if !ok && dbAttrsOp.Header[idx].IsRequired {
+					// 属性是必填，但是默认值没有那么需要报错
+					return nil, nil, nil, kit.CCError.CCError(common.CCErrCommParamsNeedSet)
+				}
+				if ok {
+					updated.Default = append(updated.Default, map[string]interface{}{
+						dbAttrsOp.Header[idx].PropertyID: value,
+					})
+				}
+			}
+			blog.Errorf("000000000000000  idx: %v, Header: %v,len: %v", idx, curAttrsOp.Header[:idx], len(curAttrsOp.Header))
+
+			// 把这部分删除掉 删除 cur中的default值和header部分，这样后续剩下的 curAttrsOp 就是需要新创建的了
+			delete(createAttrMap, dbAttrsOp.Header[idx].PropertyID)
+			for _, attr := range curAttrsOp.Default {
+				delete(attr, dbAttrsOp.Header[idx].PropertyID)
+			}
+		}
+		deletePropertyIDs = append(deletePropertyIDs, dbAttrsOp.Header[idx].PropertyID)
+	}
+
+	header := make([]metadata.Attribute, 0)
+	for _, v := range createAttrMap {
+		header = append(header, v)
+	}
+
+	curAttrsOp.Header = header
+	blog.Errorf("00000000000000000 curAttrsOp: %+v", curAttrsOp)
+	if len(curAttrsOp.Header)+len(updated.Header) > common.TableHeaderMaxNum {
+		return nil, nil, nil, fmt.Errorf("the header field length of the table cannot exceed %d",
+			common.TableHeaderMaxNum)
+	}
+	return curAttrsOp, updated, deletePropertyIDs, nil
+}
+
 // UpdateTableObjectAttr update object table attribute
-func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, attID int64, modelBizID int64) error {
+func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, attID, modelBizID int64) error {
 
 	attr := new(metadata.Attribute)
 	if err := mapstruct.Decode2Struct(data, attr); err != nil {
-		blog.Errorf("unmarshal mapstr data into attribute failed, attribute: %s, err: %s, rid: %s", attr, err, kit.Rid)
+		blog.Errorf("unmarshal mapstr data into attr failed, attr: %s, err: %s, rid: %s", attr, err, kit.Rid)
 		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
 	}
-
-	// 1、查询数据中的数据。
-
-	// 2、对比表头和对应的默认值数据。
-	// 3、把表头分成三类 新建、更新和删除。然后切分成三组小的表头一组是新建。一组是更新，另外没有的就是需要删除的propertyID
-	//
-	// 删除肯定是整理完一把调用接口（这里再看是coreservice调用还是topo调）
-	// 在coreservice中得看下是否也需要同步的校验。如果同步校验的话 放到coreservice中删除实例也可以
-	if err := a.tableAttrIsValid(kit, attr); err != nil {
-		return err
+	blog.Errorf("999999996666666666666666666666699 attr: %+v", *attr)
+	obj := util.GetStrByInterface(data[common.BKObjIDField])
+	if obj == "" {
+		return kit.CCError.CCError(common.CCErrCommParamsNeedSet)
 	}
 
-	// generate audit log of model attribute.
-	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
-	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)
-	auditLog, err := audit.GenerateAuditLog(generateAuditParameter, attID, nil)
+	propertyID := util.GetStrByInterface(data[common.BKPropertyIDField])
+	if propertyID == "" {
+		return kit.CCError.CCError(common.CCErrCommParamsNeedSet)
+	}
+	tableObjID := metadata.GenerateModelQuoteObjID(obj, propertyID)
+	attr.ObjectID = tableObjID
+	updateDataStruct, createDataStruct := *attr, *attr
+
+	curAttrsOp, err := getTableAttrOption(attr.Option)
 	if err != nil {
-		blog.Errorf("generate audit log failed before update model attribute, attID: %d, err: %v, rid: %s",
-			attID, err, kit.Rid)
+		blog.Errorf("decode attr option failed, bizID: %d, err: %v, rid: %s", modelBizID, err, kit.Rid)
+		return err
+	}
+	for idx := range curAttrsOp.Header {
+		curAttrsOp.Header[idx].ObjectID = tableObjID
+	}
+	// 1、查询数据中的数据。
+	dbAttrsOp, objID, err := a.getTableAttrOptionFromDB(kit, attID, modelBizID)
+	if err != nil {
 		return err
 	}
 
-	// to update.
-	cond := mapstr.MapStr{
-		common.BKFieldID: attID,
+	created, updated, deleted, err := getDiffOptionDefault(kit, curAttrsOp, dbAttrsOp)
+	if err != nil {
+		return err
 	}
-	util.AddModelBizIDCondition(cond, modelBizID)
-	input := metadata.UpdateOption{
-		Condition: cond,
-		Data:      data,
+	blog.Errorf("4444444444444444 created: %v", created)
+	// 如果之前没有默认值 现在有了默认值那么就走新建默认值场景
+	if len(dbAttrsOp.Default) == 0 {
+		result := make(map[string]*metadata.Attribute)
+		for _, header := range dbAttrsOp.Header {
+			result[header.PropertyID] = &header
+		}
+		if err := a.tableAttrDefaultIsValid(kit, created.Default, result); err != nil {
+			return err
+		}
+		return nil
 	}
+
+	updatedHeader := make(map[string]*metadata.Attribute)
+	for _, header := range updated.Header {
+		updatedHeader[header.PropertyID] = &header
+	}
+	// updated这部分就是待更新的
+	if err := a.tableAttrDefaultIsValid(kit, updated.Default, updatedHeader); err != nil {
+		return err
+	}
+	updateDataStruct.Option = updated
+
+	if len(created.Header) == 0 {
+		createDataStruct = metadata.Attribute{}
+	} else {
+		createDataStruct.Option = created
+	}
+
+	blog.Errorf("uuuuuuuuuuuuuuuu created: %v", createDataStruct.Option)
+	blog.Errorf("mmmmmmmmmmmmmmmm updated: %v", updateDataStruct.Option)
+
+	// to update. 这里需要把两部分分开传，因为到coreservice层的校验是不一致的
+	condUpdate := mapstr.MapStr{common.BKFieldID: attID}
+
+	updateData, err := mapstruct.Struct2Map(updateDataStruct)
+	if err != nil {
+		return err
+	}
+	util.AddModelBizIDCondition(condUpdate, modelBizID)
+	input := metadata.UpdateTableOption{
+		Condition: condUpdate,
+		CreateData: metadata.CreateDataOption{
+			Data:  []metadata.Attribute{createDataStruct},
+			ObjID: objID,
+		},
+		UpdateData: updateData,
+	}
+
 	_, err = a.clientSet.CoreService().Model().UpdateTableModelAttrsByCondition(kit.Ctx, kit.Header, &input)
 	if err != nil {
 		blog.Errorf("failed to update model attr, err: %s, rid: %s", err, kit.Rid)
 		return err
 	}
 
-	// save audit log.
-	if err := audit.SaveAuditLog(kit, *auditLog); err != nil {
-		blog.Errorf("save audit log failed, attID: %d, err: %v, rid: %s", attID, err, kit.Rid)
+	if err := a.saveUpdateTableLog(kit, data, tableObjID, attID); err != nil {
 		return err
 	}
 
+	if len(deleted) > 0 {
+		//todo: 调用删除实例的表头接口
+	}
+	return nil
+}
+
+func removeImmutableFields(data mapstr.MapStr) mapstr.MapStr {
+	// TODO: why does remove this????
+	data.Remove(metadata.BKMetadata)
+	data.Remove(common.BKAppIDField)
+
+	// UpdateObjectAttribute should not update bk_property_index、bk_property_group
+	data.Remove(common.BKPropertyIndexField)
+	data.Remove(common.BKPropertyGroupField)
+	return data
+}
+
+func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID string, attrID int64) error {
+	queryCond := &metadata.QueryCondition{
+		Condition: mapstr.MapStr{
+			common.BKObjIDField: objID,
+		},
+		DisableCounter: true,
+		Fields:         []string{common.BKFieldID},
+	}
+	objResult, err := a.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, queryCond)
+	if err != nil {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, %v, rid: %s", err, kit.Rid)
+		return err
+	}
+	if len(objResult.Info) == 0 {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+			queryCond, err, kit.Rid)
+		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	}
+	if len(objResult.Info) > 1 {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+			queryCond, err, kit.Rid)
+		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	}
+	// save audit log.
+	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
+	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)
+	auditLog, err := audit.GenerateAuditLog(generateAuditParameter, attrID, nil)
+	if err != nil {
+		blog.Errorf("generate audit log failed before update model attribute, attID: %d, err: %v, rid: %s",
+			attrID, err, kit.Rid)
+		return err
+	}
+
+	if err := audit.SaveAuditLog(kit, *auditLog); err != nil {
+		blog.Errorf("save audit log failed, attID: %d, err: %v, rid: %s", objResult.Info[0].ID, err, kit.Rid)
+		return err
+	}
 	return nil
 }
 
