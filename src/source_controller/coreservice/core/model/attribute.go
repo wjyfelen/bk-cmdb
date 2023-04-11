@@ -13,6 +13,7 @@
 package model
 
 import (
+	"configcenter/src/common/mapstruct"
 	"fmt"
 	"time"
 
@@ -401,6 +402,7 @@ func removeUnchangeableFields(data mapstr.MapStr) mapstr.MapStr {
 func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateTableOption) (
 	*metadata.UpdatedCount, error) {
 	inputParamCond := util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount)
+	blog.Errorf("0000000000000000 inputParamCond: %+v", inputParam.CreateData)
 	cond, err := mongo.NewConditionFromMapStr(inputParamCond)
 	if err != nil {
 		blog.Errorf("failed to convert mapstr(%#v) into a condition object, err: %v, rid: %s",
@@ -409,20 +411,13 @@ func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam me
 	}
 	inputParam.UpdateData = removeUnchangeableFields(inputParam.UpdateData)
 
-	cnt, err := m.updateTableAttr(kit, inputParam.UpdateData, cond)
-	if err != nil {
-		blog.Errorf("failed to update fields (%#v) by condition(%#v), err: %v, rid: %s",
-			inputParam.UpdateData, cond.ToMapStr(), err, kit.Rid)
-		return &metadata.UpdatedCount{}, err
-	}
 	if len(inputParam.CreateData.Data) > 0 {
-
+		blog.Errorf("44444444444444")
 		if err := m.model.isValid(kit, inputParam.CreateData.ObjID); err != nil {
 			blog.Errorf("validate model(%s) failed, err: %v, rid: %s", inputParam.CreateData.ObjID, err, kit.Rid)
 			return &metadata.UpdatedCount{}, err
 		}
 		for _, attr := range inputParam.CreateData.Data {
-
 			if attr.IsPre {
 				if attr.PropertyID == common.BKInstNameField {
 					lang := m.language.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header))
@@ -447,21 +442,37 @@ func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam me
 				return &metadata.UpdatedCount{}, err
 			}
 		}
+		updateData, err := mapstruct.Struct2Map(inputParam.CreateData.Data)
+		if err != nil {
+			return &metadata.UpdatedCount{}, err
+		}
+		for key, data := range updateData {
+			inputParam.UpdateData[key] = data
+		}
 		// 两个map合成一个
+
+		//blog.Errorf("8888888888888888888888 ObjID: %v, data: %+v", inputParam.CreateData.ObjID, inputParam.CreateData.Data)
+		//createAttrOp := metadata.CreateModelAttributes{
+		//	Attributes: inputParam.CreateData.Data,
+		//}
+		//
+		//result, err := m.CreateTableModelAttributes(kit, inputParam.CreateData.ObjID, createAttrOp)
+		//if err != nil {
+		//	blog.Errorf("failed to create fields (%#v) by condition(%#v), err: %s, rid: %s",
+		//		inputParam.CreateData, cond.ToMapStr(), err, kit.Rid)
+		//	return &metadata.UpdatedCount{}, err
+		//}
+		//creatCnt = len(result.Created)
 	}
 
-	blog.Errorf("8888888888888888888888 ObjID: %v, data: %+v", inputParam.CreateData.ObjID, inputParam.CreateData.Data)
-	createAttrOp := metadata.CreateModelAttributes{
-		Attributes: inputParam.CreateData.Data,
-	}
-
-	result, err := m.CreateTableModelAttributes(kit, inputParam.CreateData.ObjID, createAttrOp)
+	cnt, err := m.updateTableAttr(kit, inputParam.UpdateData, cond)
 	if err != nil {
-		blog.Errorf("failed to create fields (%#v) by condition(%#v), err: %s, rid: %s",
-			inputParam.CreateData, cond.ToMapStr(), err, kit.Rid)
+		blog.Errorf("failed to update fields (%#v) by condition(%#v), err: %v, rid: %s",
+			inputParam.UpdateData, cond.ToMapStr(), err, kit.Rid)
 		return &metadata.UpdatedCount{}, err
 	}
-	cnt += uint64(len(result.Created))
+	blog.ErrorJSON("44444444444444 data: %s", inputParam.UpdateData)
+
 	return &metadata.UpdatedCount{Count: cnt}, nil
 }
 
@@ -533,73 +544,21 @@ func (m *modelAttribute) SearchModelAttributesByCondition(kit *rest.Kit, inputPa
 }
 
 // SearchModelAttrsWithTableByCondition query includes form field model properties.
-func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, bizID int64, inputParam metadata.QueryCondition) (
+func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, inputParam metadata.QueryCondition) (
 	*metadata.QueryModelAttributeDataResult, error) {
 
 	inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
 
-	blog.Errorf("uuuuuuuuuuuuuuuuuuuuu cond: %+v", inputParam.Condition)
 	attrs, err := m.searchWithSort(kit, inputParam)
 	if nil != err {
 		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
 		return &metadata.QueryModelAttributeDataResult{}, err
 	}
-	//blog.Errorf("uuuuuuuuuuuuuuuuuuuuu cond: %+v, attrs: %+v", inputParam.Condition, attrs)
-
-	//objMap := make(map[string]struct{})
-	//objs := make([]string, 0)
-	//for _, attr := range attrs {
-	//	objMap[attr.ObjectID] = struct{}{}
-	//}
-	//for o := range objMap {
-	//	objs = append(objs, o)
-	//}
-	//blog.Errorf("1111111111111111 objs: %+v", objs)
-	//if len(objs) == 0 {
-	//	return &metadata.QueryModelAttributeDataResult{}, kit.CCError.Error(common.CCErrCommDBSelectFailed)
-	//}
-	//
-	//relations := make([]metadata.ModelQuoteRelation, 0)
-	//filter := mapstr.MapStr{
-	//	common.BKSrcModelField: mapstr.MapStr{
-	//		common.BKDBIN: objs,
-	//	}}
-	//
-	//filter = util.SetQueryOwner(filter, kit.SupplierAccount)
-	//err = mongodb.Client().Table(common.BKTableNameModelQuoteRelation).Find(filter).All(kit.Ctx, &relations)
-	//if err != nil {
-	//	blog.Errorf("list model quote relations failed, err: %v, filter: %+v, rid: %v", err, filter, kit.Rid)
-	//	return &metadata.QueryModelAttributeDataResult{}, err
-	//}
-	//
-	//tableObjs := make([]string, 0)
-	//for _, relation := range relations {
-	//	tableObjs = append(tableObjs, relation.DestModel)
-	//}
-	//blog.Errorf("88888888888888 tableObjs: %+v", tableObjs)
-	//// 如果obj存在表格字段那么需要重新组合一下
-	//if len(tableObjs) > 0 {
-	//	objIDs := append(objs, tableObjs...)
-	//	inputParam.Condition = mapstr.MapStr{
-	//		common.BKObjIDField: mapstr.MapStr{
-	//			common.BKDBIN: objIDs,
-	//		},
-	//	}
-	//	util.AddModelBizIDCondition(inputParam.Condition, bizID)
-	//}
-	//
-	//inputParam.Condition = util.SetQueryOwner(inputParam.Condition, kit.SupplierAccount)
-	//blog.Errorf("mmmmmmmmmmmmmmmmmmmmm cond: %+v", inputParam.Condition)
-	//attrResult, err := m.searchWithSort(kit, inputParam)
-	//if nil != err {
-	//	blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
-	//	return &metadata.QueryModelAttributeDataResult{}, err
-	//}
 	dataResult := &metadata.QueryModelAttributeDataResult{
 		Info: []metadata.Attribute{},
 	}
 	dataResult.Count = int64(len(attrs))
 	dataResult.Info = attrs
-	blog.Errorf("666666666666666666666 dataResult: %+v", dataResult)
+	blog.Errorf("00000000000000000000000000 attrs: %+v, input %+v", attrs, inputParam.Condition)
 	return dataResult, nil
 }

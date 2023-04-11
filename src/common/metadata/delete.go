@@ -19,6 +19,13 @@ type DeleteOption struct {
 	Condition mapstr.MapStr `json:"condition"`
 }
 
+// DeleteTableOption 删除表格字段的请求
+type DeleteTableOption struct {
+	ObjID      string
+	ID         int64
+	PropertyID string
+}
+
 // DeletedOptionResult delete  api http response return result struct
 type DeletedOptionResult struct {
 	BaseResp `json:",inline"`

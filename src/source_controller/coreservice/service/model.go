@@ -189,6 +189,17 @@ func (s *coreService) CascadeDeleteModel(ctx *rest.Contexts) {
 	ctx.RespEntityWithError(s.core.ModelOperation().CascadeDeleteModel(ctx.Kit, id))
 }
 
+// CascadeDeleteTableModel delete table model related resources in a cascading manner.
+func (s *coreService) CascadeDeleteTableModel(ctx *rest.Contexts) {
+	inputData := metadata.DeleteTableOption{}
+	if err := ctx.DecodeInto(&inputData); nil != err {
+		ctx.RespAutoError(err)
+		return
+	}
+
+	ctx.RespEntityWithError(s.core.ModelOperation().CascadeDeleteTableModel(ctx.Kit, inputData))
+}
+
 // SearchModel TODO
 func (s *coreService) SearchModel(ctx *rest.Contexts) {
 	inputData := metadata.QueryCondition{}
@@ -577,14 +588,8 @@ func (s *coreService) SearchModelAttrsWithWebByCondition(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-	bizIDStr := ctx.Request.PathParameter("bk_biz_id")
-	bizID, err := strconv.ParseInt(bizIDStr, 10, 64)
-	if err != nil {
-		blog.Error("url parameter bk_biz_id not integer, bizID: %s, rid: %s", bizIDStr, ctx.Kit.Rid)
-		ctx.RespAutoError(ctx.Kit.CCError.Errorf(common.CCErrCommParamsNeedInt, common.BKAppIDField))
-		return
-	}
-	result, err := s.core.ModelOperation().SearchModelAttrsWithTableByCondition(ctx.Kit, bizID, inputData)
+
+	result, err := s.core.ModelOperation().SearchModelAttrsWithTableByCondition(ctx.Kit, inputData)
 	if err != nil {
 		ctx.RespEntityWithError(result, err)
 		return

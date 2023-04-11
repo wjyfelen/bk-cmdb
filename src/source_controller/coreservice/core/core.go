@@ -78,7 +78,7 @@ type ModelAttribute interface {
 		*metadata.QueryModelAttributeDataResult, error)
 	SearchModelAttributesByCondition(kit *rest.Kit, inputParam metadata.QueryCondition) (
 		*metadata.QueryModelAttributeDataResult, error)
-	SearchModelAttrsWithTableByCondition(kit *rest.Kit, bizID int64, inputParam metadata.QueryCondition) (
+	SearchModelAttrsWithTableByCondition(kit *rest.Kit, inputParam metadata.QueryCondition) (
 		*metadata.QueryModelAttributeDataResult, error)
 }
 
@@ -105,6 +105,7 @@ type ModelOperation interface {
 	UpdateModel(kit *rest.Kit, inputParam metadata.UpdateOption) (*metadata.UpdatedCount, error)
 	DeleteModel(kit *rest.Kit, inputParam metadata.DeleteOption) (*metadata.DeletedCount, error)
 	CascadeDeleteModel(kit *rest.Kit, modelID int64) (*metadata.DeletedCount, error)
+	CascadeDeleteTableModel(kit *rest.Kit, input metadata.DeleteTableOption) (*metadata.DeletedCount, error)
 	SearchModel(kit *rest.Kit, inputParam metadata.QueryCondition) (*metadata.QueryModelDataResult, error)
 	SearchModelWithAttribute(kit *rest.Kit, inputParam metadata.QueryCondition) (
 		*metadata.QueryModelWithAttributeDataResult, error)

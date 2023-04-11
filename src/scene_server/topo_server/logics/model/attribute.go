@@ -37,7 +37,8 @@ import (
 type AttributeOperationInterface interface {
 	CreateObjectAttribute(kit *rest.Kit, data *metadata.Attribute) (*metadata.Attribute, error)
 	CreateInnerTableObjectAttribute(kit *rest.Kit, data *metadata.Attribute) (*metadata.Attribute, error)
-	DeleteObjectAttribute(kit *rest.Kit, cond mapstr.MapStr, modelBizID int64) error
+	//DeleteObjectAttribute(kit *rest.Kit, cond mapstr.MapStr, modelBizID int64) error
+	DeleteObjectAttribute(kit *rest.Kit, attrItems []metadata.Attribute) error
 	UpdateObjectAttribute(kit *rest.Kit, data mapstr.MapStr, attID int64, modelBizID int64) error
 	// CreateObjectBatch upsert object attributes
 	CreateObjectBatch(kit *rest.Kit, data map[string]metadata.ImportObjectData) (mapstr.MapStr, error)
@@ -837,30 +838,16 @@ func (a *attribute) CreateObjectAttribute(kit *rest.Kit, data *metadata.Attribut
 }
 
 // DeleteObjectAttribute delete object attribute
-func (a *attribute) DeleteObjectAttribute(kit *rest.Kit, cond mapstr.MapStr, modelBizID int64) error {
-	util.AddModelBizIDCondition(cond, modelBizID)
-	queryCond := &metadata.QueryCondition{
-		Condition: cond,
-		Page: metadata.BasePage{
-			Limit: common.BKNoLimit,
-		},
-	}
-	attrItems, err := a.clientSet.CoreService().Model().ReadModelAttrByCondition(kit.Ctx, kit.Header, queryCond)
-	if err != nil {
-		blog.Errorf("failed to find the attributes by the cond(%v), err: %v, rid: %s", cond, err, kit.Rid)
-		return err
-	}
-
-	if len(attrItems.Info) == 0 {
-		blog.Errorf("not find the attributes by the cond(%v), rid: %s", cond, kit.Rid)
-		return nil
-	}
+func (a *attribute) DeleteObjectAttribute(kit *rest.Kit, attrItems []metadata.Attribute) error {
 
 	auditLogArr := make([]metadata.AuditLog, 0)
 	attrIDMap := make(map[string][]int64, 0)
 	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
 	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditDelete)
-	for _, attrItem := range attrItems.Info {
+	for _, attrItem := range attrItems {
+		if attrItem.PropertyType == common.FieldTypeInnerTable {
+			continue
+		}
 		// generate audit log of model attribute.
 		auditLog, err := audit.GenerateAuditLog(generateAuditParameter, attrItem.ID, &attrItem)
 		if err != nil {
@@ -1059,6 +1046,9 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 		if value, ok := curHeaderPropertyIDMap[dbAttrsOp.Header[idx].PropertyID]; ok {
 			// 更新场景把新的header放到更新中
 			updated.Header = append(updated.Header, value)
+			if len(curAttrsOp.Default) == 0 {
+				continue
+			}
 			// 查对应的default
 			for id := range curAttrsOp.Default {
 				value, ok := curAttrsOp.Default[id][dbAttrsOp.Header[idx].PropertyID]
@@ -1072,10 +1062,13 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 					})
 				}
 			}
-			blog.Errorf("000000000000000  idx: %v, Header: %v,len: %v", idx, curAttrsOp.Header[:idx], len(curAttrsOp.Header))
+			blog.Errorf("000000000000000  idx: %v, Header: %v,len: %v", idx, curAttrsOp.Header, len(curAttrsOp.Header))
 
 			// 把这部分删除掉 删除 cur中的default值和header部分，这样后续剩下的 curAttrsOp 就是需要新创建的了
 			delete(createAttrMap, dbAttrsOp.Header[idx].PropertyID)
+			if len(curAttrsOp.Default) == 0 {
+				continue
+			}
 			for _, attr := range curAttrsOp.Default {
 				delete(attr, dbAttrsOp.Header[idx].PropertyID)
 			}
@@ -1094,6 +1087,25 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 		return nil, nil, nil, fmt.Errorf("the header field length of the table cannot exceed %d",
 			common.TableHeaderMaxNum)
 	}
+	headerProperty, dbHeaderProperty := make(map[string]struct{}), make(map[string]metadata.Attribute)
+	for _, property := range curAttrsOp.Header {
+		headerProperty[property.PropertyID] = struct{}{}
+	}
+
+	for _, dbHeader := range dbAttrsOp.Header {
+		dbHeaderProperty[dbHeader.PropertyID] = dbHeader
+	}
+	// 这里需要反查一下header是否有对应default的
+	for _, value := range curAttrsOp.Default {
+		for k := range value {
+			if _, ok := headerProperty[k]; ok {
+				continue
+			}
+			// 不等于ok就需要取DB中的header
+			curAttrsOp.Header = append(curAttrsOp.Header, dbHeaderProperty[k])
+		}
+	}
+	blog.ErrorJSON("0000000000000 curAttrsOp: %s", curAttrsOp)
 	return curAttrsOp, updated, deletePropertyIDs, nil
 }
 
@@ -1106,17 +1118,12 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
 	}
 	blog.Errorf("999999996666666666666666666666699 attr: %+v", *attr)
-	obj := util.GetStrByInterface(data[common.BKObjIDField])
-	if obj == "" {
-		return kit.CCError.CCError(common.CCErrCommParamsNeedSet)
-	}
 
 	propertyID := util.GetStrByInterface(data[common.BKPropertyIDField])
 	if propertyID == "" {
 		return kit.CCError.CCError(common.CCErrCommParamsNeedSet)
 	}
-	tableObjID := metadata.GenerateModelQuoteObjID(obj, propertyID)
-	attr.ObjectID = tableObjID
+
 	updateDataStruct, createDataStruct := *attr, *attr
 
 	curAttrsOp, err := getTableAttrOption(attr.Option)
@@ -1124,9 +1131,7 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		blog.Errorf("decode attr option failed, bizID: %d, err: %v, rid: %s", modelBizID, err, kit.Rid)
 		return err
 	}
-	for idx := range curAttrsOp.Header {
-		curAttrsOp.Header[idx].ObjectID = tableObjID
-	}
+
 	// 1、查询数据中的数据。
 	dbAttrsOp, objID, err := a.getTableAttrOptionFromDB(kit, attID, modelBizID)
 	if err != nil {
@@ -1160,18 +1165,12 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 	}
 	updateDataStruct.Option = updated
 
-	if len(created.Header) == 0 {
-		createDataStruct = metadata.Attribute{}
-	} else {
-		createDataStruct.Option = created
-	}
-
 	blog.Errorf("uuuuuuuuuuuuuuuu created: %v", createDataStruct.Option)
 	blog.Errorf("mmmmmmmmmmmmmmmm updated: %v", updateDataStruct.Option)
 
 	// to update. 这里需要把两部分分开传，因为到coreservice层的校验是不一致的
 	condUpdate := mapstr.MapStr{common.BKFieldID: attID}
-
+	updateDataStruct.ObjectID = objID
 	updateData, err := mapstruct.Struct2Map(updateDataStruct)
 	if err != nil {
 		return err
@@ -1179,20 +1178,28 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 	util.AddModelBizIDCondition(condUpdate, modelBizID)
 	input := metadata.UpdateTableOption{
 		Condition: condUpdate,
-		CreateData: metadata.CreateDataOption{
+	}
+	if len(created.Header) == 0 && len(updateData) == 0 {
+		return nil
+	}
+	blog.ErrorJSON("9999999999999 header: %s, default: %s", created.Header, created.Default)
+	if len(created.Header) > 0 || len(created.Default) > 0 {
+		input.CreateData = metadata.CreateDataOption{
 			Data:  []metadata.Attribute{createDataStruct},
 			ObjID: objID,
-		},
-		UpdateData: updateData,
+		}
 	}
-
+	if len(updateData) > 0 {
+		input.UpdateData = updateData
+	}
 	_, err = a.clientSet.CoreService().Model().UpdateTableModelAttrsByCondition(kit.Ctx, kit.Header, &input)
 	if err != nil {
 		blog.Errorf("failed to update model attr, err: %s, rid: %s", err, kit.Rid)
 		return err
 	}
+	blog.Errorf("0000000000 attID: %v, objID: %v", attID, objID)
 
-	if err := a.saveUpdateTableLog(kit, data, tableObjID, attID); err != nil {
+	if err := a.saveUpdateTableLog(kit, data, objID, modelBizID, attID); err != nil {
 		return err
 	}
 
@@ -1213,7 +1220,7 @@ func removeImmutableFields(data mapstr.MapStr) mapstr.MapStr {
 	return data
 }
 
-func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID string, attrID int64) error {
+func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID string, modelBizID, attrID int64) error {
 	queryCond := &metadata.QueryCondition{
 		Condition: mapstr.MapStr{
 			common.BKObjIDField: objID,
@@ -1239,7 +1246,7 @@ func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID 
 	// save audit log.
 	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
 	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)
-	auditLog, err := audit.GenerateAuditLog(generateAuditParameter, attrID, nil)
+	auditLog, err := audit.GenerateTableAuditLog(generateAuditParameter, objID, modelBizID, attrID, nil)
 	if err != nil {
 		blog.Errorf("generate audit log failed before update model attribute, attID: %d, err: %v, rid: %s",
 			attrID, err, kit.Rid)

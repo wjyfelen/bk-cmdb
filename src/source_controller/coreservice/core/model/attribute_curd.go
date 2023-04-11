@@ -88,6 +88,11 @@ func (m *modelAttribute) saveTableAttr(kit *rest.Kit, attribute metadata.Attribu
 		attribute.LastTime.Time = time.Now()
 	}
 
+	if attribute.IsMultiple == nil {
+		isMultiple := false
+		attribute.IsMultiple = &isMultiple
+	}
+
 	if err = m.saveTableAttrCheck(kit, attribute); err != nil {
 		return 0, err
 	}
@@ -144,72 +149,11 @@ func (m *modelAttribute) save(kit *rest.Kit, attribute metadata.Attribute) (id u
 	return id, err
 }
 
-func (m *modelAttribute) checkTableUnique(kit *rest.Kit, isCreate bool, objID, propertyID, propertyName string, modelBizID int64) error {
-	cond := map[string]interface{}{
-		common.BKObjIDField: objID,
-	}
-
-	andCond := make([]map[string]interface{}, 0)
-	if isCreate {
-		nameFieldCond := map[string]interface{}{common.BKPropertyNameField: propertyName}
-		idFieldCond := map[string]interface{}{common.BKPropertyIDField: propertyID}
-		andCond = append(andCond, map[string]interface{}{
-			common.BKDBOR: []map[string]interface{}{nameFieldCond, idFieldCond},
-		})
-	} else {
-		// update attribute. not change name, 无需判断
-		if propertyName == "" {
-			return nil
-		}
-		cond[common.BKPropertyIDField] = map[string]interface{}{common.BKDBNE: propertyID}
-		cond[common.BKPropertyNameField] = propertyName
-	}
-
-	if modelBizID > 0 {
-		// search special business model and global shared model
-		andCond = append(andCond, map[string]interface{}{
-			common.BKDBOR: []map[string]interface{}{
-				{common.BKAppIDField: modelBizID},
-				{common.BKAppIDField: 0},
-				{common.BKAppIDField: map[string]interface{}{common.BKDBExists: false}},
-			},
-		})
-	}
-
-	if len(andCond) > 0 {
-		cond[common.BKDBAND] = andCond
-	}
-	util.SetModOwner(cond, kit.SupplierAccount)
-
-	resultAttrs := make([]metadata.Attribute, 0)
-	err := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(cond).All(kit.Ctx, &resultAttrs)
-	blog.V(5).Infof("checkUnique db cond:%#v, result:%#v, rid:%s", cond, resultAttrs, kit.Rid)
-	if err != nil {
-		blog.ErrorJSON("checkUnique select error. err:%s, cond:%s, rid:%s", err.Error(), cond, kit.Rid)
-		return kit.CCError.Error(common.CCErrCommDBSelectFailed)
-	}
-
-	language := util.GetLanguage(kit.Header)
-	lang := m.language.CreateDefaultCCLanguageIf(language)
-	for _, attrItem := range resultAttrs {
-		if attrItem.PropertyID == propertyID {
-			blog.ErrorJSON("check unique attribute id duplicate. attr: %s, rid: %s", attrItem, kit.Rid)
-			return kit.CCError.Errorf(common.CCErrCommDuplicateItem, lang.Language("model_attr_bk_property_id"))
-		}
-		if attrItem.PropertyName == propertyName {
-			blog.ErrorJSON("check unique attribute id duplicate. attr: %s, rid: %s", attrItem, kit.Rid)
-			return kit.CCError.Errorf(common.CCErrCommDuplicateItem, lang.Language("model_attr_bk_property_name"))
-		}
-	}
-
-	return nil
-}
-
 func (m *modelAttribute) checkUnique(kit *rest.Kit, isCreate bool, objID, propertyID, propertyName string, modelBizID int64) error {
 	cond := map[string]interface{}{
 		common.BKObjIDField: objID,
 	}
-
+	blog.Errorf("1111111111111111 objID: %v, propertyID: %+v, propertyName: %v, modelBizID: %v", objID, propertyID, propertyName, modelBizID)
 	andCond := make([]map[string]interface{}, 0)
 	if isCreate {
 		nameFieldCond := map[string]interface{}{common.BKPropertyNameField: propertyName}
@@ -241,7 +185,6 @@ func (m *modelAttribute) checkUnique(kit *rest.Kit, isCreate bool, objID, proper
 		cond[common.BKDBAND] = andCond
 	}
 	util.SetModOwner(cond, kit.SupplierAccount)
-
 	resultAttrs := make([]metadata.Attribute, 0)
 	err := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(cond).All(kit.Ctx, &resultAttrs)
 	blog.V(5).Infof("check unique db cond: %#v, result: %#v, rid: %s", cond, resultAttrs, kit.Rid)
@@ -573,18 +516,22 @@ func (m *modelAttribute) updateTableAttr(kit *rest.Kit, data mapstr.MapStr, cond
 	if len(data) == 0 {
 		return 0, nil
 	}
-	blog.Errorf("0000000000000 data: %v", data)
+
+	blog.Errorf("0000000000000 data: %v, cond: %+v", data, cond.ToMapStr())
 	err := m.checkTableAttrUpdate(kit, data, cond)
 	if err != nil {
 		blog.Errorf("checkUpdate error. data: %+v, cond: %+v, err: %v, rid:%s", data, cond, err, kit.Rid)
 		return 0, err
 	}
+	blog.ErrorJSON("1111111111111111111 data: %s", data)
 
 	cnt, err := mongodb.Client().Table(common.BKTableNameObjAttDes).UpdateMany(kit.Ctx, cond.ToMapStr(), data)
 	if err != nil {
 		blog.Errorf("request(%s): database operation is failed, error info is %s", kit.Rid, err.Error())
 		return 0, err
 	}
+	blog.Errorf("2222222222222222222 ")
+
 	return cnt, err
 }
 
@@ -634,7 +581,8 @@ func (m *modelAttribute) searchReturnMapStr(kit *rest.Kit, cond universalsql.Con
 func (m *modelAttribute) delete(kit *rest.Kit, cond universalsql.Condition) (cnt uint64, err error) {
 
 	resultAttrs := make([]metadata.Attribute, 0)
-	fields := []string{common.BKFieldID, common.BKPropertyIDField, common.BKObjIDField, common.BKAppIDField}
+	fields := []string{common.BKFieldID, common.BKPropertyIDField, common.BKPropertyTypeField,
+		common.BKObjIDField, common.BKAppIDField}
 
 	condMap := util.SetQueryOwner(cond.ToMapStr(), kit.SupplierAccount)
 	err = mongodb.Client().Table(common.BKTableNameObjAttDes).Find(condMap).Fields(fields...).All(kit.Ctx, &resultAttrs)
@@ -650,9 +598,11 @@ func (m *modelAttribute) delete(kit *rest.Kit, cond universalsql.Condition) (cnt
 
 	objIDArrMap := make(map[string][]int64, 0)
 	for _, attr := range resultAttrs {
+		if attr.PropertyType == common.FieldTypeInnerTable {
+			continue
+		}
 		objIDArrMap[attr.ObjectID] = append(objIDArrMap[attr.ObjectID], attr.ID)
 	}
-
 	if err := m.cleanAttributeFieldInInstances(kit.Ctx, kit.SupplierAccount, resultAttrs); err != nil {
 		blog.Errorf("delete object attributes with cond: %v, but delete these attribute in instance failed, "+
 			"err: %v, rid: %s", condMap, err, kit.Rid)
@@ -702,6 +652,10 @@ func (m *modelAttribute) cleanAttributeFieldInInstances(ctx context.Context, own
 
 	// TODO: now, we only support set, module, host model's biz attribute clean operation.
 	for _, attr := range attrs {
+		if attr.PropertyType == common.FieldTypeInnerTable {
+			continue
+		}
+
 		biz := attr.BizID
 		if biz != 0 {
 			if !isBizObject(attr.ObjectID) {
@@ -722,7 +676,9 @@ func (m *modelAttribute) cleanAttributeFieldInInstances(ctx context.Context, own
 			hostApplyFields[biz] = append(hostApplyFields[biz], attr.ID)
 		}
 	}
-
+	if len(objectFields) == 0 {
+		return nil
+	}
 	// delete these attribute's fields in the model instance
 	var hitError error
 	wg := sync.WaitGroup{}
@@ -862,6 +818,9 @@ func (m *modelAttribute) cleanAttrTemplateRelation(ctx context.Context, ownerID 
 
 	attrMap := make(map[string][]int64)
 	for _, attr := range attrs {
+		if attr.PropertyType == common.FieldTypeInnerTable {
+			continue
+		}
 		attrMap[attr.ObjectID] = append(attrMap[attr.ObjectID], attr.ID)
 	}
 
@@ -1003,11 +962,9 @@ func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.At
 	if err := m.checkTableAttributeMustNotEmpty(kit, attribute); err != nil {
 		return err
 	}
-	blog.Errorf("11111111111111111111")
 	if err := m.checkTableAttributeValidity(kit, attribute); err != nil {
 		return err
 	}
-	blog.Errorf("2222222222222222")
 
 	// check name duplicate
 	if err := m.checkUnique(kit, true, attribute.ObjectID, attribute.PropertyID, attribute.PropertyName,
@@ -1015,7 +972,6 @@ func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.At
 		blog.Errorf("save attribute check unique input: %+v, err: %v, rid: %s", attribute, err, kit.Rid)
 		return err
 	}
-	blog.Errorf("2222222222222222")
 
 	return nil
 }
@@ -1048,6 +1004,7 @@ func (m *modelAttribute) saveCheck(kit *rest.Kit, attribute metadata.Attribute) 
 func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 	cond universalsql.Condition) (err error) {
 
+	blog.Errorf("77777777777777777 cond: %+v", cond.ToMapStr())
 	dbAttributeArr, err := m.search(kit, cond)
 	if err != nil {
 		blog.Errorf("find nothing by the condition: %+v, err: %v, rid: %s", cond.ToMapStr(), err, kit.Rid)
@@ -1080,7 +1037,7 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 			return nil
 		})
 	}
-	blog.Errorf("999999999999999 data: %v", data)
+
 	if option, exists := data.Get(metadata.AttributeFieldOption); exists {
 		propertyType := dbAttributeArr[0].PropertyType
 		for _, dbAttribute := range dbAttributeArr {
@@ -1101,7 +1058,6 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 			isMultiple = &ismultiple
 		}
 
-		// todo: 这里报错是不是合理？
 		if isMultiple == nil {
 			return kit.CCError.Errorf(common.CCErrCommParamsInvalid, common.BKIsMultipleField)
 		}
@@ -1158,7 +1114,6 @@ func (m *modelAttribute) checkTableAttrUpdate(kit *rest.Kit, data mapstr.MapStr,
 		blog.Errorf("check attribute validity failed, err: %v, rid: %s", err, kit.Rid)
 		return err
 	}
-
 	for _, dbAttr := range dbAttributeArr {
 		err = m.checkUnique(kit, false, dbAttr.ObjectID, dbAttr.PropertyID, attr.PropertyName, attr.BizID)
 		if err != nil {
@@ -1385,7 +1340,6 @@ func (m *modelAttribute) GetAttrLastIndex(kit *rest.Kit, attribute metadata.Attr
 	opt[common.BKObjIDField] = attribute.ObjectID
 	opt[common.BKPropertyGroupField] = attribute.PropertyGroup
 	opt = util.SetModOwner(opt, attribute.OwnerID)
-	blog.Errorf("111111111111 opt: %+v", opt)
 	count, err := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(opt).Count(kit.Ctx)
 	if err != nil {
 		blog.Error("GetAttrLastIndex, request(%s): database operation is failed, error info is %v", kit.Rid, err)
