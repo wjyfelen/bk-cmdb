@@ -402,17 +402,34 @@ func removeUnchangeableFields(data mapstr.MapStr) mapstr.MapStr {
 func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateTableOption) (
 	*metadata.UpdatedCount, error) {
 	inputParamCond := util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount)
-	blog.Errorf("0000000000000000 inputParamCond: %+v", inputParam.CreateData)
+	blog.Errorf("0000000000000000 inputParamCond: %+v", inputParam.Condition)
 	cond, err := mongo.NewConditionFromMapStr(inputParamCond)
 	if err != nil {
 		blog.Errorf("failed to convert mapstr(%#v) into a condition object, err: %v, rid: %s",
 			inputParam.Condition, err, kit.Rid)
 		return &metadata.UpdatedCount{}, err
 	}
+	// 这里需要查询后再赋值
+	filter := metadata.QueryCondition{
+		Condition: inputParamCond,
+	}
+	attrs, err := m.searchWithSort(kit, filter)
+	if nil != err {
+		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+	if len(attrs) == 0 {
+		blog.Errorf("no attrs of the model(%+v) found, err: %s, rid: %s", inputParam, err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+	if len(attrs) > 1 {
+		blog.Errorf("multi attrs of the model(%+v) found, err: %s, rid: %s", inputParam, err, kit.Rid)
+		return &metadata.UpdatedCount{}, err
+	}
+
 	inputParam.UpdateData = removeUnchangeableFields(inputParam.UpdateData)
 
 	if len(inputParam.CreateData.Data) > 0 {
-		blog.Errorf("44444444444444")
 		if err := m.model.isValid(kit, inputParam.CreateData.ObjID); err != nil {
 			blog.Errorf("validate model(%s) failed, err: %v, rid: %s", inputParam.CreateData.ObjID, err, kit.Rid)
 			return &metadata.UpdatedCount{}, err
@@ -442,28 +459,27 @@ func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam me
 				return &metadata.UpdatedCount{}, err
 			}
 		}
-		updateData, err := mapstruct.Struct2Map(inputParam.CreateData.Data)
-		if err != nil {
-			return &metadata.UpdatedCount{}, err
-		}
-		for key, data := range updateData {
-			inputParam.UpdateData[key] = data
-		}
-		// 两个map合成一个
+		blog.ErrorJSON("44444444444444 data: %s", inputParam.CreateData.Data)
 
-		//blog.Errorf("8888888888888888888888 ObjID: %v, data: %+v", inputParam.CreateData.ObjID, inputParam.CreateData.Data)
-		//createAttrOp := metadata.CreateModelAttributes{
-		//	Attributes: inputParam.CreateData.Data,
-		//}
-		//
-		//result, err := m.CreateTableModelAttributes(kit, inputParam.CreateData.ObjID, createAttrOp)
-		//if err != nil {
-		//	blog.Errorf("failed to create fields (%#v) by condition(%#v), err: %s, rid: %s",
-		//		inputParam.CreateData, cond.ToMapStr(), err, kit.Rid)
-		//	return &metadata.UpdatedCount{}, err
-		//}
-		//creatCnt = len(result.Created)
+		for _, data := range inputParam.CreateData.Data {
+			v, err := mapstruct.Struct2Map(data)
+			if err != nil {
+				return &metadata.UpdatedCount{}, err
+			}
+			for key, value := range v {
+				inputParam.UpdateData[key] = value
+			}
+		}
+
+		// 两个map合成一个
 	}
+
+	blog.Errorf("2222222222222244444444444444  data: %s", inputParam.UpdateData)
+
+	inputParam.UpdateData[common.BKAppIDField] = attrs[0].BizID
+	inputParam.UpdateData[common.BKPropertyIndexField] = attrs[0].PropertyIndex
+	inputParam.UpdateData[common.BKPropertyGroupField] = attrs[0].PropertyGroup
+	inputParam.UpdateData[common.BKFieldID] = attrs[0].ID
 
 	cnt, err := m.updateTableAttr(kit, inputParam.UpdateData, cond)
 	if err != nil {
@@ -554,6 +570,14 @@ func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, inp
 		blog.Errorf("failed to search the attrs of the model(%+v), err: %s, rid: %s", inputParam, err, kit.Rid)
 		return &metadata.QueryModelAttributeDataResult{}, err
 	}
+
+	resultAttrs := []mapstr.MapStr{}
+	err = mongodb.Client().Table(common.BKTableNameObjAttDes).Find(inputParam.Condition).All(kit.Ctx, &resultAttrs)
+	if err != nil {
+		blog.Errorf("00000000000000000000000000 attrs: %+v, input %+v", resultAttrs, inputParam.Condition)
+	}
+	blog.Errorf("eeeeeeeeeeeeeeeeeeee attrs: %+v, input %+v", resultAttrs, inputParam.Condition)
+
 	dataResult := &metadata.QueryModelAttributeDataResult{
 		Info: []metadata.Attribute{},
 	}

@@ -1197,7 +1197,6 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		blog.Errorf("failed to update model attr, err: %s, rid: %s", err, kit.Rid)
 		return err
 	}
-	blog.Errorf("0000000000 attID: %v, objID: %v", attID, objID)
 
 	if err := a.saveUpdateTableLog(kit, data, objID, modelBizID, attID); err != nil {
 		return err
@@ -1221,28 +1220,28 @@ func removeImmutableFields(data mapstr.MapStr) mapstr.MapStr {
 }
 
 func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID string, modelBizID, attrID int64) error {
-	queryCond := &metadata.QueryCondition{
-		Condition: mapstr.MapStr{
-			common.BKObjIDField: objID,
-		},
-		DisableCounter: true,
-		Fields:         []string{common.BKFieldID},
-	}
-	objResult, err := a.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, queryCond)
-	if err != nil {
-		blog.Errorf("[NetDevice] search net device object, search objectName fail, %v, rid: %s", err, kit.Rid)
-		return err
-	}
-	if len(objResult.Info) == 0 {
-		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
-			queryCond, err, kit.Rid)
-		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
-	}
-	if len(objResult.Info) > 1 {
-		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
-			queryCond, err, kit.Rid)
-		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
-	}
+	//queryCond := &metadata.QueryCondition{
+	//	Condition: mapstr.MapStr{
+	//		common.BKObjIDField: objID,
+	//	},
+	//	DisableCounter: true,
+	//	Fields:         []string{common.BKFieldID},
+	//}
+	//objResult, err := a.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, queryCond)
+	//if err != nil {
+	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, %v, rid: %s", err, kit.Rid)
+	//	return err
+	//}
+	//if len(objResult.Info) == 0 {
+	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+	//		queryCond, err, kit.Rid)
+	//	return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	//}
+	//if len(objResult.Info) > 1 {
+	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+	//		queryCond, err, kit.Rid)
+	//	return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	//}
 	// save audit log.
 	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
 	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)
@@ -1254,7 +1253,7 @@ func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID 
 	}
 
 	if err := audit.SaveAuditLog(kit, *auditLog); err != nil {
-		blog.Errorf("save audit log failed, attID: %d, err: %v, rid: %s", objResult.Info[0].ID, err, kit.Rid)
+		blog.Errorf("save audit log failed, attID: %d, err: %v, rid: %s", attrID, err, kit.Rid)
 		return err
 	}
 	return nil

@@ -565,6 +565,7 @@ func (m *modelAttribute) search(kit *rest.Kit, cond universalsql.Condition) (res
 func (m *modelAttribute) searchWithSort(kit *rest.Kit, cond metadata.QueryCondition) (resultAttrs []metadata.Attribute, err error) {
 	resultAttrs = []metadata.Attribute{}
 
+	blog.Errorf("99999999999999999999 cond: %v", cond.Condition)
 	instHandler := mongodb.Client().Table(common.BKTableNameObjAttDes).Find(cond.Condition)
 	err = instHandler.Start(uint64(cond.Page.Start)).Limit(uint64(cond.Page.Limit)).Sort(cond.Page.Sort).All(kit.Ctx, &resultAttrs)
 
@@ -958,11 +959,16 @@ func isBizObject(objectID string) bool {
 
 //  saveTableAttrCheck form new field check
 func (m *modelAttribute) saveTableAttrCheck(kit *rest.Kit, attribute metadata.Attribute) error {
+	blog.Errorf("44444444444444")
 
 	if err := m.checkTableAttributeMustNotEmpty(kit, attribute); err != nil {
+		blog.Errorf("44444444444444")
+
 		return err
 	}
 	if err := m.checkTableAttributeValidity(kit, attribute); err != nil {
+		blog.Errorf("44444444444444")
+
 		return err
 	}
 
