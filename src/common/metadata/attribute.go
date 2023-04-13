@@ -336,7 +336,7 @@ func (attribute *Attribute) validEnumMulti(ctx context.Context, val interface{},
 		}
 		return errors.RawErrorInfo{}
 	}
-
+	blog.ErrorJSON("00000000000000 val %s, key: %s", val, key)
 	enumOption, err := ParseEnumOption(ctx, attribute.Option)
 	if err != nil {
 		blog.Errorf("parse enum option failed, err: %v, rid: %s", err, rid)
@@ -361,6 +361,8 @@ func (attribute *Attribute) validEnumMulti(ctx context.Context, val interface{},
 	}
 
 	if len(valIDs) == 0 && attribute.IsRequired {
+		blog.ErrorJSON("00000000000000 val %s, key: %s", valIDs, attribute.IsRequired)
+
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsInvalid,
 			Args:    []interface{}{key},
@@ -372,10 +374,12 @@ func (attribute *Attribute) validEnumMulti(ctx context.Context, val interface{},
 	}
 
 	if attribute.IsMultiple == nil {
+		blog.ErrorJSON("00000000000000 val %s, key: %s", valIDs, attribute.IsRequired)
 		return errors.RawErrorInfo{ErrCode: common.CCErrCommParamsNeedSet, Args: []interface{}{key}}
 	}
 
 	if !(*attribute.IsMultiple) && len(valIDs) != 1 {
+		blog.ErrorJSON("00000000000000 val %s, key: %s", valIDs, attribute.IsRequired)
 		return errors.RawErrorInfo{
 			ErrCode: common.CCErrCommParamsNeedSingleChoice,
 			Args:    []interface{}{key},
@@ -383,14 +387,20 @@ func (attribute *Attribute) validEnumMulti(ctx context.Context, val interface{},
 	}
 
 	for _, id := range valIDs {
+		blog.ErrorJSON("00000000000000 val %s, type: %s, id: %s", valIDs, reflect.TypeOf(id), id)
+
 		idVal, ok := id.(string)
 		if !ok {
+			blog.ErrorJSON("00000000000000 val %s, id: %s", valIDs, reflect.TypeOf(id))
+
 			return errors.RawErrorInfo{
 				ErrCode: common.CCErrCommParamsInvalid,
 				Args:    []interface{}{key},
 			}
 		}
 		if _, ok := idMap[idVal]; !ok {
+			blog.ErrorJSON("00000000000000 val %s, idMap: %s", valIDs, idMap)
+
 			return errors.RawErrorInfo{
 				ErrCode: common.CCErrCommParamsInvalid,
 				Args:    []interface{}{key},

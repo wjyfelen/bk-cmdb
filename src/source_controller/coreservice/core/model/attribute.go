@@ -402,7 +402,11 @@ func removeUnchangeableFields(data mapstr.MapStr) mapstr.MapStr {
 func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam metadata.UpdateTableOption) (
 	*metadata.UpdatedCount, error) {
 	inputParamCond := util.SetModOwner(inputParam.Condition.ToMapInterface(), kit.SupplierAccount)
-	blog.Errorf("0000000000000000 inputParamCond: %+v", inputParam.Condition)
+	blog.ErrorJSON("0000000000000000 inputParamCond: %s", inputParam.Condition)
+
+	blog.ErrorJSON("1111111111111111 inputParamCond: %s", inputParam.UpdateData)
+	blog.ErrorJSON("22222222222222 inputParamCond: %s", inputParam.CreateData)
+
 	cond, err := mongo.NewConditionFromMapStr(inputParamCond)
 	if err != nil {
 		blog.Errorf("failed to convert mapstr(%#v) into a condition object, err: %v, rid: %s",
@@ -459,27 +463,39 @@ func (m *modelAttribute) UpdateTableModelAttributes(kit *rest.Kit, inputParam me
 				return &metadata.UpdatedCount{}, err
 			}
 		}
-		blog.ErrorJSON("44444444444444 data: %s", inputParam.CreateData.Data)
 
-		for _, data := range inputParam.CreateData.Data {
-			v, err := mapstruct.Struct2Map(data)
-			if err != nil {
-				return &metadata.UpdatedCount{}, err
-			}
-			for key, value := range v {
-				inputParam.UpdateData[key] = value
-			}
+		// inputParam.UpdateData 中的option 转化成header default
+		hOp, ok := inputParam.UpdateData["option"].(map[string]interface{})
+		if !ok {
+			return &metadata.UpdatedCount{}, err
+		}
+		header := new(metadata.TableAttrsOption)
+		if err := mapstruct.Decode2Struct(hOp, header); err != nil {
+			return &metadata.UpdatedCount{}, err
 		}
 
-		// 两个map合成一个
-	}
+		for _, data := range inputParam.CreateData.Data {
+			d, ok := data.Option.(map[string]interface{})
+			if !ok {
+				return &metadata.UpdatedCount{}, err
+			}
+			dataTbale := new(metadata.TableAttrsOption)
+			if err := mapstruct.Decode2Struct(d, dataTbale); err != nil {
+				return &metadata.UpdatedCount{}, err
+			}
 
-	blog.Errorf("2222222222222244444444444444  data: %s", inputParam.UpdateData)
+			header.Header = append(header.Header, dataTbale.Header...)
+			header.Default = append(header.Default, dataTbale.Default...)
+
+		}
+		inputParam.UpdateData["option"] = header
+	}
 
 	inputParam.UpdateData[common.BKAppIDField] = attrs[0].BizID
 	inputParam.UpdateData[common.BKPropertyIndexField] = attrs[0].PropertyIndex
 	inputParam.UpdateData[common.BKPropertyGroupField] = attrs[0].PropertyGroup
 	inputParam.UpdateData[common.BKFieldID] = attrs[0].ID
+	inputParam.UpdateData[common.BKObjIDField] = attrs[0].ObjectID
 
 	cnt, err := m.updateTableAttr(kit, inputParam.UpdateData, cond)
 	if err != nil {
@@ -574,15 +590,15 @@ func (m *modelAttribute) SearchModelAttrsWithTableByCondition(kit *rest.Kit, inp
 	resultAttrs := []mapstr.MapStr{}
 	err = mongodb.Client().Table(common.BKTableNameObjAttDes).Find(inputParam.Condition).All(kit.Ctx, &resultAttrs)
 	if err != nil {
-		blog.Errorf("00000000000000000000000000 attrs: %+v, input %+v", resultAttrs, inputParam.Condition)
+		blog.ErrorJSON("00000000000000000000000000 attrs: %s, input %s", resultAttrs, inputParam.Condition)
 	}
-	blog.Errorf("eeeeeeeeeeeeeeeeeeee attrs: %+v, input %+v", resultAttrs, inputParam.Condition)
+	blog.ErrorJSON("eeeeeeeeeeeeeeeeeeee attrs: %s, input %s", resultAttrs, inputParam.Condition)
 
 	dataResult := &metadata.QueryModelAttributeDataResult{
 		Info: []metadata.Attribute{},
 	}
 	dataResult.Count = int64(len(attrs))
 	dataResult.Info = attrs
-	blog.Errorf("00000000000000000000000000 attrs: %+v, input %+v", attrs, inputParam.Condition)
+	blog.ErrorJSON("00000000000000000000000000 attrs: %s, input %s", attrs, inputParam.Condition)
 	return dataResult, nil
 }

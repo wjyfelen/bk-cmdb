@@ -296,7 +296,6 @@ func (s *Service) UpdateObjectAttribute(ctx *rest.Contexts) {
 		ctx.RespAutoError(err)
 		return
 	}
-	data = removeImmutableFields(data)
 
 	// table field updates need to go through a separate process.
 	if util.GetStrByInterface(data[common.BKPropertyTypeField]) == common.FieldTypeInnerTable {
@@ -307,6 +306,7 @@ func (s *Service) UpdateObjectAttribute(ctx *rest.Contexts) {
 		ctx.RespEntity(nil)
 		return
 	}
+	data = removeImmutableFields(data)
 
 	txnErr := s.Engine.CoreAPI.CoreService().Txn().AutoRunTxn(ctx.Kit.Ctx, ctx.Kit.Header, func() error {
 		err := s.Logics.AttributeOperation().UpdateObjectAttribute(ctx.Kit, data, id, bizID)

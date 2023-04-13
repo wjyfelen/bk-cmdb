@@ -321,8 +321,8 @@ func (a *attribute) getTableAttrHeaderDetail(kit *rest.Kit, header []metadata.At
 				a.lang.CreateDefaultCCLanguageIf(util.GetLanguage(kit.Header)).Language(
 					"model_attr_bk_property_name"), common.AttributeNameMaxLength)
 		}
-
-		err = validTableTypeOption(header[index].PropertyType, header[index].Option, header[index].Default, kit.CCError)
+		err = validTableTypeOption(header[index].PropertyType, header[index].Option, header[index].Default,
+			header[index].IsMultiple, kit.CCError)
 		if err != nil {
 			return nil, err
 		}
@@ -420,14 +420,18 @@ func (a *attribute) getModelAttribute(kit *rest.Kit, id int64) (*metadata.Attrib
 }
 
 // ToDo：临时合入最新代码之后需要调整
-func validTableTypeOption(propertyType string, option, defaultValue interface{},
+func validTableTypeOption(propertyType string, option, defaultValue interface{}, isMultiple *bool,
 	errProxy ccErr.DefaultCCErrorIf) error {
-
+	bFalse := false
+	if isMultiple == nil {
+		isMultiple = &bFalse
+	}
+	blog.Errorf("0000000000 ")
 	switch propertyType {
 	case common.FieldTypeInt:
 		return util.ValidFieldTypeInt(option, defaultValue, "", errProxy)
 	case common.FieldTypeEnumMulti:
-		return util.ValidFieldTypeEnumOption(option, false, "", errProxy)
+		return util.ValidFieldTypeEnumOption(option, *isMultiple, "", errProxy)
 	case common.FieldTypeLongChar, common.FieldTypeSingleChar:
 		return util.ValidFieldTypeString(option, defaultValue, "", errProxy)
 	case common.FieldTypeFloat:
@@ -948,7 +952,7 @@ func (a *attribute) getTableHeaderDetail(kit *rest.Kit, header []metadata.Attrib
 					"model_attr_bk_property_name"), common.AttributeNameMaxLength)
 		}
 
-		if err := validTableTypeOption(h.PropertyType, h.Default, h.Option, kit.CCError); err != nil {
+		if err := validTableTypeOption(h.PropertyType, h.Default, h.Option, h.IsMultiple, kit.CCError); err != nil {
 			return nil, err
 		}
 		propertyAttr[h.PropertyID] = &h
@@ -1017,14 +1021,11 @@ func (a *attribute) getTableAttrOptionFromDB(kit *rest.Kit, attID, bizID int64) 
 		blog.Errorf("get attribute option failed, error: %v, option: %v, rid: %s", err, kit.Rid)
 		return nil, "", err
 	}
-
+	blog.ErrorJSON("0000000000000 resp.Info[0]: %s", resp.Info[0])
 	return dbAttrsOp, resp.Info[0].ObjectID, nil
 }
 
-func remove() {
-
-}
-func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAttrsOption) (
+func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAttrsOption, objID string) (
 	*metadata.TableAttrsOption, *metadata.TableAttrsOption, []string, error) {
 	// 根据这个来判断是更新、新建还是删除场景
 	curHeaderPropertyIDMap := make(map[string]metadata.Attribute)
@@ -1034,46 +1035,62 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 	}
 
 	deletePropertyIDs := make([]string, 0)
-	blog.Errorf("00000000000 dbAttrsOp.Header: %+v", dbAttrsOp.Header)
-	blog.Errorf("11111111111 curAttrsOp.Header: %+v", curAttrsOp.Header)
+	blog.ErrorJSON("00000000000 dbAttrsOp.Header: %s, objID: %s", dbAttrsOp.Header, objID)
+	blog.ErrorJSON("11111111111 curAttrsOp.Header: %s, objID: %s", curAttrsOp.Header, objID)
 
 	createAttrMap := make(map[string]metadata.Attribute)
 	for _, value := range curAttrsOp.Header {
+		value.ObjectID = metadata.GenerateModelQuoteObjID(objID, value.PropertyID)
 		createAttrMap[value.PropertyID] = value
 	}
 
 	for idx := range dbAttrsOp.Header {
-		if value, ok := curHeaderPropertyIDMap[dbAttrsOp.Header[idx].PropertyID]; ok {
-			// 更新场景把新的header放到更新中
-			updated.Header = append(updated.Header, value)
-			if len(curAttrsOp.Default) == 0 {
-				continue
-			}
-			// 查对应的default
-			for id := range curAttrsOp.Default {
-				value, ok := curAttrsOp.Default[id][dbAttrsOp.Header[idx].PropertyID]
-				if !ok && dbAttrsOp.Header[idx].IsRequired {
-					// 属性是必填，但是默认值没有那么需要报错
-					return nil, nil, nil, kit.CCError.CCError(common.CCErrCommParamsNeedSet)
-				}
-				if ok {
-					updated.Default = append(updated.Default, map[string]interface{}{
-						dbAttrsOp.Header[idx].PropertyID: value,
-					})
-				}
-			}
-			blog.Errorf("000000000000000  idx: %v, Header: %v,len: %v", idx, curAttrsOp.Header, len(curAttrsOp.Header))
+		value, ok := curHeaderPropertyIDMap[dbAttrsOp.Header[idx].PropertyID]
+		if !ok {
+			deletePropertyIDs = append(deletePropertyIDs, dbAttrsOp.Header[idx].PropertyID)
+			continue
+		}
+		// 更新场景把新的header放到更新中
+		value.PropertyIndex = dbAttrsOp.Header[idx].PropertyIndex
+		value.BizID = dbAttrsOp.Header[idx].BizID
+		value.ObjectID = metadata.GenerateModelQuoteObjID(objID,
+			dbAttrsOp.Header[idx].PropertyID)
+		value.PropertyGroup = dbAttrsOp.Header[idx].PropertyGroup
+		updated.Header = append(updated.Header, value)
 
-			// 把这部分删除掉 删除 cur中的default值和header部分，这样后续剩下的 curAttrsOp 就是需要新创建的了
+		if len(curAttrsOp.Default) == 0 {
 			delete(createAttrMap, dbAttrsOp.Header[idx].PropertyID)
-			if len(curAttrsOp.Default) == 0 {
-				continue
-			}
-			for _, attr := range curAttrsOp.Default {
-				delete(attr, dbAttrsOp.Header[idx].PropertyID)
+			continue
+		}
+		// 查对应的default
+		for id := range curAttrsOp.Default {
+			v, ok := curAttrsOp.Default[id][dbAttrsOp.Header[idx].PropertyID]
+			//if !ok && dbAttrsOp.Header[idx].IsRequired {
+			//	// 属性是必填，但是默认值没有那么需要报错
+			//	return nil, nil, nil, kit.CCError.CCError(common.CCErrCommParamsNeedSet)
+			//}
+			if ok {
+				//curAttrsOp.Default[id][common.BKObjIDField] = metadata.GenerateModelQuoteObjID(objID,
+				//	dbAttrsOp.Header[idx].PropertyID)
+				//curAttrsOp.Default[id][common.BKAppIDField] = dbAttrsOp.Header[idx].BizID
+				//curAttrsOp.Default[id][common.BKPropertyIndexField] = dbAttrsOp.Header[idx].PropertyIndex
+				//curAttrsOp.Default[id][common.BKPropertyGroupField] = dbAttrsOp.Header[idx].PropertyGroup
+
+				updated.Default = append(updated.Default, map[string]interface{}{
+					dbAttrsOp.Header[idx].PropertyID: v,
+				})
 			}
 		}
-		deletePropertyIDs = append(deletePropertyIDs, dbAttrsOp.Header[idx].PropertyID)
+		blog.ErrorJSON("000000000000000  idx: %s, Header: %s,len: %s", idx, curAttrsOp.Header, len(curAttrsOp.Header))
+		delete(createAttrMap, dbAttrsOp.Header[idx].PropertyID)
+
+		// 把这部分删除掉 删除 cur中的default值和header部分，这样后续剩下的 curAttrsOp 就是需要新创建的了
+		if len(curAttrsOp.Default) == 0 {
+			continue
+		}
+		for _, attr := range curAttrsOp.Default {
+			delete(attr, dbAttrsOp.Header[idx].PropertyID)
+		}
 	}
 
 	header := make([]metadata.Attribute, 0)
@@ -1087,6 +1104,7 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 		return nil, nil, nil, fmt.Errorf("the header field length of the table cannot exceed %d",
 			common.TableHeaderMaxNum)
 	}
+
 	headerProperty, dbHeaderProperty := make(map[string]struct{}), make(map[string]metadata.Attribute)
 	for _, property := range curAttrsOp.Header {
 		headerProperty[property.PropertyID] = struct{}{}
@@ -1106,6 +1124,10 @@ func getDiffOptionDefault(kit *rest.Kit, curAttrsOp, dbAttrsOp *metadata.TableAt
 		}
 	}
 	blog.ErrorJSON("0000000000000 curAttrsOp: %s", curAttrsOp)
+
+	blog.ErrorJSON("1111111111111 updated: %s", updated)
+
+	blog.ErrorJSON("2222222222222 deletePropertyIDs: %s", deletePropertyIDs)
 	return curAttrsOp, updated, deletePropertyIDs, nil
 }
 
@@ -1117,7 +1139,7 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		blog.Errorf("unmarshal mapstr data into attr failed, attr: %s, err: %s, rid: %s", attr, err, kit.Rid)
 		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
 	}
-	blog.Errorf("999999996666666666666666666666699 attr: %+v", *attr)
+	blog.ErrorJSON("999999996666666666666666666666699 attr: %s", *attr)
 
 	propertyID := util.GetStrByInterface(data[common.BKPropertyIDField])
 	if propertyID == "" {
@@ -1138,13 +1160,15 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		return err
 	}
 
-	created, updated, deleted, err := getDiffOptionDefault(kit, curAttrsOp, dbAttrsOp)
+	created, updated, deleted, err := getDiffOptionDefault(kit, curAttrsOp, dbAttrsOp, objID)
 	if err != nil {
 		return err
 	}
-	blog.Errorf("4444444444444444 created: %v", created)
-	// 如果之前没有默认值 现在有了默认值那么就走新建默认值场景
-	if len(dbAttrsOp.Default) == 0 {
+	blog.ErrorJSON("4444444444444444 created: %s", created)
+	blog.ErrorJSON("4444444444444444 created: %s", updated)
+
+	// 如果之前没有默认值 现在有了默认值那么就走新建默认值场景的校验
+	if len(dbAttrsOp.Default) == 0 && len(curAttrsOp.Default) != 0 {
 		result := make(map[string]*metadata.Attribute)
 		for _, header := range dbAttrsOp.Header {
 			result[header.PropertyID] = &header
@@ -1152,7 +1176,6 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		if err := a.tableAttrDefaultIsValid(kit, created.Default, result); err != nil {
 			return err
 		}
-		return nil
 	}
 
 	updatedHeader := make(map[string]*metadata.Attribute)
@@ -1164,9 +1187,9 @@ func (a *attribute) UpdateTableObjectAttr(kit *rest.Kit, data mapstr.MapStr, att
 		return err
 	}
 	updateDataStruct.Option = updated
-
-	blog.Errorf("uuuuuuuuuuuuuuuu created: %v", createDataStruct.Option)
-	blog.Errorf("mmmmmmmmmmmmmmmm updated: %v", updateDataStruct.Option)
+	createDataStruct.Option = created
+	blog.ErrorJSON("uuuuuuuuuuuuuuuu created: %s", createDataStruct.Option)
+	blog.ErrorJSON("mmmmmmmmmmmmmmmm updated: %s", updateDataStruct.Option)
 
 	// to update. 这里需要把两部分分开传，因为到coreservice层的校验是不一致的
 	condUpdate := mapstr.MapStr{common.BKFieldID: attID}
@@ -1220,28 +1243,28 @@ func removeImmutableFields(data mapstr.MapStr) mapstr.MapStr {
 }
 
 func (a *attribute) saveUpdateTableLog(kit *rest.Kit, data mapstr.MapStr, objID string, modelBizID, attrID int64) error {
-	//queryCond := &metadata.QueryCondition{
-	//	Condition: mapstr.MapStr{
-	//		common.BKObjIDField: objID,
-	//	},
-	//	DisableCounter: true,
-	//	Fields:         []string{common.BKFieldID},
-	//}
-	//objResult, err := a.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, queryCond)
-	//if err != nil {
-	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, %v, rid: %s", err, kit.Rid)
-	//	return err
-	//}
-	//if len(objResult.Info) == 0 {
-	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
-	//		queryCond, err, kit.Rid)
-	//	return kit.CCError.CCError(common.CCErrCommParseDBFailed)
-	//}
-	//if len(objResult.Info) > 1 {
-	//	blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
-	//		queryCond, err, kit.Rid)
-	//	return kit.CCError.CCError(common.CCErrCommParseDBFailed)
-	//}
+	queryCond := &metadata.QueryCondition{
+		Condition: mapstr.MapStr{
+			common.BKObjIDField: objID,
+		},
+		DisableCounter: true,
+		Fields:         []string{common.BKFieldID},
+	}
+	objResult, err := a.clientSet.CoreService().Model().ReadModel(kit.Ctx, kit.Header, queryCond)
+	if err != nil {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, %v, rid: %s", err, kit.Rid)
+		return err
+	}
+	if len(objResult.Info) == 0 {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+			queryCond, err, kit.Rid)
+		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	}
+	if len(objResult.Info) > 1 {
+		blog.Errorf("[NetDevice] search net device object, search objectName fail, queryCond: %+v,err: %v, rid: %s",
+			queryCond, err, kit.Rid)
+		return kit.CCError.CCError(common.CCErrCommParseDBFailed)
+	}
 	// save audit log.
 	audit := auditlog.NewObjectAttributeAuditLog(a.clientSet.CoreService())
 	generateAuditParameter := auditlog.NewGenerateAuditCommonParameter(kit, metadata.AuditUpdate).WithUpdateFields(data)

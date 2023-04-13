@@ -49,7 +49,7 @@ func (h *objectAttributeAuditLog) GenerateTableAuditLog(parameter *generateAudit
 
 		data = &rsp.Info[0]
 	}
-	blog.Errorf("00000000000 data: %+v, objectID: %v,bizID", *data, data.ObjectID, bizID)
+
 	objName, err := h.getObjNameByObjID(kit, objID)
 	if err != nil {
 		return nil, err
